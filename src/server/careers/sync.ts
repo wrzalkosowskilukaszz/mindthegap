@@ -182,7 +182,7 @@ export async function syncJobs(opts: { deadline: number; detect?: boolean }): Pr
 
   // 1. Find job boards on company websites (a few companies at a time, different hosts in parallel).
   if (opts.detect !== false) {
-    while (left() > 45_000) {
+    while (left() > 25_000) {
       const batch = await db()
         .select({
           id: companies.id,
@@ -243,8 +243,11 @@ export async function syncJobs(opts: { deadline: number; detect?: boolean }): Pr
         ? { id: own.id, name: own.brand ?? own.name, sector: own.sector, favourite: own.favourite }
         : undefined;
       const media = Boolean(ownInfo && (ownInfo.favourite || MEDIA_TECH.has(ownInfo.sector)));
+      // Full texts only for promising titles, and never past the deadline (the list itself is quick).
       const want = (title: string, loc: string) =>
-        titleLooksRelevant(title, prefs, media) && classifyLocation({ location: loc }) !== "non_eu";
+        left() > 8_000 &&
+        titleLooksRelevant(title, prefs, media) &&
+        classifyLocation({ location: loc }) !== "non_eu";
       try {
         const got = await fetchSource(fetcher, src, want);
         const kept = await storeJobs(src.id, got.jobs, ownInfo, index, prefs);
