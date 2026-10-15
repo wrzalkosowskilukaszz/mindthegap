@@ -2,25 +2,25 @@
 
 Generated: 2026-10-15 by `scripts/merge-universe.ts` from `staging/expansion-awards.jsonl`, `staging/expansion-chambers.jsonl`, `staging/expansion-tech-media.jsonl`, `staging/financial.jsonl`, `staging/industrial.jsonl`, `staging/owner-requests.jsonl`, `staging/pharma-consumer.jsonl`, `staging/services.jsonl`, `staging/technology.jsonl`.
 
-- Records accepted: **697**
-- With Polish headcount (sourced): 360; global headcount only: 204; no sourced headcount: 133
+- Records accepted: **730**
+- With Polish headcount (sourced): 387; global headcount only: 202; no sourced headcount: 141
 - With at least one priority signal (L&D evidence): 280
 - Invalid records rejected by the schema: 0
-- Cross-slice duplicates removed: 31
+- Cross-slice duplicates removed: 35
 
 ## By sector
 
 | Sector | Companies |
 |---|---|
 | manufacturing_industrial | 151 |
-| business_services | 97 |
+| technology | 107 |
+| business_services | 98 |
 | retail_consumer | 91 |
-| technology | 88 |
 | financial_services | 70 |
 | pharma_healthcare | 58 |
-| professional_services | 47 |
-| logistics_transport | 34 |
-| telecom_media | 33 |
+| professional_services | 57 |
+| logistics_transport | 35 |
+| telecom_media | 35 |
 | energy_utilities | 18 |
 | other | 10 |
 
@@ -34,6 +34,9 @@ Generated: 2026-10-15 by `scripts/merge-universe.ts` from `staging/expansion-awa
 - kept sollers-consulting (expansion-chambers.jsonl), dropped sollers-consulting (expansion-tech-media.jsonl) (same domain/slug)
 - kept hpe-poland (expansion-chambers.jsonl), dropped hpe-polska (expansion-tech-media.jsonl) (same domain/slug)
 - kept tesco-technology-krakow (expansion-tech-media.jsonl), dropped tesco-technology-europe (expansion-awards.jsonl) (same domain/slug)
+- kept wavestone-poland (expansion-awards.jsonl), dropped wavestone-poland (expansion-tech-media.jsonl) (same domain/slug)
+- kept creotech-instruments (expansion-awards.jsonl), dropped creotech-instruments (expansion-tech-media.jsonl) (same domain/slug)
+- kept rainbow-tours (expansion-awards.jsonl), dropped rainbow-tours (expansion-tech-media.jsonl) (same domain/slug)
 - kept cinema-city-poland (expansion-awards.jsonl), dropped cinema-city-poland (expansion-tech-media.jsonl) (same domain/slug)
 - kept wsip (expansion-awards.jsonl), dropped wsip (expansion-tech-media.jsonl) (same domain/slug)
 - kept publicis-groupe-poland (expansion-tech-media.jsonl), dropped publicis-groupe-poland (expansion-awards.jsonl) (same domain/slug)
@@ -51,6 +54,7 @@ Generated: 2026-10-15 by `scripts/merge-universe.ts` from `staging/expansion-awa
 - kept ups-global-business-services-polska (expansion-chambers.jsonl), dropped ups-gbs-polska (expansion-tech-media.jsonl) (same domain/slug)
 - kept dhl-parcel-polska (expansion-awards.jsonl), dropped dhl-supply-chain-polska (expansion-tech-media.jsonl) (same domain/slug)
 - kept inpost (expansion-awards.jsonl), dropped inpost (expansion-tech-media.jsonl) (same domain/slug)
+- kept iqvia-poland (expansion-tech-media.jsonl), dropped iqvia-poland (expansion-chambers.jsonl) (same domain/slug)
 - kept bnp-paribas-bank-polska (financial.jsonl), dropped bnp-paribas-leasing-solutions-polska (financial.jsonl) (same domain/slug)
 - kept ikea-retail-polska (pharma-consumer.jsonl), dropped ikea-industry-poland (industrial.jsonl) (same domain/slug)
 - kept amica (industrial.jsonl), dropped amica (pharma-consumer.jsonl) (same domain/slug)
