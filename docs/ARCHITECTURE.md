@@ -25,10 +25,11 @@ One Next.js application and one Postgres database. Background work runs in short
 
 ```
 src/
-  app/(app)/        the five tabs: kontakty, wiadomosci, materialy, aktywnosc, ustawienia
+  app/(app)/        the tabs: kontakty, wiadomosci, materialy, oferty (job offers), aktywnosc, ustawienia
   app/api/          JSON API used by the screens, plus /api/cron/tick
   components/       shared UI (table cells, panel, dialogs, toasts)
   lib/              pure logic shared by server and browser: roles, contact rules, email lint, CSV, time
+  lib/jobs/         job matching (score and reasons) and the CV keyword check for one offer
   server/
     db/             schema and client
     discovery/      company discovery, crawler, extraction, provider enrichment, verification
@@ -38,6 +39,7 @@ src/
     gmail/          OAuth, sending, reconciliation, reply sync
     materials/      uploads and text extraction (PDF, DOCX, PPTX, images)
     services/       contacts, messages, companies, privacy, activity
+    careers/        job offers: careers-page detection, job-board and feed readers, sync, Word export
   worker/cli.ts     the same jobs from the command line
 scripts/            migrate, import research, seed brand, hash password
 research/           the researched company universe (public business data)
@@ -58,6 +60,16 @@ research/           the researched company universe (public business data)
 - **job_runs**, **job_tasks**, **leases**, **provider_usage**, **host_state**, **fetch_log**: the job engine, budgets and crawler politeness state.
 - **suppressions**: emails, domains, companies or contacts that must never be contacted, including SHA-256 fingerprints kept after erasure.
 - **settings**: all user settings as validated JSON (`src/server/settings.ts`).
+
+## Job offers (Oferty pracy)
+
+`src/server/careers/`, `src/lib/jobs/`
+
+- **Sources** (`detect.ts`, `sources.ts`): each company's own website is checked once for a careers link and the job-board system behind it (Workday, Greenhouse, Lever, Ashby, Workable, Recruitee, Personio, Teamtailor, Eightfold). Career pages with no such system are read through the schema.org *JobPosting* data they publish (`jsonld.ts`); a page without it is retried after 30 days. Free feeds (Arbeitnow, Himalayas, Jooble, and Adzuna when keyed) add listings. Everything goes through the polite fetcher; LinkedIn and job portals whose terms or robots.txt forbid it are not read.
+- **Sync** (`sync.ts`): the tick runs it every `syncEveryHours`. Sources are claimed with `FOR UPDATE SKIP LOCKED`, offers are upserted per (source, external id), duplicates across sources are removed, and offers that disappear are closed.
+- **Matching** (`src/lib/jobs/match.ts`): a transparent rule-based score from role family, place, required languages, seniority and words from the CV, with the reasons shown on every card. No AI.
+- **Tailored CV** (`src/lib/jobs/tailor.ts`, `docx.ts`): the offer's skill words are checked against the CV text, a prompt for ChatGPT or Claude is prepared, and the answer the owner pastes back is stored with the offer (`job_offers.tailored_cv`) and exported as a Word file built with JSZip.
+- **Tables:** `job_sources` (kind, token, schedule, last status) and `job_offers` (offer, match, status, note, tailored CV). Only the CV text is kept, in `settings`.
 
 ## Job engine
 
