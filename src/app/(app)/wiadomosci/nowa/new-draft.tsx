@@ -75,6 +75,7 @@ export function NewDraft() {
   if (ids.length === 0)
     return (
       <div className="empty-page">
+        <h1 className="sr-only">Nowa wiadomość</h1>
         <Empty
           icon={<MailPlus size={28} strokeWidth={1.5} />}
           title="Najpierw wybierz, do kogo piszesz"
