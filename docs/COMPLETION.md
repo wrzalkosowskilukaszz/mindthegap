@@ -7,14 +7,14 @@ State on 2026-10-15. What each status means:
 - **Partial:** works, with a stated limit.
 - **Not implemented:** not built yet.
 
-How it was checked: 118 unit and integration tests (`pnpm test`), 6 Playwright smoke tests on desktop and phone (`pnpm e2e`), Biome and TypeScript clean, a production build, and full discovery sweeps over the ~420-company universe on a local database.
+How it was checked: 127 unit and integration tests (`pnpm test`), 6 Playwright smoke tests on desktop and phone (`pnpm e2e`), Biome and TypeScript clean, a production build, and full discovery sweeps over the ~420-company universe on a local database.
 
 ## Contacts and discovery
 
 | Feature | Status | Notes |
 |---|---|---|
 | Company universe (~370 researched companies with sources) | Operational | `research/companies/universe.jsonl`, imported with `pnpm research:import`. |
-| New companies from Wikidata | Operational, partial | Free. Wikidata has a limited pool of Polish companies with size data (about 220 candidates); after a few weeks it stops finding new ones. Manual add and CSV import cover the rest. |
+| New companies from Wikidata | Operational, partial | Free. Public bodies, schools, associations, foreign domains and duplicates are filtered out; only companies in a sector you research are added. Wikidata has a limited pool of Polish companies with size data (about 220 candidates), so after a few weeks it stops finding new ones. Manual add and CSV import cover the rest. |
 | Polite crawler (robots.txt, delays, honest User-Agent, size limits) | Operational | |
 | Extraction of people, titles and mailboxes with verbatim quotes | Operational, partial | Works on pages that publish names and titles in text. Most Polish company sites publish few named HR/L&D people, so many companies end with a department mailbox or a general address. Every outcome is recorded honestly per company. |
 | Departments that buy training (HR, L&D, procurement, business leaders, transformation, culture) | Operational | [research/TRAINING-BUYERS.md](research/TRAINING-BUYERS.md). Filter *Dział* in Kontakty; editable per contact. |
