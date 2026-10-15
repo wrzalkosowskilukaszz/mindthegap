@@ -1525,6 +1525,21 @@ dialog.dialog::backdrop {
   margin-top: 7px;
 }
 
+.send-steps {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.basis-question {
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--separator);
+}
+
 .preview-mail {
   border: 1px solid var(--separator);
   border-radius: var(--radius-md);

@@ -88,6 +88,8 @@ export function Composer({ id }: { id: string }) {
   }, [load]);
 
   const editable = d ? ["draft", "approved", "failed"].includes(d.message.status) : false;
+  // Without Gmail there is no approval step: copy or open in your mail app, then press "Wysłane".
+  const gmailReady = Boolean(d?.gmail?.canSend && d.gmail.status === "connected");
 
   const persist = useCallback(
     async (patch: Record<string, unknown>) => {
@@ -141,7 +143,7 @@ export function Composer({ id }: { id: string }) {
         if (saveTimer.current) clearTimeout(saveTimer.current);
         void persist({ subject: subjectRef.current, body: bodyRefText.current });
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && editable) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && editable && gmailReady) {
         e.preventDefault();
         setReview(true);
       }
@@ -155,7 +157,7 @@ export function Composer({ id }: { id: string }) {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("beforeunload", beforeUnload);
     };
-  }, [persist, editable, save]);
+  }, [persist, editable, gmailReady, save]);
 
   async function flush() {
     if (saveTimer.current) {
@@ -239,6 +241,14 @@ export function Composer({ id }: { id: string }) {
     }
   }
 
+  /** Saves pending edits and returns the current text exactly as it will be sent (with the footer). */
+  async function fresh(): Promise<ComposerData> {
+    await flush();
+    const data = await apiFetch<ComposerData>(`/api/messages/${id}`);
+    setD(data);
+    return data;
+  }
+
   async function setAttachments(ids: string[]) {
     await flush();
     await persist({ attachmentVersionIds: ids });
@@ -264,7 +274,6 @@ export function Composer({ id }: { id: string }) {
   const lintErrors = d.lint.filter((l) => l.level === "error");
   const lintWarnings = d.lint.filter((l) => l.level === "warning");
   const recipient = c?.fullName ?? c?.departmentLabel ?? m.toEmail ?? "Odbiorca";
-  const mailto = `mailto:${encodeURIComponent(m.toEmail ?? "")}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(d.finalText)}`;
   const empty = !body.trim();
 
   return (
@@ -315,7 +324,7 @@ export function Composer({ id }: { id: string }) {
           <button type="button" className="btn btn-quiet" onClick={() => setHistoryOpen(true)}>
             <History size={15} /> Historia ({d.revisions.length})
           </button>
-          {editable ? (
+          {editable && gmailReady ? (
             <button
               type="button"
               className="btn btn-primary"
@@ -597,6 +606,17 @@ export function Composer({ id }: { id: string }) {
         </div>
 
         <aside className="side-stack">
+          {!editable || m.status === "approved" || (!gmailReady && !empty) ? (
+            <SendPanel
+              d={d}
+              busy={busy}
+              action={action}
+              fresh={fresh}
+              reload={load}
+              onSchedule={() => setScheduleOpen(true)}
+              router={router}
+            />
+          ) : null}
           {editable ? (
             <div className="side-card stack">
               <h4>Usługa i język</h4>
@@ -764,18 +784,6 @@ export function Composer({ id }: { id: string }) {
               </ul>
             </div>
           ) : null}
-
-          {!editable || m.status === "approved" ? (
-            <SendPanel
-              d={d}
-              subject={subject}
-              mailto={mailto}
-              busy={busy}
-              action={action}
-              onSchedule={() => setScheduleOpen(true)}
-              router={router}
-            />
-          ) : null}
         </aside>
       </div>
 
@@ -843,18 +851,18 @@ export function Composer({ id }: { id: string }) {
 
 function SendPanel({
   d,
-  subject,
-  mailto,
   busy,
   action,
+  fresh,
+  reload,
   onSchedule,
   router,
 }: {
   d: ComposerData;
-  subject: string;
-  mailto: string;
   busy: string | null;
   action: (path: string, body: Record<string, unknown>, msg: string, method?: string) => Promise<void>;
+  fresh: () => Promise<ComposerData>;
+  reload: () => Promise<void>;
   onSchedule: () => void;
   router: ReturnType<typeof useRouter>;
 }) {
@@ -862,8 +870,13 @@ function SendPanel({
   const m = d.message;
   const gmailReady = Boolean(d.gmail?.canSend && d.gmail.status === "connected");
   async function copy() {
-    await navigator.clipboard.writeText(`${subject}\n\n${d.finalText}`);
-    toast("Skopiowano temat i treść");
+    const x = await fresh();
+    await navigator.clipboard.writeText(`${x.message.subject}\n\n${x.finalText}`);
+    toast("Skopiowano temat i treść. Wklej je w swojej poczcie.");
+  }
+  async function openMail() {
+    const x = await fresh();
+    window.location.href = `mailto:${encodeURIComponent(x.message.toEmail ?? "")}?subject=${encodeURIComponent(x.message.subject)}&body=${encodeURIComponent(x.finalText)}`;
   }
   if (m.status === "sent") {
     return (
@@ -924,61 +937,192 @@ function SendPanel({
       </div>
     );
   }
-  if (m.status !== "approved") return null;
+  if (gmailReady && m.status === "approved") {
+    return (
+      <div className="side-card stack">
+        <h4>Wysyłka</h4>
+        <p className="xsmall muted">
+          Zatwierdzona wersja z {formatWarsaw(m.approval?.approvedAt)}. Każda zmiana treści, odbiorcy lub
+          załączników cofa zatwierdzenie.
+        </p>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={busy !== null || !d.sendingEnabled}
+          onClick={() => action("send", {}, "Wysłano przez Gmail")}
+        >
+          {busy === "send" ? <span className="spinner" /> : <Send size={14} />} Wyślij teraz z{" "}
+          {d.gmail!.email}
+        </button>
+        <button type="button" className="btn" onClick={onSchedule} disabled={!d.sendingEnabled}>
+          <Clock size={14} /> Zaplanuj…
+        </button>
+        {!d.sendingEnabled ? (
+          <p className="xsmall muted">Wysyłka jest wyłączona w tym środowisku (SENDING_ENABLED).</p>
+        ) : null}
+      </div>
+    );
+  }
+  if (gmailReady || !["draft", "failed", "approved"].includes(m.status)) return null;
+
+  // Without Gmail: send from your own mailbox, then record it here with one click.
+  const blockers = d.check.blockers;
+  const needsBasis = blockers.some((b) => b.startsWith("Brak udokumentowanej podstawy"));
+  const otherBlockers = blockers.filter((b) => !b.startsWith("Brak udokumentowanej podstawy"));
+  const blocked = blockers.length > 0;
   return (
     <div className="side-card stack">
-      <h4>Wysyłka</h4>
-      <p className="xsmall muted">
-        Zatwierdzona wersja z {formatWarsaw(m.approval?.approvedAt)}. Każda zmiana treści, odbiorcy lub
-        załączników cofa zatwierdzenie.
-      </p>
-      {gmailReady ? (
-        <>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy !== null || !d.sendingEnabled}
-            onClick={() => action("send", {}, "Wysłano przez Gmail")}
-          >
-            {busy === "send" ? <span className="spinner" /> : <Send size={14} />} Wyślij teraz z{" "}
-            {d.gmail!.email}
-          </button>
-          <button type="button" className="btn" onClick={onSchedule} disabled={!d.sendingEnabled}>
-            <Clock size={14} /> Zaplanuj…
-          </button>
-          {!d.sendingEnabled ? (
-            <p className="xsmall muted">Wysyłka jest wyłączona w tym środowisku (SENDING_ENABLED).</p>
-          ) : null}
-        </>
-      ) : (
-        <p className="xsmall secondary">
-          Gmail nie jest połączony — wyślij z własnej poczty i oznacz poniżej.{" "}
-          <Link href="/ustawienia#gmail">Połącz Gmail</Link>, aby wysyłać jednym kliknięciem i śledzić
-          odpowiedzi.
-        </p>
-      )}
-      <div className="divider" style={{ margin: "4px 0" }} />
+      <h4>Wyślij ze swojej poczty</h4>
+      {needsBasis && d.contact ? <BasisQuestion d={d} onSaved={reload} /> : null}
+      {otherBlockers.length ? (
+        <Callout tone="bad">
+          <strong>Zanim wyślesz</strong>
+          {otherBlockers.map((b) => (
+            <span key={b}>{b}</span>
+          ))}
+        </Callout>
+      ) : null}
+      {!blocked && d.check.warnings.length ? (
+        <ul className="reasons xsmall">
+          {d.check.warnings.map((w) => (
+            <li key={w}>
+              <Dot tone="warn" />
+              <span>{w}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <ol className="send-steps small">
+        <li>Skopiuj tekst albo otwórz go w poczcie.</li>
+        <li>Wyślij ze swojej skrzynki.</li>
+        <li>Wróć tutaj i kliknij „Wysłane” — przypomnimy Ci o follow-upie.</li>
+      </ol>
       <div className="btn-group">
-        <button type="button" className="btn btn-sm" onClick={copy}>
+        <button type="button" className="btn btn-sm" onClick={copy} disabled={blocked}>
           <Clipboard size={13} /> Kopiuj
         </button>
-        <a className="btn btn-sm" href={mailto}>
-          <Mail size={13} /> Otwórz w programie pocztowym
-        </a>
+        <button type="button" className="btn btn-sm" onClick={openMail} disabled={blocked}>
+          <Mail size={13} /> Otwórz w poczcie
+        </button>
       </div>
       {d.attachments.length ? (
-        <p className="xsmall muted">
-          Przy wysyłce z własnego programu dołącz plik(i) ręcznie:{" "}
-          {d.attachments.map((a) => a.filename).join(", ")}.
-        </p>
+        <p className="xsmall muted">Dołącz w poczcie: {d.attachments.map((a) => a.filename).join(", ")}.</p>
       ) : null}
       <button
         type="button"
-        className="btn btn-sm"
-        onClick={() => action("mark-sent", {}, "Oznaczono jako wysłaną ręcznie")}
+        className="btn btn-primary"
+        disabled={blocked || busy !== null}
+        onClick={() => action("mark-sent", {}, "Zapisano jako wysłaną")}
       >
-        <Check size={13} /> Oznacz jako wysłaną ręcznie
+        {busy === "mark-sent" ? <span className="spinner" /> : <Check size={14} />} Wysłane
       </button>
+    </div>
+  );
+}
+
+/**
+ * Asks, in plain words, why this recipient may receive an offer by email (Art. 398 PKE requires the
+ * recipient's consent, also between companies). One click when the company's own page invites offers
+ * to this address; otherwise a short note. The owner decides; the app only records it.
+ */
+function BasisQuestion({ d, onSaved }: { d: ComposerData; onSaved: () => Promise<void> }) {
+  const toast = useToast();
+  const contact = d.contact!;
+  const invitation = contact.evidence.find((e) => e.supports.includes("invitation") && e.url);
+  const [choice, setChoice] = useState<"consent" | "prior_relationship" | "invitation_to_offer">("consent");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  async function save(body: Record<string, unknown>) {
+    setSaving(true);
+    try {
+      await apiFetch(`/api/contacts/${contact.contact.id}/eligibility`, { body });
+      toast("Zapisano. Możesz wysyłać.");
+      await onSaved();
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Nie zapisano", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const isUrl = /^https?:\/\/\S+$/.test(note.trim());
+  return (
+    <div className="basis-question stack">
+      <p className="small">
+        <strong>Skąd wiesz, że możesz tu napisać?</strong> Polskie prawo pozwala wysłać ofertę e-mailem tylko
+        za zgodą odbiorcy — także do firm (art. 398 Prawa komunikacji elektronicznej).
+      </p>
+      {invitation ? (
+        <div className="stack" style={{ gap: 6 }}>
+          <p className="xsmall secondary">
+            Strona firmy zaprasza do wysyłania ofert na ten adres
+            {invitation.quote ? <>: „{invitation.quote}”</> : null}{" "}
+            <a href={invitation.url!} target="_blank" rel="noopener noreferrer">
+              {hostOf(invitation.url!)} <Ext size={10} />
+            </a>
+          </p>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={saving}
+            onClick={() =>
+              save({
+                basis: "invitation_to_offer",
+                evidence: invitation.quote ?? "Zaproszenie do składania ofert na stronie firmy",
+                evidenceUrl: invitation.url,
+                scope: "Oferta usług szkoleniowych na adres wskazany na stronie",
+                date: (invitation.sourcePublishedAt ?? invitation.observedAt).slice(0, 10),
+              })
+            }
+          >
+            <Check size={13} /> Tak, piszę w odpowiedzi na to zaproszenie
+          </button>
+        </div>
+      ) : null}
+      <fieldset className="stack" style={{ gap: 4, border: 0, padding: 0, margin: 0 }}>
+        <legend className="xsmall secondary">{invitation ? "Albo:" : "Zaznacz:"}</legend>
+        {(
+          [
+            ["consent", "Ta osoba lub firma zgodziła się na kontakt"],
+            ["prior_relationship", "Sama zapytała o moją ofertę"],
+            ["invitation_to_offer", "Firma zaprasza do ofert na ten adres"],
+          ] as const
+        ).map(([value, label]) => (
+          <label key={value} className="check-row small">
+            <input type="radio" name="basis" checked={choice === value} onChange={() => setChoice(value)} />
+            {label}
+          </label>
+        ))}
+      </fieldset>
+      <input
+        className="input"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder={
+          choice === "invitation_to_offer"
+            ? "Link do strony z zaproszeniem"
+            : "Kiedy i jak? np. „rozmowa na targach, 10.10”"
+        }
+        aria-label="Kiedy i jak"
+      />
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={saving || !note.trim()}
+        onClick={() =>
+          save({
+            basis: choice,
+            evidence: isUrl ? null : note.trim(),
+            evidenceUrl: isUrl ? note.trim() : null,
+            date: today,
+          })
+        }
+      >
+        Zapisz
+      </button>
+      <p className="xsmall muted">
+        Żadne nie pasuje? Wtedy lepiej nie wysyłać oferty — grozi za to kara UKE. To nie jest porada prawna.
+      </p>
     </div>
   );
 }
