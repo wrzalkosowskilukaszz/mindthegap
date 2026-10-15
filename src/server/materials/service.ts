@@ -196,6 +196,7 @@ export async function proposeSummary(
   if (!texts.length && !files.length)
     throw badRequest("Wybrane pliki nie mają odczytanego tekstu ani obrazu do analizy.");
   const { data } = await structured(SummaryOut, {
+    operation: "material-summary",
     system: SUMMARY_SYSTEM,
     user: [
       ...texts.map((t) => `<document name="${t.name.replace(/"/g, "")}">\n${t.text}\n</document>`),

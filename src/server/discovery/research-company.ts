@@ -5,7 +5,7 @@
  */
 import { eq } from "drizzle-orm";
 import { domainLabel, registrableDomain } from "@/lib/normalize";
-import { assessRole, spreadAcrossFunctions } from "@/lib/roles";
+import { applyKeywordPolicy, assessRole, spreadAcrossFunctions } from "@/lib/roles";
 import { db } from "../db/client.ts";
 import { companies } from "../db/schema.ts";
 import { deriveCompanyOutcome } from "../services/companies.ts";
@@ -40,6 +40,8 @@ export async function researchCompany(
     deadline: number;
     maxPages: number;
     maxContacts: number;
+    /** New contacts this run may still create (Maks. nowych kontaktów na przebieg). */
+    maxNewContacts?: number;
   },
 ): Promise<ResearchResult> {
   const [co] = await db().select().from(companies).where(eq(companies.id, companyId)).limit(1);
@@ -56,6 +58,9 @@ export async function researchCompany(
     unavailable: false,
   };
   if (co.excluded) return { ...result, outcome: "excluded" };
+  const settings = await getSettings("discovery");
+  const policy = { include: settings.roleIncludeKeywords, exclude: settings.roleExcludeKeywords };
+  const assess = (t: string) => applyKeywordPolicy(assessRole(t), t, policy);
 
   const domains = [co.domain];
   const siteDomain = co.website ? registrableDomain(co.website) : null;
@@ -84,7 +89,7 @@ export async function researchCompany(
   const people = new Map<string, PersonCandidate & Found>();
   const roleBlocks: { block: string; page: string }[] = [];
   const collect = (url: string, html: string) => {
-    const ex = extractPage(html, url, domains, [co.brand ?? "", co.name]);
+    const ex = extractPage(html, url, domains, [co.brand ?? "", co.name], assess);
     for (const e of ex.emails)
       if (!emails.has(e.email))
         emails.set(e.email, { ...e, page: url, publishedAt: ex.publishedAt, title: ex.title });
@@ -150,8 +155,12 @@ export async function researchCompany(
   }
 
   // 3. Optional AI-assisted reading of role-mentioning blocks (every value verbatim-checked by code).
-  if (roleBlocks.length > 0 && Date.now() < ctx.deadline) {
-    for (const p of await aiExtractPeople(roleBlocks)) {
+  if (settings.aiAssistedExtraction && roleBlocks.length > 0 && Date.now() < ctx.deadline) {
+    for (const p of await aiExtractPeople(roleBlocks, {
+      assess,
+      runId: ctx.runId ?? null,
+      detail: co.domain,
+    })) {
       if (!people.has(p.fullName)) people.set(p.fullName, { ...p, publishedAt: null, title: p.title });
     }
   }
@@ -205,7 +214,7 @@ export async function researchCompany(
     const devOrHr = e.mailbox === "development" || e.mailbox === "hr" || e.mailbox === "procurement";
     if (e.mailbox === "personal") {
       // A personal-looking address without a nearby name/title: store only when its block shows a relevant role.
-      const role = assessRole(e.block);
+      const role = assess(e.block);
       if (!role.relevant) continue;
       inputs.push({
         companyId,
@@ -303,6 +312,10 @@ export async function researchCompany(
       input.roleCategory === "organizer_influencer" ||
       input.roleCategory === "departmental_inbox";
     if (isRelevant && relevantStored >= ctx.maxContacts) continue;
+    if (ctx.maxNewContacts !== undefined && result.created >= ctx.maxNewContacts) {
+      result.note = "osiągnięto limit nowych kontaktów na przebieg";
+      break;
+    }
     const out = await upsertContact(input);
     if (out.action === "created") {
       result.created++;

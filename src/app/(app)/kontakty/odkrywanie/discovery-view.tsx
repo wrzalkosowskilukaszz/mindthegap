@@ -421,6 +421,7 @@ function RunDialog({ runId, onClose }: { runId: string | null; onClose: () => vo
 
 function summarizeResult(kind: string, r: Record<string, unknown> | null): string {
   if (!r) return "—";
+  if (r.status === "skipped" && r.note) return String(r.note);
   if (kind === "research_company") {
     const outcome: Record<string, string> = {
       relevant_contact_found: "znaleziono trafny kontakt",
@@ -437,7 +438,8 @@ function summarizeResult(kind: string, r: Record<string, unknown> | null): strin
     return `dodano ${r.companiesDiscovered ?? 0} z ${r.considered ?? 0} kandydatów (${r.source})`;
   if (kind === "verify_email") return String(r.message ?? r.status ?? "");
   if (kind === "recheck_employment") return String(r.status ?? "");
-  if (kind === "maintenance") return `odświeżono ${r.contactsRefreshed ?? 0}`;
+  if (kind === "maintenance")
+    return `odświeżono ${r.contactsRefreshed ?? 0}${r.functionsFilled ? ` · uzupełniono dział: ${r.functionsFilled}` : ""}`;
   return String(r.status ?? r.detail ?? "");
 }
 
@@ -574,6 +576,26 @@ function RunSettingsDialog({
         />
       </label>
       <label className="field">
+        <span className="field-label">Dodatkowe słowa trafnych stanowisk (po przecinku)</span>
+        <input
+          className="input"
+          value={disc.roleIncludeKeywords.join(", ")}
+          placeholder="np. people ops, akademia lidera"
+          onChange={(e) =>
+            setDisc((d) => ({
+              ...d,
+              roleIncludeKeywords: e.target.value
+                .split(",")
+                .map((x) => x.trim())
+                .filter(Boolean),
+            }))
+          }
+        />
+        <span className="field-hint">
+          Stanowisko z takim słowem trafia na listę, nawet jeśli wbudowane reguły go nie rozpoznają.
+        </span>
+      </label>
+      <label className="field">
         <span className="field-label">Słowa wykluczające stanowiska (po przecinku)</span>
         <input
           className="input"
@@ -588,7 +610,27 @@ function RunSettingsDialog({
             }))
           }
         />
+        <span className="field-hint">
+          Stanowisko z takim słowem jest pomijane, chyba że dotyczy też szkoleń lub rozwoju ludzi.
+        </span>
       </label>
+      <label className="check-row">
+        <input
+          type="checkbox"
+          className="checkbox"
+          checked={disc.aiAssistedExtraction}
+          onChange={(e) => setDisc((d) => ({ ...d, aiAssistedExtraction: e.target.checked }))}
+        />
+        AI pomaga czytać strony, których reguły nie rozumieją (płatne, liczone w limicie; każda wartość
+        sprawdzana dosłownie ze stroną)
+      </label>
+      <div className="field-row">
+        {field(
+          "Szacowany koszt AI (USD za mln tokenów)",
+          "aiUsdPerMillionTokens",
+          "Założenie do liczenia kosztów — sprawdź cennik Anthropic dla wybranego modelu",
+        )}
+      </div>
       <p className="xsmall muted">
         Limity miesięcznych kredytów dostawców:{" "}
         {Object.entries(disc.monthlyProviderCredits)

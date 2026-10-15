@@ -358,7 +358,12 @@ Return:
 - cta: the call to action you used, in one short phrase.
 - personalization: 2–4 items explaining what was personalised and which fact ids support it.`;
 
-  let { data, model } = await structured(GenerateOut, { system: SYSTEM, user, effort: "high" });
+  let { data, model } = await structured(GenerateOut, {
+    system: SYSTEM,
+    user,
+    effort: "high",
+    operation: "email-generate",
+  });
   let subject = data.subjects[0] ?? "";
   let findings = lintFor(ctx, subject, data.body);
   if (findings.some((f) => f.level === "error")) {
@@ -374,7 +379,12 @@ ${findings
 Previous draft subject: ${subject}
 Previous draft body:
 ${data.body}`;
-    const second = await structured(GenerateOut, { system: SYSTEM, user: repair, effort: "high" });
+    const second = await structured(GenerateOut, {
+      system: SYSTEM,
+      user: repair,
+      effort: "high",
+      operation: "email-repair",
+    });
     data = second.data;
     model = second.model;
     subject = data.subjects[0] ?? "";
@@ -457,6 +467,7 @@ ${current.body}
 The current email was edited by the user: preserve their wording wherever the task does not require a change.`;
   if (action === "rewrite_selection" && opts.selection) {
     const { data, model } = await structured(SelectionOut, {
+      operation: "email-rewrite",
       system: SYSTEM,
       user: `${base}
 
@@ -484,6 +495,7 @@ Return only the replacement for the selected passage (same language), and a one-
     };
   }
   const { data, model } = await structured(RewriteOut, {
+    operation: "email-rewrite",
     system: SYSTEM,
     user: `${base}
 

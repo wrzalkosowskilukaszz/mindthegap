@@ -176,10 +176,14 @@ function segments(block: string): string[] {
     .filter((s) => s.length >= 3 && s.length <= 140);
 }
 
-function bestTitle(block: string, name: string): { title: string; role: RoleAssessment } | null {
+function bestTitle(
+  block: string,
+  name: string,
+  assess: (title: string) => RoleAssessment,
+): { title: string; role: RoleAssessment } | null {
   let best: { title: string; role: RoleAssessment; rank: number } | null = null;
   for (const seg of segments(block.replace(name, "\n"))) {
-    const role = assessRole(seg);
+    const role = assess(seg);
     if (!role.relevant) continue;
     const rank = role.category === "decision_maker" ? 2 : 1;
     if (!best || rank > best.rank || (rank === best.rank && seg.length < best.title.length))
@@ -252,6 +256,8 @@ export function extractPage(
   pageUrl: string,
   companyDomains: string[],
   brandHints: string[] = [],
+  /** Role rules; research passes the built-in rules plus the owner's keyword lists. */
+  assess: (title: string) => RoleAssessment = assessRole,
 ): PageExtraction {
   const $ = cheerio.load(html);
   $("script:not([type='application/ld+json']), style, noscript, svg, iframe, template, canvas").remove();
@@ -355,7 +361,7 @@ export function extractPage(
     if (!card) continue;
     const namesInCard = findNames(card);
     let t: { title: string; role: RoleAssessment } | null = null;
-    if (namesInCard.length === 1) t = bestTitle(card, name);
+    if (namesInCard.length === 1) t = bestTitle(card, name, assess);
     else {
       // Several people in one block: only the line right after the name belongs to this person.
       const lines = card.split("\n");
@@ -366,7 +372,7 @@ export function extractPage(
           .replace(/^[\s,–—|-]+/, "")
           .trim() ?? "";
       const candidate = sameLine.length >= 3 ? sameLine : (lines[i + 1] ?? "");
-      const role = assessRole(candidate);
+      const role = assess(candidate);
       if (role.relevant && findNames(candidate).length === 0) t = { title: candidate.trim(), role };
     }
     if (!t) continue;
@@ -386,7 +392,7 @@ export function extractPage(
   for (const b of sorted) {
     if (roleBlocks.length >= 30) break;
     if (b.length < 20 || personBlocks.has(b)) continue;
-    if (/[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+/.test(b) && assessRole(b).relevant)
+    if (/[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+/.test(b) && assess(b).relevant)
       roleBlocks.push(b);
   }
 

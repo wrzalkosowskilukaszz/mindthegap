@@ -2,7 +2,13 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { closeDb, db } from "../src/server/db/client.ts";
 import { jobRuns, jobTasks, providerUsage } from "../src/server/db/schema.ts";
-import { BudgetExceededError, reserve, withBudget } from "../src/server/jobs/budget.ts";
+import {
+  BudgetExceededError,
+  recordUsage,
+  reserve,
+  spendSummary,
+  withBudget,
+} from "../src/server/jobs/budget.ts";
 import { acquireLease, releaseLease } from "../src/server/jobs/lease.ts";
 import { createManualRun, createScheduledRun, processRun } from "../src/server/jobs/runs.ts";
 import { patchSettings } from "../src/server/settings.ts";
@@ -66,5 +72,18 @@ describe.skipIf(!hasDb)("job engine", () => {
     ).rejects.toThrow("provider down");
     const [u] = await db().select().from(providerUsage);
     expect(u!.status).toBe("released");
+  });
+
+  it("AI you start yourself is recorded but never uses up the automatic discovery limits", async () => {
+    // 1,000 k-tokens at the default $25 per million tokens = $25: far above the $1 daily limit.
+    await recordUsage({ provider: "anthropic", operation: "ui:email-generate", credits: 1000 });
+    expect((await spendSummary()).dayUsd).toBe(0);
+    await expect(
+      reserve({ provider: "anthropic", operation: "assisted-extraction", credits: 16 }),
+    ).resolves.toBeTypeOf("string");
+    // Automatic AI work is limited: 16 k-tokens ($0.40) fits, 30 more ($0.75) would pass the $1 day.
+    await expect(
+      reserve({ provider: "anthropic", operation: "assisted-extraction", credits: 30 }),
+    ).rejects.toBeInstanceOf(BudgetExceededError);
   });
 });

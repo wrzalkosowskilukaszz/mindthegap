@@ -18,9 +18,42 @@ export class BudgetExceededError extends Error {
   }
 }
 
-/** USD per provider credit (operational estimate; set in Ustawienia › Odkrywanie). */
-/** Hunter Starter: $49 / 2,000 credits; Tavily PAYG: $0.008 per credit (docs/research/PROVIDERS.md). */
+/**
+ * USD per provider credit (operational estimate). Hunter Starter: $49 / 2,000 credits; Tavily PAYG:
+ * $0.008 per credit (docs/research/PROVIDERS.md). For "anthropic" a credit is 1,000 tokens, priced
+ * from the aiUsdPerMillionTokens setting.
+ */
 export const DEFAULT_USD_PER_CREDIT: Record<string, number> = { hunter: 0.0245, tavily: 0.008 };
+
+function usdPerCredit(provider: string, s: { aiUsdPerMillionTokens: number }): number {
+  return provider === "anthropic" ? s.aiUsdPerMillionTokens / 1000 : (DEFAULT_USD_PER_CREDIT[provider] ?? 0);
+}
+
+/**
+ * Work you start yourself (drafting an email, summarising a document) is recorded with an operation
+ * starting "ui:". It shows in Aktywność but never counts against the automatic discovery limits.
+ */
+const LIMITED = sql`${providerUsage.operation} not like 'ui:%'`;
+
+/** Records AI usage that was not reserved in advance (a request you started in the app). */
+export async function recordUsage(opts: {
+  provider: string;
+  operation: string;
+  credits: number;
+  detail?: string;
+}) {
+  const s = await getSettings("discovery");
+  await db()
+    .insert(providerUsage)
+    .values({
+      provider: opts.provider,
+      operation: opts.operation,
+      credits: opts.credits,
+      costMicros: Math.round(opts.credits * usdPerCredit(opts.provider, s) * 1e6),
+      status: "committed",
+      detail: opts.detail ?? null,
+    });
+}
 
 /** ISO strings: raw SQL fragments need string parameters (the driver doesn't serialise Date there). */
 function periodStarts(zone = "Europe/Warsaw") {
@@ -42,6 +75,7 @@ export async function spendSummary() {
       and(
         sql`${providerUsage.createdAt} >= ${month}::timestamptz`,
         sql`${providerUsage.status} in ('reserved','committed')`,
+        LIMITED,
       ),
     )
     .groupBy(providerUsage.provider);
@@ -74,8 +108,7 @@ export async function reserve(opts: {
   detail?: string;
 }): Promise<string> {
   const settings = await getSettings("discovery");
-  const usdPerCredit = DEFAULT_USD_PER_CREDIT[opts.provider] ?? 0;
-  const costMicros = Math.round(opts.credits * usdPerCredit * 1e6);
+  const costMicros = Math.round(opts.credits * usdPerCredit(opts.provider, settings) * 1e6);
   const { day, month } = periodStarts();
   return db().transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext('mtg-budget'))`);
@@ -90,6 +123,7 @@ export async function reserve(opts: {
         and(
           sql`${providerUsage.createdAt} >= ${month}::timestamptz`,
           sql`${providerUsage.status} in ('reserved','committed')`,
+          LIMITED,
         ),
       );
     const dayMicros = Number(agg?.day ?? 0);
@@ -133,13 +167,13 @@ export async function reserve(opts: {
 
 /** Record the actual units used (may be 0 when a provider didn't charge). */
 export async function commit(id: string, actualCredits: number, provider: string): Promise<void> {
-  const usdPerCredit = DEFAULT_USD_PER_CREDIT[provider] ?? 0;
+  const rate = usdPerCredit(provider, await getSettings("discovery"));
   await db()
     .update(providerUsage)
     .set({
       status: "committed",
       credits: actualCredits,
-      costMicros: Math.round(actualCredits * usdPerCredit * 1e6),
+      costMicros: Math.round(actualCredits * rate * 1e6),
     })
     .where(eq(providerUsage.id, id));
 }

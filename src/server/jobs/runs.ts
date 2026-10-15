@@ -346,12 +346,20 @@ async function execute(task: TaskRow, ctx: Ctx): Promise<Record<string, unknown>
       };
     }
     case "research_company": {
+      const [made] = await db()
+        .select({ n: sql<number>`count(*)::int` })
+        .from(contacts)
+        .where(eq(contacts.discoveredByRunId, ctx.run.id));
+      const remaining = Math.max(0, s.maxNewContactsPerRun - (made?.n ?? 0));
+      if (remaining === 0)
+        return { status: "skipped", note: "osiągnięto limit nowych kontaktów na przebieg" };
       const r = await researchCompany(task.targetId!, {
         fetcher: ctx.fetcher,
         runId: ctx.run.id,
         deadline: Math.min(ctx.deadline, Date.now() + 5 * 60_000),
         maxPages: s.maxPagesPerCompany,
         maxContacts: s.maxContactsPerCompany,
+        maxNewContacts: remaining,
       });
       // Free DNS sanity check of newly found addresses (paid verification is a separate, budgeted task).
       for (const id of r.newContactIds) {

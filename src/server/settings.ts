@@ -36,7 +36,6 @@ export const DiscoverySettings = z.object({
   sectors: z.array(z.enum(SECTORS)).default([...SECTORS.filter((s) => s !== "other")]),
   minEmployees: z.number().int().min(0).default(200),
   includeUnknownSize: z.boolean().default(true),
-  countries: z.array(z.string()).default(["PL"]),
   regions: z.array(z.string()).default([]),
   roleIncludeKeywords: z.array(z.string()).default([]),
   roleExcludeKeywords: z
@@ -45,7 +44,7 @@ export const DiscoverySettings = z.object({
       "rekrut",
       "recruit",
       "talent acquisition",
-      "sourcing",
+      "talent sourcing",
       "payroll",
       "płac",
       "kadr i płac",
@@ -60,7 +59,6 @@ export const DiscoverySettings = z.object({
   maxRechecksPerRun: z.number().int().min(0).max(500).default(20),
   maxPagesPerCompany: z.number().int().min(1).max(30).default(10),
   minDelayMsPerHost: z.number().int().min(500).max(30000).default(2500),
-  runTimeBudgetSeconds: z.number().int().min(30).max(3600).default(900),
   /** Companies researched in parallel (each on its own host; per-host delays still apply). */
   concurrency: z.number().int().min(1).max(8).default(4),
   dailySpendLimitUsd: z.number().min(0).default(1),
@@ -69,6 +67,13 @@ export const DiscoverySettings = z.object({
   monthlyProviderCredits: z.record(z.string(), z.number().min(0)).default({ hunter: 50, tavily: 1000 }),
   hunterDomainSearchLimit: z.number().int().min(1).max(10).default(3),
   hunterFoundOnly: z.boolean().default(true),
+  /** AI reads role-mentioning text blocks the rules could not parse. Off by default: it costs money per company. */
+  aiAssistedExtraction: z.boolean().default(false),
+  /**
+   * Blended USD per million AI tokens used to estimate AI cost. An assumption, not a quoted price:
+   * check https://www.anthropic.com/pricing for the configured model and adjust.
+   */
+  aiUsdPerMillionTokens: z.number().min(0).default(25),
 });
 
 export const FreshnessSettings = z.object({

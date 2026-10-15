@@ -10,6 +10,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import { env } from "../env.ts";
+import { recordUsage } from "../jobs/budget.ts";
 
 export class AiNotConfiguredError extends Error {
   constructor() {
@@ -55,6 +56,10 @@ export async function structured<S extends z.ZodType>(
     maxTokens?: number;
     /** Optional files (images / PDFs) placed before the text, e.g. an offer uploaded as JPG. */
     files?: { mediaType: string; data: Buffer }[];
+    /** Label in the usage ledger (Aktywność). Recorded as "ui:<operation>": work you started yourself. */
+    operation?: string;
+    /** false when the caller accounts for the usage itself (budgeted background work). */
+    record?: boolean;
   },
 ): Promise<StructuredResult<z.infer<S>>> {
   const c = getClient();
@@ -73,6 +78,14 @@ export async function structured<S extends z.ZodType>(
       ],
       output_config: { effort: opts.effort ?? "high", format: betaZodOutputFormat(schema) },
     });
+    if (opts.record !== false) {
+      await recordUsage({
+        provider: "anthropic",
+        operation: `ui:${opts.operation ?? "ai"}`,
+        credits: (res.usage.input_tokens + res.usage.output_tokens) / 1000,
+        detail: res.model,
+      }).catch(() => undefined);
+    }
     if (res.stop_reason === "refusal") throw new AiRefusalError(res.stop_details?.category ?? null);
     if (res.stop_reason === "max_tokens")
       throw new AiOutputError("Odpowiedź modelu została ucięta (limit tokenów).");

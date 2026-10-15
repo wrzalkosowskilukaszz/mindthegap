@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assessRole, functionFor, spreadAcrossFunctions } from "./roles.ts";
+import { applyKeywordPolicy, assessRole, functionFor, spreadAcrossFunctions } from "./roles.ts";
 
 describe("assessRole", () => {
   it.each([
@@ -77,6 +77,7 @@ describe("functionFor", () => {
   it("uses the title, then the department, then the mailbox", () => {
     expect(functionFor("HR Business Partner", null)).toBe("hr");
     expect(functionFor(null, "Dział Zakupów")).toBe("procurement");
+    expect(functionFor(null, "Kanał ofert dla dostawców")).toBe("procurement");
     expect(functionFor(null, null, "development")).toBe("learning");
     expect(functionFor(null, null, "procurement")).toBe("procurement");
     expect(functionFor(null, "Kontakt ogólny", "generic")).toBe("other");
@@ -99,5 +100,28 @@ describe("spreadAcrossFunctions", () => {
       "hr2",
       "hr3",
     ]);
+  });
+});
+
+describe("applyKeywordPolicy", () => {
+  const policy = { include: [], exclude: ["wellbeing", "rekrut"] };
+  it("lets the owner's exclude words remove titles the built-in rules accept", () => {
+    expect(assessRole("Wellbeing Manager").relevant).toBe(true);
+    expect(applyKeywordPolicy(assessRole("Wellbeing Manager"), "Wellbeing Manager", policy).relevant).toBe(
+      false,
+    );
+  });
+  it("keeps titles that are also about developing people, like the built-in rules", () => {
+    const title = "Specjalistka ds. rekrutacji i szkoleń";
+    expect(applyKeywordPolicy(assessRole(title), title, policy).relevant).toBe(true);
+  });
+  it("makes an unmatched title relevant when it contains an include word", () => {
+    const own = { include: ["people ops"], exclude: [] };
+    expect(assessRole("People Ops Lead").relevant).toBe(false);
+    expect(applyKeywordPolicy(assessRole("People Ops Lead"), "People Ops Lead", own)).toMatchObject({
+      relevant: true,
+      category: "organizer_influencer",
+    });
+    expect(applyKeywordPolicy(assessRole("Office Manager"), "Office Manager", own).relevant).toBe(false);
   });
 });

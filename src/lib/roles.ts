@@ -298,8 +298,45 @@ export function functionFor(
   if (fromDept !== "other") return fromDept;
   if (department) {
     const d = foldDiacritics(department);
-    if (/\b(zakup\w*|procurement|purchasing|zaopatrzeni\w*|sourcing)\b/.test(d)) return "procurement";
+    if (/\b(zakup\w*|procurement|purchasing|zaopatrzeni\w*|sourcing|dostawc\w*|suppliers?)\b/.test(d))
+      return "procurement";
     if (/\b(hr|kadr\w*|personal\w*|people|zasob\w* ludzk\w*)\b/.test(d)) return "hr";
   }
   return mailboxFunction(mailbox);
+}
+
+/**
+ * The owner's keyword lists (Kontakty › Odkrywanie › Ustawienia przebiegu) on top of the built-in rules.
+ * An exclude keyword removes the title unless it is also about developing people (like the built-in
+ * rules: "rekrutacja i szkolenia" stays); an include keyword makes an otherwise unmatched title
+ * relevant as an organiser/influencer.
+ */
+export function applyKeywordPolicy(
+  role: RoleAssessment,
+  title: string | null | undefined,
+  policy: { include: string[]; exclude: string[] },
+): RoleAssessment {
+  if (!title) return role;
+  const t = foldDiacritics(title);
+  const hit = (list: string[]) => list.map((k) => foldDiacritics(k).trim()).find((k) => k && t.includes(k));
+  const ex = hit(policy.exclude);
+  if (ex && !ALSO_DEV.test(t))
+    return {
+      category: "uncertain",
+      fn: "other",
+      relevant: false,
+      label: `Wykluczone słowem „${ex}”`,
+      excluded: ex,
+    };
+  if (!role.relevant) {
+    const inc = hit(policy.include);
+    if (inc)
+      return {
+        category: "organizer_influencer",
+        fn: role.fn,
+        relevant: true,
+        label: `Twoje słowo kluczowe „${inc}”`,
+      };
+  }
+  return role;
 }
