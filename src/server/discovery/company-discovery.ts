@@ -12,7 +12,8 @@ import { httpFetch } from "../providers/http.ts";
 import type { Sector } from "../settings.ts";
 
 const SPARQL = (minEmployees: number) => `
-SELECT ?item ?itemLabel ?website ?employees ?date (SAMPLE(?industryLabel) AS ?industry) WHERE {
+SELECT ?item ?itemLabel ?website ?employees ?date (SAMPLE(?industryLabel) AS ?industry)
+       (GROUP_CONCAT(DISTINCT ?typeLabel; separator="|") AS ?types) WHERE {
   { ?item wdt:P17 wd:Q36 . } UNION { ?item wdt:P159 ?hq . ?hq wdt:P17 wd:Q36 . }
   ?item wdt:P856 ?website ;
         p:P1128 ?st .
@@ -21,6 +22,7 @@ SELECT ?item ?itemLabel ?website ?employees ?date (SAMPLE(?industryLabel) AS ?in
   FILTER(?employees >= ${minEmployees})
   FILTER NOT EXISTS { ?item wdt:P576 ?dissolved . }
   OPTIONAL { ?item wdt:P452 ?ind . ?ind rdfs:label ?industryLabel . FILTER(LANG(?industryLabel) = "en") }
+  OPTIONAL { ?item wdt:P31 ?type . ?type rdfs:label ?typeLabel . FILTER(LANG(?typeLabel) = "en") }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "pl,en". }
 }
 GROUP BY ?item ?itemLabel ?website ?employees ?date
@@ -33,6 +35,7 @@ type Binding = {
   employees: { value: string };
   date?: { value: string };
   industry?: { value: string };
+  types?: { value: string };
 };
 
 const SECTOR_RULES: [RegExp, Sector][] = [
@@ -41,7 +44,7 @@ const SECTOR_RULES: [RegExp, Sector][] = [
   [/software|information technology|internet|video game|computer|electronics|semiconductor/i, "technology"],
   [/pharma|health|hospital|medical|biotech|diagnost/i, "pharma_healthcare"],
   [
-    /retail|food|beverage|consumer|cosmetic|clothing|fashion|brew|dairy|confection|tobacco|restaurant/i,
+    /retail|wholesale|distribut|hurtow|food|beverage|consumer|cosmetic|clothing|fashion|brew|dairy|confection|tobacco|restaurant/i,
     "retail_consumer",
   ],
   [/energy|electric|oil|gas|petroleum|coal|mining|utility|power/i, "energy_utilities"],
@@ -49,7 +52,7 @@ const SECTOR_RULES: [RegExp, Sector][] = [
   [/consult|audit|legal|accounting|professional/i, "professional_services"],
   [/outsourc|business service|shared service/i, "business_services"],
   [
-    /manufactur|automotive|chemical|steel|metal|machinery|construction|engineering|aerospace|defen[cs]e|furniture|paper|glass/i,
+    /manufactur|automotive|chemical|steel|metal|machinery|construction|engineering|aerospace|defen[cs]e|weapon|arms|shipbuild|stocznia|huta|cable|kabl|packag|opakow|motor|furniture|paper|glass|industr/i,
     "manufacturing_industrial",
   ],
 ];
@@ -58,6 +61,24 @@ export function sectorFromIndustry(s: string | null | undefined): Sector {
   if (!s) return "other";
   for (const [re, sec] of SECTOR_RULES) if (re.test(s)) return sec;
   return "other";
+}
+
+/**
+ * Public bodies, universities, schools, associations, charities and churches are not training buyers
+ * reachable by a B2B email; nor are language schools and training firms (they are competitors).
+ */
+const NON_BUSINESS =
+  /(police|policja|komenda|\barmy\b|armia|armed forces|military unit|border guard|straż|government|ministry|ministerstwo|urząd|university|uniwersytet|politechnika|akademia|college|school|szkoła|education|language|research institute|instytut|association|stowarzyszenie|foundation|fundacja|charity|caritas|food bank|bank żywności|non-profit|nonprofit|\bngo\b|church|diocese|parish|religious|political party|sports club|museum|theatre|orchestra|municipality|gmina|powiat|voivodeship|lasy państwowe|public institution|hospital|szpital)/i;
+
+/** Wikidata websites sometimes point abroad (moose.it) or at a public suffix (net.br). */
+const POLISH_OR_GENERIC_TLD = /\.(pl|eu|com|net|org|group|global|info|biz|io|co)$/;
+
+export function classifyCandidate(name: string, industry: string | null, types: string | null) {
+  const text = [name, industry, types].filter(Boolean).join(" | ");
+  return {
+    nonBusiness: NON_BUSINESS.test(text),
+    sector: sectorFromIndustry([industry, types, name].filter(Boolean).join(" ")),
+  };
 }
 
 export type DiscoveredCompany = {
@@ -87,7 +108,10 @@ export async function fetchWikidataCandidates(minEmployees: number): Promise<Dis
     const domain = registrableDomain(b.website.value);
     const employees = Math.round(Number(b.employees.value));
     if (!domain || !Number.isFinite(employees)) continue;
+    if (!POLISH_OR_GENERIC_TLD.test(domain) || /^(net|com|org|co)\.[a-z]{2}$/.test(domain)) continue;
     if (/^Q\d+$/.test(b.itemLabel.value)) continue; // no label
+    const kind = classifyCandidate(b.itemLabel.value, b.industry?.value ?? null, b.types?.value ?? null);
+    if (kind.nonBusiness) continue;
     const prev = byDomain.get(domain);
     const asOf = b.date?.value?.slice(0, 4) ?? null;
     if (prev && (prev.asOf ?? "") >= (asOf ?? "")) continue;
@@ -99,10 +123,16 @@ export async function fetchWikidataCandidates(minEmployees: number): Promise<Dis
       asOf,
       wikidata: b.item.value.replace("http://", "https://"),
       industry: b.industry?.value ?? null,
-      sector: sectorFromIndustry(b.industry?.value),
+      sector: kind.sector,
     });
   }
-  return [...byDomain.values()].sort((a, b) => b.employees - a.employees);
+  // The same organisation listed with several websites: keep the largest entry per name.
+  const byName = new Map<string, DiscoveredCompany>();
+  for (const c of [...byDomain.values()].sort((a, b) => b.employees - a.employees)) {
+    const key = slugify(c.name);
+    if (!byName.has(key)) byName.set(key, c);
+  }
+  return [...byName.values()];
 }
 
 /** Adds up to `max` new companies matching the discovery settings. Returns the ids added. */
@@ -123,17 +153,21 @@ export async function discoverCompanies(opts: {
       .where(inArray(companies.domain, domains.slice(i, i + 500)));
     for (const r of rows) known.add(r.d);
   }
+  const knownNames = new Set(
+    (await db().select({ n: companies.name }).from(companies)).map((r) => slugify(r.n)),
+  );
   const excluded = new Set(opts.excludedDomains.map((d) => d.toLowerCase()));
   const added: string[] = [];
   let skippedKnown = 0;
   for (const c of candidates) {
     if (added.length >= opts.max) break;
-    if (known.has(c.domain)) {
+    if (known.has(c.domain) || knownNames.has(slugify(c.name))) {
       skippedKnown++;
       continue;
     }
     if (excluded.has(c.domain)) continue;
-    if (c.sector !== "other" && !opts.sectors.includes(c.sector)) continue;
+    // Only companies whose sector is known and chosen: an unknown sector would never be researched.
+    if (!opts.sectors.includes(c.sector)) continue;
     // Website must answer (quick check, GET to respect servers that reject HEAD).
     let status = 0;
     let finalUrl = c.website;

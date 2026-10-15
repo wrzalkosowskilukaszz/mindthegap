@@ -109,7 +109,8 @@ export function CompaniesView() {
             <div className="metric-value">{cov.withRelevantContact}</div>
             <div className="metric-label">Z trafnym kontaktem</div>
             <div className="metric-def">
-              Osoba (decydent / organizator) lub skrzynka działu rozwoju/HR z adresem, nieodrzucona.
+              Osoba (decydent / organizator) lub skrzynka działu HR, szkoleń lub zakupów — z adresem,
+              nieodrzucona.
             </div>
           </div>
           <div className="metric">
@@ -142,7 +143,7 @@ export function CompaniesView() {
                   <span
                     style={{
                       width: `${(100 * (s.researched - s.withRelevant)) / s.total}%`,
-                      background: "var(--warn-dot)",
+                      background: "var(--neutral-bar)",
                       opacity: 0.45,
                     }}
                   />
@@ -157,7 +158,7 @@ export function CompaniesView() {
                 <span className="dot dot-accent" /> z trafnym kontaktem
               </span>
               <span className="status">
-                <span className="dot dot-warn" /> zbadane, nierozwiązane
+                <span className="dot dot-neutral" /> zbadane, bez trafnego kontaktu
               </span>
               <span className="status">
                 <span className="dot dot-hollow" /> w kolejce

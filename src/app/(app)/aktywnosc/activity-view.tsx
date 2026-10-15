@@ -85,7 +85,7 @@ export function ActivityView() {
               {metric(
                 m.coverage.withRelevantContact,
                 "Firmy z trafnym kontaktem",
-                "Osoba lub skrzynka działu rozwoju/HR z adresem.",
+                "Osoba lub skrzynka działu HR, szkoleń lub zakupów — z adresem.",
               )}
               {metric(
                 m.newContacts,
