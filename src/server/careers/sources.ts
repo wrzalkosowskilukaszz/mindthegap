@@ -672,7 +672,9 @@ async function adzuna(_f: PoliteFetcher, _s: SourceRef, want: WantDetail): Promi
 }
 
 /** Jooble (free key): listings gathered from many Polish and EU job sites. */
-const JOOBLE_LOCATIONS = ["Warszawa", "Polska"];
+// The key is tied to one Jooble country site. An international key searches the global index, where
+// "Warsaw" means Warsaw, Indiana: ask for Poland and Europe instead (non-EU places are filtered later).
+const JOOBLE_LOCATIONS = ["Poland", "Europe"];
 async function jooble(_f: PoliteFetcher, _s: SourceRef, want: WantDetail): Promise<Fetched> {
   const key = env().JOOBLE_API_KEY;
   if (!key) throw new SourceError("config", "JOOBLE_API_KEY not set");
