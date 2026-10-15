@@ -78,6 +78,29 @@ describe("job matching", () => {
     expect(uk.score).toBe(0);
   });
 
+  it("reads country codes, shortens long place lists and drops placeless offers", () => {
+    expect(classifyLocation({ location: "CAN - Mississauga" })).toBe("non_eu");
+    expect(classifyLocation({ location: "POL - Warszawa" })).toBe("warsaw");
+    expect(classifyLocation({ location: "DEU - Berlin" })).toBe("eu");
+    const multi = scoreJob(
+      {
+        title: "Learning Partner",
+        description: en("Facilitation."),
+        location:
+          "Watford, Hertfordshire, United Kingdom; Mollsfeld, Meerbusch, Germany; Brussels, Brussels, Belgium; Copenhagen, Hovedstaden, Denmark",
+        companyName: "X",
+      },
+      prefs,
+    );
+    expect(multi.eligible).toBe(true);
+    expect(multi.reasons[0]?.text).toBe("Germany, Belgium +1 (przeprowadzka)");
+    const nowhere = scoreJob(
+      { title: "Learning Partner", description: en("Facilitation."), location: null, companyName: "X" },
+      prefs,
+    );
+    expect(nowhere.eligible).toBe(false);
+  });
+
   it("respects the chosen places: other Polish cities only when switched on", () => {
     const job = { title: "Trener biznesu", description: en(""), location: "Kraków", companyName: "X" };
     expect(scoreJob(job, prefs).eligible).toBe(false);

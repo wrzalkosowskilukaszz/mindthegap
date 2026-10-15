@@ -226,6 +226,12 @@ const REMOTE_OK_SCOPE =
 const REMOTE_BAD_SCOPE =
   /\b(us only|usa only|united states|u\.s\.|uk only|united kingdom|canada|latam|americas|apac|north america)\b/i;
 
+// Country codes some career sites put first ("CAN - Mississauga", "POL - Warszawa").
+const EU_ISO3 =
+  /^(POL|DEU|FRA|ESP|ITA|NLD|BEL|AUT|PRT|IRL|SWE|DNK|FIN|CZE|SVK|HUN|ROU|BGR|GRC|HRV|SVN|EST|LVA|LTU|LUX|MLT|CYP)\b/;
+const NON_EU_ISO3 =
+  /^(USA|CAN|GBR|IND|MEX|BRA|AUS|CHN|JPN|SGP|ARE|ISR|TUR|ZAF|ARG|COL|PHL|KOR|MYS|IDN|EGY|NGA|KEN|SAU|QAT|NZL|CHL|PER|THA|VNM|UKR|SRB)\b/;
+
 function countryOf(text: string): string | null {
   const t = text.toLowerCase();
   for (const [code, words] of Object.entries(EU)) if (words.some((w) => t.includes(w))) return code;
@@ -237,6 +243,9 @@ export function classifyLocation(job: Pick<JobInput, "location" | "countries" | 
   const countries = (job.countries ?? []).map((c) => c.toUpperCase());
   const remote = job.workplace === "remote" || REMOTE.test(loc);
   if (WARSAW.test(loc)) return "warsaw";
+  if (/^POL\b/.test(loc.trim())) return remote ? "remote_ok" : "poland";
+  if (EU_ISO3.test(loc.trim()) && !remote) return "eu";
+  if (NON_EU_ISO3.test(loc.trim()) && !/;/.test(loc)) return "non_eu";
   if (remote) {
     if (countries.length) {
       if (countries.includes("PL")) return "remote_ok";
@@ -470,7 +479,7 @@ export function scoreJob(job: JobInput, prefs: CareerPrefs, now = new Date()): M
   } else if (region === "eu") {
     if (loc.includes("eu_relocation")) {
       score += 6;
-      reasons.push({ text: `${job.location ?? "UE"} (przeprowadzka)`, tone: "warn" });
+      reasons.push({ text: `${shortPlace(job.location) ?? "UE"} (przeprowadzka)`, tone: "warn" });
     } else eligible = false;
   } else if (region === "europe") {
     if (loc.includes("eu_relocation")) {
@@ -478,7 +487,11 @@ export function scoreJob(job: JobInput, prefs: CareerPrefs, now = new Date()): M
       reasons.push({ text: `${job.location ?? "Europa"} (poza UE)`, tone: "warn" });
     } else eligible = false;
   } else if (region === "non_eu") eligible = false;
-  else reasons.push({ text: "Lokalizacja niejasna", tone: "warn" });
+  else if (
+    /\b(poland|polska|polsce|warsaw|warszaw\w*|emea|europe|europa|european union)\b/i.test(job.description)
+  ) {
+    reasons.push({ text: "Miejsce niejasne — ogłoszenie wspomina Polskę lub Europę", tone: "warn" });
+  } else eligible = false; // no place and no hint of Europe: most likely outside the EU
 
   // Role: the title says the most.
   const families = prefs.roleFamilies;
@@ -562,6 +575,16 @@ export function scoreJob(job: JobInput, prefs: CareerPrefs, now = new Date()): M
     requiredLanguages: requiredLanguages(job.description),
     hits,
   };
+}
+
+/** "Watford, …, UK; Mollsfeld, Meerbusch, Germany; Brussels, …" → "Germany, Belgium +2". */
+function shortPlace(location: string | null | undefined): string | null {
+  if (!location) return null;
+  const parts = location.split(/;\s*/).filter(Boolean);
+  if (parts.length < 2) return location;
+  const eu = parts.filter((p) => countryOf(p)).map((p) => p.split(",").pop()?.trim() ?? p);
+  const uniq = [...new Set(eu.length ? eu : parts.map((p) => p.split(",").pop()?.trim() ?? p))];
+  return uniq.length > 2 ? `${uniq.slice(0, 2).join(", ")} +${uniq.length - 2}` : uniq.join(", ");
 }
 
 /** Kept in the database: eligible and either relevant enough or from a favourite company. */
