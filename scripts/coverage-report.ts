@@ -133,6 +133,7 @@ ${byRole.map((r) => `| ${{ decision_maker: "Likely decision-maker", organizer_in
 - Department mailboxes (HR, training, procurement, supplier channels) are the most common usable result from public pages.
 - Companies with only a general address keep that one address as a last-resort route, never more than one per company.
 - Unresolved companies get a revisit date; the daily run comes back to them and to newly discovered companies.
+- Most "website unavailable" results were HTTP 403 answers from bot protection in the research environment (and some robots.txt rules). Those companies are queued again so the production app retries them from its own network.
 `;
 
 writeFileSync(out, md);

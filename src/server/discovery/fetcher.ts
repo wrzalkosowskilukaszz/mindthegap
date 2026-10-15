@@ -170,7 +170,7 @@ export class PoliteFetcher {
         await this.log(current, res.status, "skipped_type");
         return { ok: false, url: current, reason: "skipped_type", status: res.status, detail: ct };
       }
-      const max = this.opts.maxBytes ?? 1_500_000;
+      const max = this.opts.maxBytes ?? 4_000_000; // some homepages ship 2–3 MB of inline markup
       const body = await readCapped(res, max);
       if (body === null) {
         await this.log(current, res.status, "too_large");
