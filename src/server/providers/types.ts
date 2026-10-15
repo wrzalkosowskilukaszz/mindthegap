@@ -82,5 +82,8 @@ export type SearchResult = { url: string; title: string; snippet: string; age?: 
 export interface WebSearch {
   readonly name: string;
   readonly creditsPerQuery: number;
-  search(query: string, opts?: { count?: number; country?: string; lang?: string }): Promise<SearchResult[]>;
+  search(
+    query: string,
+    opts?: { count?: number; country?: string; lang?: string; includeDomains?: string[] },
+  ): Promise<SearchResult[]>;
 }

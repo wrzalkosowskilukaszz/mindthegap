@@ -164,7 +164,7 @@ export function SettingsView() {
               [
                 "Tavily",
                 s.integrations.search,
-                "wyszukiwanie publicznych stron (opcjonalnie)",
+                "szukanie podstron HR, akademii i zakupów na stronie firmy (opcjonalnie)",
                 "TAVILY_API_KEY",
               ],
               ["Google OAuth", s.integrations.google, "Gmail (opcjonalnie)", "GOOGLE_CLIENT_ID/SECRET"],
@@ -199,6 +199,17 @@ export function SettingsView() {
             save("discovery", {
               ...o.discovery,
               monthlyProviderCredits: { ...o.discovery.monthlyProviderCredits, hunter: v },
+            })
+          }
+        />
+        <NumberRow
+          label="Miesięczny limit kredytów Tavily"
+          value={o.discovery.monthlyProviderCredits.tavily ?? 0}
+          hint="Plan darmowy: 1000."
+          onSave={(v) =>
+            save("discovery", {
+              ...o.discovery,
+              monthlyProviderCredits: { ...o.discovery.monthlyProviderCredits, tavily: v },
             })
           }
         />

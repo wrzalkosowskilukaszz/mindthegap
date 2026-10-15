@@ -8,6 +8,8 @@ import { domainLabel, registrableDomain } from "@/lib/normalize";
 import { applyKeywordPolicy, assessRole, spreadAcrossFunctions } from "@/lib/roles";
 import { db } from "../db/client.ts";
 import { companies } from "../db/schema.ts";
+import { BudgetExceededError, withBudget } from "../jobs/budget.ts";
+import { webSearch } from "../providers/index.ts";
 import { deriveCompanyOutcome } from "../services/companies.ts";
 import { type ContactInput, upsertContact } from "../services/contacts.ts";
 import { getSettings } from "../settings.ts";
@@ -26,7 +28,13 @@ export type ResearchResult = {
   newContactIds: string[];
   unavailable: boolean;
   note?: string;
+  /** Pages suggested by web search on the company's own site. */
+  searched?: number;
 };
+
+/** Words for pages where training buyers appear: HR, academy, L&D, procurement, suppliers, management. */
+const SITE_QUERY =
+  "szkolenia akademia rozwój pracowników HR dział personalny zakupy dla dostawców zarząd learning development procurement suppliers";
 
 type Found = { page: string; publishedAt: string | null; title: string };
 
@@ -152,6 +160,56 @@ export async function researchCompany(
     visited.add(r.url);
     result.pagesFetched++;
     collect(r.url, r.body);
+  }
+
+  // 2b. The site's menus did not lead to anyone relevant: ask a web search (Tavily, budgeted) for deeper
+  //     pages on the company's own domains (academy, supplier portal, HR team). Fetched politely like the rest.
+  const relevantFound = () =>
+    people.size > 0 ||
+    [...emails.values()].some(
+      (e) => e.mailbox === "development" || e.mailbox === "hr" || e.mailbox === "procurement" || e.invitation,
+    );
+  const search = webSearch();
+  if (search && !relevantFound() && Date.now() < ctx.deadline) {
+    try {
+      const hits = await withBudget(
+        {
+          provider: search.name,
+          operation: "search",
+          credits: search.creditsPerQuery,
+          runId: ctx.runId,
+          detail: co.domain,
+        },
+        async () => ({
+          value: await search.search(SITE_QUERY, { count: 8, includeDomains: domains }),
+          credits: search.creditsPerQuery,
+        }),
+      );
+      const ownSite = (u: string) => {
+        const reg = registrableDomain(u);
+        return Boolean(reg && domains.some((d) => d === reg || domainLabel(d) === domainLabel(reg)));
+      };
+      const extra = hits
+        .map((h) => h.url)
+        .filter(
+          (u) =>
+            ownSite(u) && !visited.has(u) && !/\.(pdf|jpe?g|png|zip|docx?|xlsx?|pptx?|mp4)(\?|$)/i.test(u),
+        );
+      for (const url of extra.slice(0, 4)) {
+        if (Date.now() > ctx.deadline) break;
+        visited.add(url);
+        const r = await ctx.fetcher.get(url);
+        if (!r.ok) {
+          result.pagesFailed++;
+          continue;
+        }
+        result.pagesFetched++;
+        collect(r.url, r.body);
+      }
+      result.searched = extra.length;
+    } catch (e) {
+      if (!(e instanceof BudgetExceededError)) result.note = "wyszukiwarka niedostępna";
+    }
   }
 
   // 3. Optional AI-assisted reading of role-mentioning blocks (every value verbatim-checked by code).

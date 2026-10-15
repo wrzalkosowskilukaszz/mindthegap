@@ -7,7 +7,10 @@ export class TavilySearch implements WebSearch {
   readonly creditsPerQuery = 1; // basic search
   constructor(private apiKey: string) {}
 
-  async search(query: string, opts: { count?: number; country?: string } = {}): Promise<SearchResult[]> {
+  async search(
+    query: string,
+    opts: { count?: number; country?: string; includeDomains?: string[] } = {},
+  ): Promise<SearchResult[]> {
     const { status, data } = await providerJson<{
       results?: { url: string; title: string; content: string; published_date?: string }[];
       detail?: unknown;
@@ -19,6 +22,7 @@ export class TavilySearch implements WebSearch {
         max_results: opts.count ?? 8,
         search_depth: "basic",
         ...(opts.country ? { country: opts.country } : {}),
+        ...(opts.includeDomains?.length ? { include_domains: opts.includeDomains } : {}),
       }),
       timeoutMs: 30_000,
     });

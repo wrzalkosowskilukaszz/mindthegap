@@ -14,6 +14,18 @@ const RANGES = [
   { days: 90, label: "90 dni" },
 ];
 
+const OPERATION_LABEL: Record<string, string> = {
+  "ui:email-generate": "szkice e-maili",
+  "ui:email-repair": "poprawki szkiców",
+  "ui:email-rewrite": "przeróbki tekstu",
+  "ui:material-summary": "streszczenia materiałów",
+  "assisted-extraction": "czytanie stron (automatyczne)",
+  "domain-search": "wyszukiwanie w domenie",
+  "email-finder": "szukanie adresu",
+  "email-verifier": "weryfikacja adresu",
+  search: "wyszukiwanie firm",
+};
+
 export function ActivityView() {
   const [days, setDays] = useState(30);
   const [m, setM] = useState<ActivityMetrics | null>(null);
@@ -197,8 +209,12 @@ export function ActivityView() {
               ))}
               {m.costs.map((c) => (
                 <span key={`${c.provider}-${c.operation}`} className="small secondary">
-                  {c.provider} · {c.operation}: {Number(c.credits).toFixed(1)} kr. ($
-                  {Number(c.usd).toFixed(2)})
+                  {c.provider === "anthropic" ? "AI" : c.provider} ·{" "}
+                  {OPERATION_LABEL[c.operation] ?? c.operation}:{" "}
+                  {c.provider === "anthropic"
+                    ? `${Math.round(Number(c.credits))} tys. tokenów`
+                    : `${Number(c.credits).toFixed(1)} kr.`}{" "}
+                  (≈ ${Number(c.usd).toFixed(2)})
                 </span>
               ))}
               <Link href="/kontakty/odkrywanie" className="small">
