@@ -80,6 +80,17 @@ export async function ensureFeedSources(): Promise<void> {
       })
       .onConflictDoNothing();
   }
+  // Companies with a careers page but no job system we can read: try the page itself.
+  await db().execute(sql`
+    insert into job_sources (kind, token, name, company_id, url, supported)
+    select 'careers_page', left(lower(regexp_replace(c.careers_url, '^https?://(www\.)?', '')), 300),
+           coalesce(c.brand, c.name), c.id, c.careers_url, true
+    from companies c
+    where c.careers_url is not null and not c.excluded and not c.is_demo
+      and not exists (
+        select 1 from job_sources s
+        where s.company_id = c.id and s.supported and s.enabled and s.kind <> 'careers_page')
+    on conflict do nothing`);
 }
 
 type CompanyInfo = { id: string; name: string; sector: string; favourite: boolean };
@@ -147,6 +158,12 @@ function fetchDue() {
  * come from two sources: keep one board and one offer.
  */
 async function dedupe() {
+  // A company that now has a real job system no longer needs its careers page read.
+  await db().execute(sql`
+    update job_sources p set enabled = false
+    where p.kind = 'careers_page' and p.enabled and exists (
+      select 1 from job_sources s
+      where s.company_id = p.company_id and s.kind <> 'careers_page' and s.supported and s.enabled)`);
   await db().execute(sql`
     update job_sources s set enabled = false
     from job_sources k
@@ -300,7 +317,11 @@ export async function syncJobs(opts: { deadline: number; detect?: boolean }): Pr
           .update(jobSources)
           .set({
             lastFetchedAt: new Date(),
-            lastStatus: "ok",
+            // A careers page without readable offers is asked again in a month; one with offers, daily.
+            lastStatus: src.kind === "careers_page" && got.total === 0 ? "empty" : "ok",
+            ...(src.kind === "careers_page"
+              ? { nextFetchAt: new Date(Date.now() + (got.total === 0 ? 30 * 24 : 24) * 3_600_000) }
+              : {}),
             lastError: null,
             jobsTotal: got.total,
             jobsKept: kept,

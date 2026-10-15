@@ -29,6 +29,13 @@
       "when": 1792083171016,
       "tag": "0003_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792095879908,
+      "tag": "0004_careers_page",
+      "breakpoints": true
     }
   ]
 }

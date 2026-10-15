@@ -871,6 +871,7 @@ export const jobSourceKindEnum = pgEnum("job_source_kind", [
   "adzuna",
   "jooble",
   "manual",
+  "careers_page",
 ]);
 
 export const jobOfferStatusEnum = pgEnum("job_offer_status", ["new", "saved", "applied", "dismissed"]);

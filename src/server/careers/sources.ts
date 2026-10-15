@@ -11,6 +11,8 @@
 import type { PoliteFetcher } from "../discovery/fetcher.ts";
 import { env } from "../env.ts";
 import { httpFetch } from "../providers/http.ts";
+import { careerLinks } from "./detect.ts";
+import { jobLinks, jobPostingsIn, toRawJob } from "./jsonld.ts";
 import { clean, htmlToText, toDate } from "./text.ts";
 
 export type RawJob = {
@@ -498,6 +500,68 @@ async function workday(f: PoliteFetcher, s: SourceRef, want: WantDetail): Promis
   return { jobs: [...out.values()], complete: false, total };
 }
 
+/**
+ * A company's own careers page without a known job system. Read only when the site publishes
+ * schema.org JobPosting data: on the list page itself, or on the single-offer pages it links to.
+ * First a cheap check (the page and one sample offer); then only offers whose link text looks
+ * relevant are opened. Pages without such data are asked again a month later.
+ */
+async function careersPage(f: PoliteFetcher, s: SourceRef, want: WantDetail): Promise<Fetched> {
+  const start = s.url ?? `https://${s.token}`;
+  let page = await f.get(start);
+  if (!page.ok)
+    throw new SourceError(
+      page.reason === "robots_disallowed" ? "robots" : "http",
+      `${page.reason} ${page.status ?? ""}`.trim(),
+    );
+  const out = new Map<string, RawJob>();
+  const take = (html: string, url: string) => {
+    let n = 0;
+    for (const o of jobPostingsIn(html)) {
+      const j = toRawJob(o, url, s.name);
+      if (j) {
+        out.set(j.externalId, j);
+        n++;
+      }
+    }
+    return n;
+  };
+  take(page.body, page.url);
+  let links = jobLinks(page.body, page.url);
+  // The careers page is often an intro; the list of offers is one link further.
+  if (!out.size && !links.length) {
+    const deeper = careerLinks(page.body, page.url).find((u) => u !== page.url && u !== start);
+    if (deeper) {
+      const next = await f.get(deeper);
+      if (next.ok) {
+        page = next;
+        take(page.body, page.url);
+        links = jobLinks(page.body, page.url);
+      }
+    }
+  }
+  const relevant = links.filter((l) => l.text.length >= 6 && want(l.text, ""));
+  let structured = out.size > 0;
+  if (!structured && links.length) {
+    const sample = relevant[0] ?? links[0]!;
+    const r = await f.get(sample.url);
+    if (r.ok) structured = take(r.body, r.url) > 0;
+  }
+  if (structured) {
+    for (const l of relevant.slice(0, 12)) {
+      if (out.size >= 60 || [...out.values()].some((j) => j.url === l.url)) continue;
+      if (!want(l.text, "")) break; // also stops near the time limit
+      const r = await f.get(l.url);
+      if (r.ok) take(r.body, r.url);
+    }
+  }
+  return {
+    jobs: [...out.values()],
+    complete: false,
+    total: structured ? Math.max(out.size, links.length) : 0,
+  };
+}
+
 // ------------------------------------------------------------------------------------------------
 // Aggregators
 // ------------------------------------------------------------------------------------------------
@@ -733,6 +797,7 @@ export const SUPPORTED_KINDS = new Set([
   "himalayas",
   "adzuna",
   "jooble",
+  "careers_page",
 ]);
 
 export async function fetchSource(f: PoliteFetcher, s: SourceRef, want: WantDetail): Promise<Fetched> {
@@ -757,6 +822,8 @@ export async function fetchSource(f: PoliteFetcher, s: SourceRef, want: WantDeta
       return eightfold(f, s, want);
     case "workday":
       return workday(f, s, want);
+    case "careers_page":
+      return careersPage(f, s, want);
     case "arbeitnow":
       return arbeitnow(f, s, want);
     case "himalayas":

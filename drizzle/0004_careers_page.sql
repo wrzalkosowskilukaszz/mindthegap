@@ -1,0 +1,1 @@
+ALTER TYPE "public"."job_source_kind" ADD VALUE 'careers_page';

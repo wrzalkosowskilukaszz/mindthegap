@@ -114,7 +114,11 @@ export async function runTick(opts: {
   if (opts.jobs !== false && Date.now() < deadline - 60_000 && (await jobsWorkDue())) {
     if (await acquireLease("jobs", holder, 5 * 60_000)) {
       try {
-        report.jobs = await syncJobs({ deadline: Math.min(deadline - 30_000, Date.now() + 110_000) });
+        // More time when no contact search is running (most hours of the day).
+        const busy = (await resumableRuns()).length > 0;
+        report.jobs = await syncJobs({
+          deadline: Math.min(deadline - 30_000, Date.now() + (busy ? 110_000 : 200_000)),
+        });
       } catch (e) {
         await logEvent("error", "jobs", "Pobieranie ofert pracy nie powiodło się", { message: errMsg(e) });
       } finally {
