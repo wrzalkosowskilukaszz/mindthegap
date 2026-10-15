@@ -939,6 +939,9 @@ export const jobOffers = pgTable(
     status: jobOfferStatusEnum("status").notNull().default("new"),
     statusAt: ts("status_at"),
     note: text("note"),
+    /** The owner's CV rewritten for this offer (pasted back from ChatGPT / Claude). */
+    tailoredCv: text("tailored_cv"),
+    tailoredCvAt: ts("tailored_cv_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

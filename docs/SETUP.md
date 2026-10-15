@@ -82,7 +82,7 @@ It is used only when a company's website, read from its homepage links, gives no
 
 ## 5. Job feeds for Oferty pracy (optional)
 
-Without keys the tab already reads company career sites (found on the companies' own websites), Arbeitnow and Himalayas. Two free keys add listings collected from many Polish and EU job sites:
+Without keys the tab already reads company career sites (found on the companies' own websites, including plain career pages that publish structured *JobPosting* data), Arbeitnow and Himalayas. Two free keys add listings collected from many Polish and EU job sites:
 
 - **Adzuna:** register at [developer.adzuna.com](https://developer.adzuna.com/), create an app, and set `ADZUNA_APP_ID` and `ADZUNA_APP_KEY`. Free use is limited (about 250 requests a day); the app makes about 30 requests per check, every 4 hours. Adzuna asks that its listings are credited ("Jobs by Adzuna").
 - **Jooble:** request a key at [jooble.org/api/about](https://jooble.org/api/about) and set `JOOBLE_API_KEY`. About 12 requests per check.

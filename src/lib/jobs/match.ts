@@ -274,7 +274,7 @@ export function classifyLocation(job: Pick<JobInput, "location" | "countries" | 
 // Languages: required languages and the language the ad itself is written in
 // ------------------------------------------------------------------------------------------------
 
-const LANG_NAMES: Record<string, RegExp> = {
+export const LANG_NAMES: Record<string, RegExp> = {
   de: /\b(german|deutsch\w*|niemieck\w*)\b/i,
   fr: /\b(french|français|francusk\w*)\b/i,
   nl: /\b(dutch|nederlands|niderlandzk\w*)\b/i,
@@ -292,7 +292,7 @@ const LANG_NAMES: Record<string, RegExp> = {
   uk: /\b(ukrainian|ukraińsk\w*)\b/i,
   ru: /\b(russian|rosyjsk\w*)\b/i,
 };
-const WRITTEN_IN: Record<string, string> = {
+export const WRITTEN_IN: Record<string, string> = {
   de: "po niemiecku",
   fr: "po francusku",
   nl: "po niderlandzku",

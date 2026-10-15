@@ -30,6 +30,7 @@ import { ApiError, apiFetch } from "@/lib/api-client";
 import { FAMILY_LABEL, LANGUAGE_LABEL, type RoleFamily } from "@/lib/jobs/match";
 import { formatWarsaw } from "@/lib/time";
 import type { JobDetail, JobList } from "@/server/careers/service";
+import { TailorDialog } from "./tailor-dialog";
 
 type View = "best" | "new" | "favourites" | "saved" | "applied" | "all";
 const VIEWS: { id: View; label: string; hint: string }[] = [
@@ -392,6 +393,8 @@ function JobPanel({ id, onClose, onChanged }: { id: string; onClose: () => void;
   const [note, setNote] = useState("");
   const [noteState, setNoteState] = useState<"saved" | "pending">("saved");
   const [full, setFull] = useState(false);
+  const [tailor, setTailor] = useState(false);
+  const tailored = useCallback((at: string | null) => setD((x) => (x ? { ...x, tailoredCvAt: at } : x)), []);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const noteRef = useRef("");
   const saveNote = useCallback(async () => {
@@ -418,6 +421,7 @@ function JobPanel({ id, onClose, onChanged }: { id: string; onClose: () => void;
   useEffect(() => {
     setD(null);
     setFull(false);
+    setTailor(false);
     void load().catch(() => toast("Nie udało się wczytać oferty", "error"));
   }, [load, toast]);
 
@@ -498,6 +502,9 @@ function JobPanel({ id, onClose, onChanged }: { id: string; onClose: () => void;
               <a className="btn btn-primary" href={d.url} target="_blank" rel="noopener noreferrer">
                 Aplikuj <ExternalLink size={14} />
               </a>
+              <button type="button" className="btn" onClick={() => setTailor(true)}>
+                <FileText size={14} /> {d.tailoredCvAt ? "CV dla tej oferty" : "Dopasuj CV"}
+              </button>
               {d.status === "applied" ? (
                 <button
                   type="button"
@@ -638,7 +645,7 @@ function JobPanel({ id, onClose, onChanged }: { id: string; onClose: () => void;
 
             <div className="btn-group">
               <button type="button" className="btn btn-sm" onClick={prompt}>
-                <Copy size={13} /> Kopiuj polecenie do ChatGPT / Claude
+                <Copy size={13} /> Ocena i szkic listu (ChatGPT / Claude)
               </button>
               {d.status !== "dismissed" ? (
                 <button
@@ -651,12 +658,22 @@ function JobPanel({ id, onClose, onChanged }: { id: string; onClose: () => void;
               ) : null}
             </div>
             <p className="xsmall muted">
-              Polecenie zawiera ofertę i Twoje CV — dostaniesz ocenę dopasowania i krótki szkic listu do
-              poprawienia.
+              To polecenie zawiera ofertę i Twoje CV — dostaniesz ocenę dopasowania i krótki szkic listu do
+              poprawienia. CV dopasujesz przyciskiem „Dopasuj CV” na górze.
             </p>
           </div>
         )}
       </div>
+      {d ? (
+        <TailorDialog
+          id={id}
+          title={d.title}
+          company={d.companyName}
+          open={tailor}
+          onClose={() => setTailor(false)}
+          onSaved={tailored}
+        />
+      ) : null}
     </aside>
   );
 }

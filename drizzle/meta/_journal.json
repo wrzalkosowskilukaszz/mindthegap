@@ -36,6 +36,13 @@
       "when": 1792095879908,
       "tag": "0004_careers_page",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792096699864,
+      "tag": "0005_tailored_cv",
+      "breakpoints": true
     }
   ]
 }
