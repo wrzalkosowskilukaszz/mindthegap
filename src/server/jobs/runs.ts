@@ -414,7 +414,12 @@ async function execute(task: TaskRow, ctx: Ctx): Promise<Record<string, unknown>
       return r as unknown as Record<string, unknown>;
     }
     case "verify_email": {
-      const r = await verifyEmail(task.targetId!, { runId: ctx.run.id, taskId: task.id });
+      // Credits go to finding addresses; automatic re-checks use the free DNS test unless switched on.
+      const r = await verifyEmail(task.targetId!, {
+        runId: ctx.run.id,
+        taskId: task.id,
+        paid: s.paidVerificationInRuns,
+      });
       return r as unknown as Record<string, unknown>;
     }
     case "recheck_employment": {

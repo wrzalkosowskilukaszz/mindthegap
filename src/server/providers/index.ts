@@ -12,9 +12,10 @@ export function contactSource(
 }
 
 /** Paid verifier when configured, otherwise the free DNS check (which can only detect dead domains). */
-export function emailVerifier(): EmailVerifier {
+/** Paid verification only when asked for; the free DNS check otherwise (it can only prove an address invalid). */
+export function emailVerifier(opts: { paid?: boolean } = {}): EmailVerifier {
   const k = env().HUNTER_API_KEY;
-  return k ? new HunterClient(k) : new DnsMxCheck();
+  return k && opts.paid !== false ? new HunterClient(k) : new DnsMxCheck();
 }
 
 export function webSearch(): WebSearch | null {

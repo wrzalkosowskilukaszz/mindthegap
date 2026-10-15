@@ -67,6 +67,8 @@ export const DiscoverySettings = z.object({
   monthlyProviderCredits: z.record(z.string(), z.number().min(0)).default({ hunter: 50, tavily: 1000 }),
   hunterDomainSearchLimit: z.number().int().min(1).max(10).default(3),
   hunterFoundOnly: z.boolean().default(true),
+  /** Automatic runs re-check addresses with the paid verifier (0.5 credit each). Off: free DNS check. */
+  paidVerificationInRuns: z.boolean().default(false),
   /** AI reads role-mentioning text blocks the rules could not parse. Off by default: it costs money per company. */
   aiAssistedExtraction: z.boolean().default(false),
   /**

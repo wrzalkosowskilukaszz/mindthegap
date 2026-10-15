@@ -17,12 +17,12 @@ export type VerifyOutcome = { status: string; message: string; provider: string;
 
 export async function verifyEmail(
   contactId: string,
-  ctx: { runId?: string | null; taskId?: string | null } = {},
+  ctx: { runId?: string | null; taskId?: string | null; paid?: boolean } = {},
 ): Promise<VerifyOutcome> {
   const [c] = await db().select().from(contacts).where(eq(contacts.id, contactId)).limit(1);
   if (!c?.emailNormalized)
     return { status: "skipped", message: "Brak adresu do weryfikacji.", provider: "-", credits: 0 };
-  const verifier = emailVerifier();
+  const verifier = emailVerifier({ paid: ctx.paid });
   const result = await withBudget(
     {
       provider: verifier.name,
