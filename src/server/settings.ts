@@ -34,7 +34,7 @@ export const SchedulerSettings = z.object({
 
 export const DiscoverySettings = z.object({
   sectors: z.array(z.enum(SECTORS)).default([...SECTORS.filter((s) => s !== "other")]),
-  minEmployees: z.number().int().min(0).default(200),
+  minEmployees: z.number().int().min(0).default(100),
   includeUnknownSize: z.boolean().default(true),
   regions: z.array(z.string()).default([]),
   roleIncludeKeywords: z.array(z.string()).default([]),
