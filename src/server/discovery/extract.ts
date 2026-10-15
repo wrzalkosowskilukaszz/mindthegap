@@ -169,13 +169,17 @@ const INVITATION_RE = new RegExp(
   "i",
 );
 
+/** Delivery, warehouse and invoice mailboxes on a "for suppliers" page are not for sending offers. */
+const NOT_FOR_OFFERS =
+  /^(logistyk\w*|logistics|magazyn\w*|warehouse|dostawy|delivery|deliveries|wysylk\w*|shipping|transport\w*|faktur\w*|e-?faktur\w*|invoices?|ksiegowosc|accounting|ap|payables|reklamacj\w*|complaints?)([._-]\w+)?$/;
+
 /**
  * Does the invitation in this block point at this address? Only the first address written within
  * 160 characters after an invitation phrase counts, and never a press, investor or privacy mailbox.
  */
 export function invitationFor(email: string, block: string): boolean {
   const local = email.slice(0, email.indexOf("@"));
-  if (NON_BUYER_LOCAL.test(local)) return false;
+  if (NON_BUYER_LOCAL.test(local) || NOT_FOR_OFFERS.test(local)) return false;
   const lower = deobfuscate(block).toLowerCase();
   const re = new RegExp(INVITATION_RE.source, "gi");
   for (const m of lower.matchAll(re)) {

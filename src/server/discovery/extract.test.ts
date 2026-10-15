@@ -90,6 +90,13 @@ describe("quality guards", () => {
     expect(invitationFor("zakupy.uslug@firma.pl", block)).toBe(true);
     expect(invitationFor("media@firma.pl", block)).toBe(false);
     expect(invitationFor("inwestor@firma.pl", block)).toBe(false);
+    // A goods-delivery address under a "for suppliers" heading is not an invitation to send offers.
+    expect(
+      invitationFor(
+        "logistyka@firma.pl",
+        "Dla dostawców\nAdres dostaw towarów:\nul. Fabryczna 1, 00-001 Miasto\nlogistyka@firma.pl",
+      ),
+    ).toBe(false);
     const ex = extractPage(contactPage(`<p>${block}</p>`), "https://firma.pl/kontakt", ["firma.pl"]);
     const inv = Object.fromEntries(ex.emails.map((e) => [e.email, e.invitation]));
     expect(inv).toEqual({

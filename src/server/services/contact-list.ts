@@ -2,7 +2,7 @@
 import { and, asc, desc, eq, inArray, isNotNull, isNull, or, type SQL, sql } from "drizzle-orm";
 import { BUILTIN_VIEWS, type ContactQuery } from "@/lib/contact-query";
 import { db } from "../db/client.ts";
-import { companies, contacts, jobRuns } from "../db/schema.ts";
+import { companies, contactEvidence, contacts, jobRuns } from "../db/schema.ts";
 
 const fold = (col: SQL | unknown) =>
   sql`translate(lower(coalesce(${col}, '')), 'ąćęłńóśźżäöüé', 'acelnoszzaoue')`;
@@ -77,6 +77,10 @@ export async function buildWhere(qIn: ContactQuery): Promise<SQL | undefined> {
   if (q.email?.length) conds.push(inArray(contacts.emailStatus, q.email));
   if (q.outreach?.length) conds.push(inArray(contacts.outreachStatus, q.outreach));
   if (q.review?.length) conds.push(inArray(contacts.reviewStatus, q.review));
+  if (q.invitation)
+    conds.push(
+      sql`exists (select 1 from ${contactEvidence} where ${contactEvidence.contactId} = ${contacts.id} and ${contactEvidence.supports} @> '["invitation"]'::jsonb)`,
+    );
   if (q.withEmail) {
     conds.push(isNotNull(contacts.emailNormalized));
     conds.push(sql`${contacts.emailStatus} <> 'invalid'`);

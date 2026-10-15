@@ -37,6 +37,7 @@ const EVIDENCE_SUPPORTS: Record<string, string> = {
   email: "adres",
   employment: "zatrudnienie",
   department: "dział",
+  invitation: "zaproszenie do ofert",
 };
 
 export function ContactPanel({
@@ -216,10 +217,18 @@ export function ContactPanel({
                 ) : null}
                 {d.send.blockers.some((b) => b.startsWith("Brak udokumentowanej podstawy")) ? (
                   <Callout tone="info">
-                    <span>
-                      Przed wysłaniem zapytamy, skąd wiesz, że możesz tu napisać (zgoda albo zaproszenie do
-                      ofert — wymaga tego prawo). To jedno kliknięcie na ekranie maila.
-                    </span>
+                    {d.evidence.some((e) => e.supports.includes("invitation")) ? (
+                      <span>
+                        Firma na swojej stronie zaprasza do przesyłania ofert na ten adres (cytat i link w
+                        „Dowody i źródła”). Przeczytaj go, a na ekranie maila potwierdzisz to jednym
+                        kliknięciem.
+                      </span>
+                    ) : (
+                      <span>
+                        Przed wysłaniem zapytamy, skąd wiesz, że możesz tu napisać (zgoda albo zaproszenie do
+                        ofert — wymaga tego prawo). To jedno kliknięcie na ekranie maila.
+                      </span>
+                    )}
                   </Callout>
                 ) : null}
                 {d.recentCompanyOutreach.length ? (

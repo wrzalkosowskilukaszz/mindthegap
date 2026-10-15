@@ -60,6 +60,8 @@ export const ContactQuery = z.object({
   email: list(z.enum(EMAIL_STATUSES)),
   outreach: list(z.enum(OUTREACH)),
   review: list(z.enum(REVIEW)),
+  /** Only addresses a company's own page names for receiving offers (an "invitation to send offers"). */
+  invitation: z.preprocess((v) => v === "1" || v === true, z.boolean()).optional(),
   /** Only contacts with a usable address (not marked invalid). */
   withEmail: z.preprocess((v) => v === "1" || v === true, z.boolean()).optional(),
   verifiedOlderThan: z.coerce.number().int().min(1).max(3650).optional(),
@@ -102,6 +104,18 @@ export const BUILTIN_VIEWS: { id: string; name: string; query: Partial<ContactQu
     name: "Korespondencja",
     query: { outreach: ["scheduled", "sent", "follow_up_due", "replied"], fallback: "include" },
     hint: "Zaplanowane, wysłane, czekające na odpowiedź i z odpowiedzią.",
+  },
+  {
+    id: "invites-offers",
+    name: "Zapraszają do ofert",
+    query: {
+      invitation: true,
+      withEmail: true,
+      fallback: "include",
+      review: ["new", "accepted"],
+      outreach: ["not_contacted", "draft_ready", "scheduled", "sent", "follow_up_due", "replied"],
+    },
+    hint: "Adresy, które firma na swojej stronie podaje do przesyłania ofert. Przed wysłaniem przeczytaj cytat i link w panelu kontaktu.",
   },
   {
     id: "all",
