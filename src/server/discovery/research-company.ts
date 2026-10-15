@@ -5,7 +5,7 @@
  */
 import { eq } from "drizzle-orm";
 import { domainLabel, registrableDomain } from "@/lib/normalize";
-import { applyKeywordPolicy, assessRole, spreadAcrossFunctions } from "@/lib/roles";
+import { applyKeywordPolicy, assessRole, type RoleFunction, spreadAcrossFunctions } from "@/lib/roles";
 import { db } from "../db/client.ts";
 import { companies } from "../db/schema.ts";
 import { BudgetExceededError, withBudget } from "../jobs/budget.ts";
@@ -14,7 +14,14 @@ import { deriveCompanyOutcome } from "../services/companies.ts";
 import { type ContactInput, upsertContact } from "../services/contacts.ts";
 import { getSettings } from "../settings.ts";
 import { aiExtractPeople } from "./ai-extract.ts";
-import { type EmailCandidate, extractPage, type PersonCandidate, scoreLink, sitemapUrls } from "./extract.ts";
+import {
+  type EmailCandidate,
+  extractPage,
+  type PersonCandidate,
+  procurementScope,
+  scoreLink,
+  sitemapUrls,
+} from "./extract.ts";
 import type { PoliteFetcher } from "./fetcher.ts";
 
 export type ResearchResult = {
@@ -269,7 +276,7 @@ export async function researchCompany(
     .sort((a, b) => rankInbox(b) - rankInbox(a));
   let fallbackAdded = false;
   for (const e of inboxes) {
-    const devOrHr = e.mailbox === "development" || e.mailbox === "hr" || e.mailbox === "procurement";
+    const profile = inboxProfile(e);
     if (e.mailbox === "personal") {
       // A personal-looking address without a nearby name/title: store only when its block shows a relevant role.
       const role = assess(e.block);
@@ -301,48 +308,19 @@ export async function researchCompany(
       });
       continue;
     }
-    if (!devOrHr && !e.invitation) {
+    if (!profile.relevant) {
       if (fallbackAdded) continue;
       fallbackAdded = true;
     }
     inputs.push({
       companyId,
-      kind: devOrHr || e.invitation ? "department_inbox" : "general_inbox",
-      departmentLabel:
-        e.mailbox === "development"
-          ? "Szkolenia / rozwój"
-          : e.mailbox === "hr"
-            ? "HR"
-            : e.mailbox === "procurement"
-              ? "Zakupy"
-              : e.invitation
-                ? "Kanał ofert dla dostawców"
-                : e.mailbox === "recruiting"
-                  ? "Rekrutacja"
-                  : "Kontakt ogólny",
+      kind: profile.relevant ? "department_inbox" : "general_inbox",
+      departmentLabel: profile.label,
       email: e.email,
       emailOrigin: "published_source",
-      roleCategory: devOrHr || e.invitation ? "departmental_inbox" : "general_routing",
-      roleFunction:
-        e.mailbox === "development"
-          ? "learning"
-          : e.mailbox === "hr"
-            ? "hr"
-            : e.mailbox === "procurement" || e.invitation
-              ? "procurement"
-              : "other",
-      roleRationale:
-        e.mailbox === "development"
-          ? "Skrzynka związana ze szkoleniami/rozwojem"
-          : e.mailbox === "hr"
-            ? "Skrzynka działu HR"
-            : e.mailbox === "procurement"
-              ? "Skrzynka działu zakupów (dostawcy usług, w tym szkoleń)"
-              : e.invitation
-                ? "Strona zaprasza dostawców do przesyłania ofert"
-                : e.mailbox === "recruiting"
-                  ? "Skrzynka rekrutacyjna — nie kupuje rozwoju pracowników"
-                  : "Adres ogólny firmy",
+      roleCategory: profile.relevant ? "departmental_inbox" : "general_routing",
+      roleFunction: profile.fn,
+      roleRationale: profile.rationale,
       sourcePublishedAt: e.publishedAt,
       discoveryMethod: "crawler",
       runId: ctx.runId,
@@ -391,7 +369,52 @@ function rankPerson(p: PersonCandidate): number {
   return (p.role.category === "decision_maker" ? 4 : 2) + (p.email ? 3 : 0);
 }
 
+type InboxProfile = { relevant: boolean; label: string; fn: RoleFunction; rationale: string };
+
+/** What a department or general mailbox is for, from its address and the text around it. */
+function inboxProfile(e: EmailCandidate): InboxProfile {
+  const buying = e.mailbox === "procurement" || e.invitation;
+  if (buying && procurementScope(e.block) === "direct")
+    return {
+      relevant: false,
+      label: "Zakupy materiałów",
+      fn: "procurement",
+      rationale: "Zakupy materiałów do produkcji — szkolenia kupuje zwykle inny zespół (HR lub zakupy usług)",
+    };
+  if (e.mailbox === "development")
+    return {
+      relevant: true,
+      label: "Szkolenia / rozwój",
+      fn: "learning",
+      rationale: "Skrzynka związana ze szkoleniami/rozwojem",
+    };
+  if (e.mailbox === "hr") return { relevant: true, label: "HR", fn: "hr", rationale: "Skrzynka działu HR" };
+  if (e.mailbox === "procurement")
+    return {
+      relevant: true,
+      label: "Zakupy",
+      fn: "procurement",
+      rationale: "Skrzynka działu zakupów (dostawcy usług, w tym szkoleń)",
+    };
+  if (e.invitation)
+    return {
+      relevant: true,
+      label: "Kanał ofert dla dostawców",
+      fn: "procurement",
+      rationale: "Strona zaprasza dostawców do przesyłania ofert na ten adres",
+    };
+  if (e.mailbox === "recruiting")
+    return {
+      relevant: false,
+      label: "Rekrutacja",
+      fn: "other",
+      rationale: "Skrzynka rekrutacyjna — nie kupuje rozwoju pracowników",
+    };
+  return { relevant: false, label: "Kontakt ogólny", fn: "other", rationale: "Adres ogólny firmy" };
+}
+
 function rankInbox(e: EmailCandidate): number {
+  if ((e.mailbox === "procurement" || e.invitation) && procurementScope(e.block) === "direct") return 0.5;
   return e.mailbox === "development"
     ? 5
     : e.invitation

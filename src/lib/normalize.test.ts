@@ -28,5 +28,19 @@ describe("normalisation", () => {
     expect(classifyMailbox("info@firma.pl")).toBe("generic");
     expect(classifyMailbox("anna.kowalska@firma.pl")).toBe("personal");
     expect(classifyMailbox("partnerstwa.biznesowe@firma.pl")).toBe("generic");
+    // People-development words are needed: "rozwój"/"development" alone is often R&D or sales.
+    expect(classifyMailbox("rozwoj.pracownikow@firma.pl")).toBe("development");
+    expect(classifyMailbox("centrum-szkolen@firma.pl")).toBe("development");
+    expect(classifyMailbox("development@firma.pl")).toBe("generic");
+    expect(classifyMailbox("sekretariat.pionrozwoju@firma.pl")).toBe("generic");
+    expect(classifyMailbox("business.development@firma.pl")).toBe("generic");
+    // HR variants
+    expect(classifyMailbox("komunikacja.hr@firma.pl")).toBe("hr");
+    expect(classifyMailbox("kfchr@firma.pl")).toBe("hr");
+    expect(classifyMailbox("people@firma.pl")).toBe("hr");
+    // Press, investors and privacy are never buyers
+    expect(classifyMailbox("inwestor@firma.pl")).toBe("generic");
+    expect(classifyMailbox("media@firma.pl")).toBe("generic");
+    expect(classifyMailbox("iod@firma.pl")).toBe("generic");
   });
 });

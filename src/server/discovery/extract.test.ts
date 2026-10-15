@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   brandTokens,
+  cleanTitle,
   containsVerbatim,
   deobfuscate,
   emailMatchesName,
   extractPage,
   findNames,
+  foreignEntity,
+  invitationFor,
+  procurementScope,
   scoreLink,
 } from "./extract.ts";
 
@@ -74,5 +78,54 @@ describe("helpers", () => {
     expect(scoreLink("https://x.pl/zrownowazony-rozwoj", "")).toBe(0);
     expect(scoreLink("https://x.pl/o-czym-pamietac-przy-zakupie-ac", "")).toBe(0);
     expect(scoreLink("https://x.pl/esg/raport", "")).toBe(0);
+  });
+});
+
+describe("quality guards", () => {
+  const contactPage = (body: string) => `<html><body>${body}</body></html>`;
+
+  it("ties an invitation to send offers only to the address it points at", () => {
+    const block =
+      "Dla dostawców usług e-mail: zakupy.uslug@firma.pl Polityka zakupowa Dla mediów e-mail: media@firma.pl Dla inwestorów e-mail: inwestor@firma.pl";
+    expect(invitationFor("zakupy.uslug@firma.pl", block)).toBe(true);
+    expect(invitationFor("media@firma.pl", block)).toBe(false);
+    expect(invitationFor("inwestor@firma.pl", block)).toBe(false);
+    const ex = extractPage(contactPage(`<p>${block}</p>`), "https://firma.pl/kontakt", ["firma.pl"]);
+    const inv = Object.fromEntries(ex.emails.map((e) => [e.email, e.invitation]));
+    expect(inv).toEqual({
+      "zakupy.uslug@firma.pl": true,
+      "media@firma.pl": false,
+      "inwestor@firma.pl": false,
+    });
+  });
+
+  it("tells purchasing of production materials from purchasing of services", () => {
+    expect(procurementScope("Dla dostawców. Zakupy komponentów do produkcji mebli: zakupy@firma.pl")).toBe(
+      "direct",
+    );
+    expect(procurementScope("Zakupy usług nieprodukcyjnych: zakupy@firma.pl")).toBe("services");
+    expect(procurementScope("Dział Zakupów: zakupy@firma.pl")).toBe("unknown");
+  });
+
+  it("skips addresses of subsidiaries abroad", () => {
+    const html = contactPage(`
+      <div>Firma Adria d.o.o. Kontakt: E: hr.adria@firma.pl Adres Kneza Branimira 71A, 10000 Zagrzeb Chorwacja</div>
+      <div>Firma Polska Sp. z o.o., ul. Prosta 1, 00-001 Warszawa. HR: hr@firma.pl</div>`);
+    const ex = extractPage(html, "https://firma.pl/kontakt", ["firma.pl"]);
+    expect(ex.emails.map((e) => e.email)).toEqual(["hr@firma.pl"]);
+    expect(foreignEntity("Biuro w Polsce, oddział w Niemczech")).toBe(false);
+  });
+
+  it("does not take another country's domain of the same brand", () => {
+    const html = contactPage(
+      `<p>Business: business.development@firma.it, Szkolenia: szkolenia@firma.com</p>`,
+    );
+    const ex = extractPage(html, "https://firma.pl/kontakt", ["firma.pl"]);
+    expect(ex.emails.map((e) => e.email)).toEqual(["szkolenia@firma.com"]);
+  });
+
+  it("cleans list dashes from titles", () => {
+    expect(cleanTitle("- Junior HR Business Partner")).toBe("Junior HR Business Partner");
+    expect(cleanTitle("• Dyrektor Personalna,")).toBe("Dyrektor Personalna");
   });
 });

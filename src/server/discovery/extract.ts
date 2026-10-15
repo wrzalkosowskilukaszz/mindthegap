@@ -12,6 +12,7 @@ import {
   domainLabel,
   foldDiacritics,
   type MailboxType,
+  NON_BUYER_LOCAL,
   normalizeEmail,
   registrableDomain,
 } from "@/lib/normalize";
@@ -168,6 +169,55 @@ const INVITATION_RE = new RegExp(
   "i",
 );
 
+/**
+ * Does the invitation in this block point at this address? Only the first address written within
+ * 160 characters after an invitation phrase counts, and never a press, investor or privacy mailbox.
+ */
+export function invitationFor(email: string, block: string): boolean {
+  const local = email.slice(0, email.indexOf("@"));
+  if (NON_BUYER_LOCAL.test(local)) return false;
+  const lower = deobfuscate(block).toLowerCase();
+  const re = new RegExp(INVITATION_RE.source, "gi");
+  for (const m of lower.matchAll(re)) {
+    const end = (m.index ?? 0) + m[0].length;
+    const after = lower.slice(end, end + 160);
+    const first = after.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/);
+    if (first && first[0] === email.toLowerCase()) return true;
+  }
+  return false;
+}
+
+/** What a purchasing address buys: training is a service, bought by indirect/services procurement. */
+export function procurementScope(block: string): "services" | "direct" | "unknown" {
+  const t = foldDiacritics(block);
+  const services = /(uslug|szkolen|posredni|nieprodukcyjn|indirect|services?\b|consulting|doradz|hr\b)/.test(
+    t,
+  );
+  const direct =
+    /(komponent|surowc|material\w* (do )?produkc|czesci|opakowa|raw material|components|direct material|do produkcji)/.test(
+      t,
+    );
+  return services ? "services" : direct ? "direct" : "unknown";
+}
+
+const COUNTRY_RE =
+  /\b(chorwacj\w*|czech\w*|republik\w* czesk\w*|slowacj\w*|wegr\w*|niemc\w*|niemiec|austri\w*|rumuni\w*|bulgari\w*|serbi\w*|slowenia|slowenii|litw\w*|lotw\w*|estoni\w*|ukrain\w*|hiszpani\w*|francj\w*|wloch\w*|wlochy|portugali\w*|holandi\w*|belgi\w*|szwecj\w*|dani[ia]\b|norwegi\w*|finlandi\w*|wielk\w* brytani\w*|irlandi\w*|rosj\w*|bialorus\w*|szwajcari\w*|croatia|czechia|czech republic|slovakia|hungary|germany|romania|bulgaria|serbia|slovenia|lithuania|latvia|estonia|ukraine|spain|france|italy|portugal|netherlands|belgium|sweden|denmark|norway|finland|united kingdom|ireland|switzerland)\b/;
+const POLAND_RE = /\b(polska|polsce|poland|polish)\b|\b\d{2}-\d{3}\b/;
+
+/** The block describes another country's entity (an address abroad and nothing Polish). */
+export function foreignEntity(block: string): boolean {
+  const t = foldDiacritics(block);
+  return COUNTRY_RE.test(t) && !POLAND_RE.test(t);
+}
+
+/** Generic TLDs and Poland's: another country's ccTLD usually means a foreign group company. */
+const OK_TLD = /\.(pl|eu|com|net|org|group|global|info|biz|io|co|company|team)$/;
+
+/** Strips list dashes, bullets and separators around a title. */
+export function cleanTitle(t: string): string {
+  return t.replace(/^[\s\-–—|,:;•·*]+|[\s\-–—|,:;•·*]+$/g, "").replace(/\s+/g, " ");
+}
+
 /** Splits a compact block into candidate title segments. */
 function segments(block: string): string[] {
   return block
@@ -270,7 +320,10 @@ export function extractPage(
   const tokens = brandTokens([...[...domains].map(domainLabel), ...brandHints]);
   const ownDomain = (reg: string | null): boolean => {
     if (!reg) return false;
-    if (domains.has(reg) || labels.has(domainLabel(reg))) return true;
+    if (domains.has(reg)) return true;
+    // Same brand elsewhere: accept .pl and generic TLDs only (angelini.it is the Italian parent, not Poland).
+    if (!OK_TLD.test(reg)) return false;
+    if (labels.has(domainLabel(reg))) return true;
     if (FREEMAIL.test(reg)) return false;
     const label = domainLabel(reg);
     return tokens.some((t) => label.includes(t));
@@ -340,13 +393,16 @@ export function extractPage(
       (prev.block.length < 40
         ? b.length > prev.block.length
         : b.length >= 40 && b.length < prev.block.length);
-    const invitation = (prev?.invitation ?? false) || INVITATION_RE.test(b);
+    const invitation = (prev?.invitation ?? false) || invitationFor(e, b);
     if (better) emails.set(e, { email: e, mailbox: classifyMailbox(e), block: b, invitation });
     else if (invitation && !prev.invitation) emails.set(e, { ...prev, invitation });
   };
   for (const [e, b] of mailtoBlocks) considerEmail(e, b);
   for (const b of blocks) for (const e of findEmails(b)) considerEmail(e, b);
   for (const e of findEmails(fullText)) if (!emails.has(e)) considerEmail(e, windowAround(fullText, e));
+  // An address abroad (another country's subsidiary) is not a contact in Poland. Judged on the
+  // address's own (smallest) block, so a neighbouring Polish address does not mask it.
+  for (const [e, c] of emails) if (foreignEntity(windowAround(c.block, e, 160))) emails.delete(e);
 
   // People: a known name + relevant title in the person's own "card" — the smallest block that contains
   // the name and something else. Titles are never borrowed from larger blocks (another person's card).
@@ -378,7 +434,8 @@ export function extractPage(
     if (!t) continue;
     const blockEmails = findEmails(card);
     const email = blockEmails.find((e) => emailMatchesName(e, name)) ?? null;
-    people.set(name, { fullName: name, title: t.title, role: t.role, email, block: card });
+    if (foreignEntity(card)) continue; // e.g. the HR director of the Czech subsidiary
+    people.set(name, { fullName: name, title: cleanTitle(t.title), role: t.role, email, block: card });
   }
   // A person's email may sit in a mailto link near the name rather than in the same block.
   for (const p of people.values()) {

@@ -102,12 +102,23 @@ export function slugify(s: string): string {
 
 /** Generic/role mailbox local parts (fallback contacts). */
 const GENERIC_LOCAL =
-  /^(info|biuro|office|kontakt|contact|hello|hi|mail|sekretariat|recepcja|reception|admin|support|pomoc|help|sales|sprzedaz|marketing|press|media|prasa|pr|newsletter|noreply|no-reply|webmaster|privacy|rodo|gdpr|iod|dpo|daneosobowe|ochronadanych|abuse|postmaster|zarzad|board|investor|ir|relacje)$/;
+  /^(info|biuro|office|kontakt|contact|hello|hi|mail|sekretariat|recepcja|reception|admin|support|pomoc|help|sales|sprzedaz|marketing|newsletter|webmaster|abuse|postmaster|zarzad|board|serwis|service|reklamacje|zamowienia|orders|sklep|shop|eksport|export)$/;
+/**
+ * Mailboxes with a different job (press, investors, privacy, ethics, sales/business development).
+ * They are kept only as general routing and are never treated as procurement or development.
+ */
+export const NON_BUYER_LOCAL =
+  /^(media|press|prasa|pr|newsroom|investors?|inwestor\w*|ir|relacje[._-]?inwestorskie|rodo|gdpr|iod|dpo|privacy|prywatnosc|daneosobowe|ochronadanych|dane[._-]?osobowe|sygnalista|whistleblow\w*|etyka|ethics|compliance|noreply|no-reply|donotreply|business[._-]?development|bizdev|bd|rozwoj[._-]?biznesu|partnerstwa?\w*|partners?|partnership\w*|sales\w*|sprzedaz\w*|marketing\w*)$/;
 const RECRUITING_LOCAL = /(rekrutacj|recruit|career|kariera|jobs?$|praca|cv$|hiring|talent\.?acq|ta$)/;
 const PROCUREMENT_LOCAL =
   /^(zakupy|zakup|procurement|purchasing|purchase|zaopatrzenie|przetargi|tenders?|sourcing|dostawcy|suppliers?|vendors?|indirect)([._-]?(pl|polska|poland|uslug|services|team))?$/;
-const DEVELOPMENT_LOCAL =
-  /(szkolen|training|akademi|academy|rozwoj|development|learning|l&d|lnd|ld$|edukacj|education|talent$|people|hr$|kadry|personal|culture|kultur)/;
+/** Unambiguous people-development words. */
+const DEVELOPMENT_LOCAL = /(szkolen|training|akademi|academy|learning|l&d|lnd|edukacj|culture|kultur)/;
+/** "rozwój"/"development" alone is often R&D or business development: only with a people word. */
+const PEOPLE_DEVELOPMENT_LOCAL =
+  /(rozwoj|development)[._-]?(pracownik\w*|ludzi|kadr\w*|talent\w*|people|kompetencji|osobist\w*|liderow)|(people|talent|hr|personal\w*|leadership|kadr\w*|pracownik\w*)[._-]?(rozwoj|development)/;
+const HR_LOCAL =
+  /^(hr|kadry|personal|personalny|people|peopleteam|hrteam|zasoby[._-]?ludzkie)$|^hr[._-]|[._-]hr$|hr$/;
 
 export type MailboxType = "personal" | "development" | "hr" | "procurement" | "recruiting" | "generic";
 
@@ -124,10 +135,10 @@ function looksPersonal(local: string): boolean {
 export function classifyMailbox(email: string): MailboxType {
   const local = email.slice(0, email.indexOf("@")).toLowerCase();
   if (RECRUITING_LOCAL.test(local)) return "recruiting";
-  if (/^(hr|kadry|personal|people|peopleteam|hrteam)$/.test(local)) return "hr";
+  if (NON_BUYER_LOCAL.test(local) || GENERIC_LOCAL.test(local)) return "generic";
   if (PROCUREMENT_LOCAL.test(local)) return "procurement";
-  if (DEVELOPMENT_LOCAL.test(local)) return "development";
-  if (GENERIC_LOCAL.test(local)) return "generic";
+  if (DEVELOPMENT_LOCAL.test(local) || PEOPLE_DEVELOPMENT_LOCAL.test(local)) return "development";
+  if (HR_LOCAL.test(local)) return "hr";
   if (looksPersonal(local)) return "personal";
   return "generic";
 }
