@@ -56,6 +56,16 @@ describe("job matching", () => {
     expect(m.score).toBeLessThan(40);
   });
 
+  it("keeps unrelated jobs that share a word out of the list", () => {
+    for (const t of [
+      "Personal Trainer",
+      "People-First Restaurant Manager",
+      "Remote Physics QA & AI Training Specialist",
+    ])
+      expect(titleLooksRelevant(t, prefs)).toBe(false);
+    expect(titleLooksRelevant("Global People Business Partner", prefs)).toBe(true);
+  });
+
   it("accepts remote roles open to Europe and rejects US-only or UK roles", () => {
     expect(classifyLocation({ location: "Remote - EMEA" })).toBe("remote_ok");
     expect(classifyLocation({ location: "Remote", countries: ["PL", "DE"], workplace: "remote" })).toBe(

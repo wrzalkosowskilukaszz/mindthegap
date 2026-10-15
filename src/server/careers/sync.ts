@@ -459,8 +459,10 @@ export async function rescoreAll(refetch: { companyId?: string } | "all" = "all"
       .set({
         score: m.score,
         match: { reasons: m.reasons, region: m.region, requiredLanguages: m.requiredLanguages, hits: m.hits },
-        // A place that is no longer wanted takes the offer off the lists (unless you saved or applied).
-        ...(!m.eligible && o.status === "new" && o.sourceId ? { closedAt: new Date() } : {}),
+        // An offer that no longer fits (place or role) leaves the lists, unless you saved or applied.
+        ...(!worthKeeping(m, favourite ?? false) && o.status === "new" && o.sourceId
+          ? { closedAt: new Date() }
+          : {}),
       })
       .where(eq(jobOffers.id, o.id));
   }

@@ -697,6 +697,9 @@ async function jooble(_f: PoliteFetcher, _s: SourceRef, want: WantDetail): Promi
         const title = clean(j.title).replace(/<\/?b>/g, "");
         const loc = clean(j.location);
         if (!want(title, loc)) continue;
+        // The global index sometimes labels US jobs with a European country: "(Remote) PA, DE, NY".
+        if (/\b[A-Z]{2}, [A-Z]{2}\b|\bU\.?S\.?A?\b|United States/.test(`${title} ${clean(j.snippet)}`))
+          continue;
         const id = str(j.id) || str(j.link);
         out.set(id, {
           externalId: id,

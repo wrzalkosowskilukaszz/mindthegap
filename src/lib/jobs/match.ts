@@ -141,7 +141,7 @@ const MEDIA_TECH_SECTORS = new Set(["telecom_media", "technology"]);
 
 // Roles that share a word with the families but are not what the owner is looking for.
 const OFF_TARGET =
-  /\b(recruit\w*|talent acquisition|sourcer|sourcing|payroll|p[łl]ac\w*|rekrutac\w*|rekruter\w*|benefits administrator|(software|frontend|front-end|backend|back-end|full[- ]?stack|java|python|\.net|ios|android|web|game|data|platform|cloud|devops|ml|machine learning|site reliability|qa|test) (developer|engineer|architect)|engineering manager|accountant|ksi[eę]gow\w*|sales representative|account executive|driver|kierowc\w*|warehouse|magazyn\w*|nurse|piel[eę]gniar\w*|teacher|nauczyciel\w*)\b/i;
+  /\b(recruit\w*|talent acquisition|sourcer|sourcing|payroll|p[łl]ac\w*|rekrutac\w*|rekruter\w*|benefits administrator|(software|frontend|front-end|backend|back-end|full[- ]?stack|java|python|\.net|ios|android|web|game|data|platform|cloud|devops|ml|machine learning|site reliability|qa|test) (developer|engineer|architect)|engineering manager|accountant|ksi[eę]gow\w*|sales representative|account executive|driver|kierowc\w*|warehouse|magazyn\w*|nurse|piel[eę]gniar\w*|teacher|nauczyciel\w*|personal trainer|fitness|gym|restaurant|kitchen|chef|barista|clinical|physics|math|ai (training|trainer|tutor)|data annotat\w*|driving instructor|swim\w*|lifeguard|retail store)\b/i;
 const JUNIOR =
   /\b(junior|intern|internship|trainee|working student|werkstudent|praktyk\w*|sta[zż]\w*|asystent\w*|assistant)\b/i;
 
