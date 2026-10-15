@@ -1001,3 +1001,61 @@ export const tenders = pgTable(
     index("tenders_list_idx").on(t.status, t.score),
   ],
 );
+
+// ------------------------------------------------------------------------------------------------
+// Wydarzenia: events where L&D and HR buyers meet, and pages watched for new dates
+// ------------------------------------------------------------------------------------------------
+
+export const eventStatusEnum = pgEnum("event_status", ["new", "saved", "going", "dismissed"]);
+
+/** One row per source in src/server/events/sources.ts (feeds and watched pages). */
+export const eventSources = pgTable("event_sources", {
+  key: text("key").primaryKey(),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  kind: text("kind").notNull(),
+  lastCheckedAt: ts("last_checked_at"),
+  lastStatus: text("last_status"),
+  lastError: text("last_error"),
+  eventsFound: integer("events_found").notNull().default(0),
+  /** Watched pages: the lines with dates seen last time, their hash, and when they changed. */
+  lines: jsonb("lines").$type<string[]>(),
+  linesHash: text("lines_hash"),
+  newLines: jsonb("new_lines").$type<string[]>(),
+  changedAt: ts("changed_at"),
+  seenAt: ts("seen_at"),
+  updatedAt: updatedAt(),
+});
+
+export const events = pgTable(
+  "events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** An event_sources key, or "manual". */
+    source: text("source").notNull(),
+    externalId: text("external_id").notNull(),
+    title: text("title").notNull(),
+    organiser: text("organiser"),
+    startsAt: ts("starts_at").notNull(),
+    endsAt: ts("ends_at"),
+    allDay: boolean("all_day").notNull().default(false),
+    place: text("place"),
+    online: boolean("online").notNull().default(false),
+    url: text("url").notNull(),
+    description: text("description").notNull().default(""),
+    price: text("price"),
+    score: integer("score").notNull().default(0),
+    reasons: jsonb("reasons").$type<TenderReasons>().notNull().default([]),
+    status: eventStatusEnum("status").notNull().default("new"),
+    statusAt: ts("status_at"),
+    note: text("note"),
+    firstSeenAt: ts("first_seen_at").notNull().defaultNow(),
+    lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("events_source_ext_uq").on(t.source, t.externalId),
+    index("events_starts_idx").on(t.startsAt),
+  ],
+);

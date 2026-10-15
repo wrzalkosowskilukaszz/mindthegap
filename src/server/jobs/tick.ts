@@ -11,6 +11,7 @@ import { decideScheduledRun, localDate } from "@/lib/time";
 import { jobsWorkDue, type SyncReport, syncJobs } from "../careers/sync.ts";
 import { db } from "../db/client.ts";
 import { contacts, jobRuns, settings } from "../db/schema.ts";
+import { type EventsReport, eventsDue, syncEvents } from "../events/sync.ts";
 import { logEvent } from "../events.ts";
 import { sendDueMessages } from "../gmail/dispatch.ts";
 import { syncRepliesIfDue } from "../gmail/sync.ts";
@@ -33,6 +34,7 @@ export type TickReport = {
   retention: { deleted: number } | null;
   jobs: SyncReport | null;
   tenders: TendersReport | null;
+  events: EventsReport | null;
   busy: string[];
 };
 
@@ -66,6 +68,7 @@ export async function runTick(opts: {
     retention: null,
     jobs: null,
     tenders: null,
+    events: null,
     busy: [],
   };
   await recordTick({ ...report, schedule: `started (${opts.trigger})` });
@@ -143,6 +146,19 @@ export async function runTick(opts: {
         await releaseLease("tenders", holder);
       }
     } else report.busy.push("tenders");
+  }
+
+  // 5c. Wydarzenia: event feeds and watched conference pages, once a day each.
+  if (opts.jobs !== false && Date.now() < deadline - 60_000 && (await eventsDue())) {
+    if (await acquireLease("events", holder, 3 * 60_000)) {
+      try {
+        report.events = await syncEvents({ deadline: Math.min(deadline - 30_000, Date.now() + 90_000) });
+      } catch (e) {
+        await logEvent("error", "events", "Sprawdzanie wydarzeń nie powiodło się", { message: errMsg(e) });
+      } finally {
+        await releaseLease("events", holder);
+      }
+    } else report.busy.push("events");
   }
 
   // 6. Discovery: start today's scheduled run when due, then work on any active run.

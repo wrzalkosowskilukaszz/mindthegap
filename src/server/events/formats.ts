@@ -11,6 +11,8 @@ export type RawEvent = {
   title: string;
   startsAt: Date;
   endsAt: Date | null;
+  /** Only a date is known (no time of day). */
+  allDay: boolean;
   url: string;
   place: string | null;
   online: boolean;
@@ -41,6 +43,9 @@ export function eventDate(v: unknown): Date | null {
   return sqlish.isValid ? sqlish.toJSDate() : null;
 }
 
+/** Aggregators fill unknown venues with notes like "brak danych" or "do potwierdzenia". */
+const PLACEHOLDER = /brak danych|do potwierdzenia|nieznan|tba\b|tbc\b|to be (announced|confirmed)/i;
+
 function placeOf(loc: unknown): { place: string | null; online: boolean } {
   let online = false;
   const parts: string[] = [];
@@ -58,8 +63,15 @@ function placeOf(loc: unknown): { place: string | null; online: boolean } {
     }
     const a = obj(o.address);
     const city = clean(str(a.addressLocality)) || (typeof o.address === "string" ? clean(o.address) : "");
-    const name = clean(htmlToText(str(o.name)));
-    const bit = [name, city].filter(Boolean).join(", ");
+    let name = clean(htmlToText(str(o.name)));
+    if (PLACEHOLDER.test(name)) name = "";
+    if (/^online$/i.test(name) || /^online$/i.test(city)) online = true;
+    const bits = [...new Set([name, city].filter((x) => x && !/^online$/i.test(x)))];
+    // "Warszawa, Warszawa" or a venue name that already ends with the city.
+    const bit =
+      bits.length === 2 && bits[0]!.toLowerCase().endsWith(bits[1]!.toLowerCase())
+        ? bits[0]!
+        : bits.join(", ");
     if (bit) parts.push(bit);
   }
   return { place: parts.join("; ").slice(0, 300) || null, online };
@@ -111,10 +123,13 @@ export function eventsFromJsonLd(html: string, pageUrl: string): RawEvent[] {
       title: title.slice(0, 300),
       startsAt,
       endsAt: eventDate(o.endDate),
+      allDay: /^\d{4}-\d{2}-\d{2}$/.test(str(o.startDate).trim()),
       url,
       place,
       online: online || /online/i.test(mode),
-      organiser: clean(htmlToText(str(obj(arr(o.organizer)[0]).name))) || null,
+      organiser: ((n) => (n && !PLACEHOLDER.test(n) ? n : null))(
+        clean(htmlToText(str(obj(arr(o.organizer)[0]).name))),
+      ),
       description: htmlToText(str(o.description)).slice(0, 8000),
       price,
     });
@@ -141,6 +156,15 @@ function icalDate(value: string, params: string): Date | null {
   return d.isValid ? d.toJSDate() : null;
 }
 
+/** iCalendar all-day end dates are exclusive (an event on the 15th ends on the 16th); stored inclusive. */
+function icalEnd(end: { value: string; params: string } | undefined, start: Date): Date | null {
+  if (!end) return null;
+  const d = icalDate(end.value, end.params);
+  if (!d || !/^\d{8}$/.test(end.value)) return d;
+  const inclusive = new Date(d.getTime() - 86_400_000);
+  return inclusive > start ? inclusive : null;
+}
+
 export function eventsFromIcal(text: string, feedUrl: string): RawEvent[] {
   // Unfold continuation lines (a line starting with a space or tab continues the previous one).
   const lines = text
@@ -162,7 +186,8 @@ export function eventsFromIcal(text: string, feedUrl: string): RawEvent[] {
           externalId: (cur.UID?.value || `${feedUrl}#${title}|${startsAt.toISOString()}`).slice(0, 400),
           title: title.slice(0, 300),
           startsAt,
-          endsAt: cur.DTEND ? icalDate(cur.DTEND.value, cur.DTEND.params) : null,
+          endsAt: icalEnd(cur.DTEND, startsAt),
+          allDay: /^\d{8}$/.test(cur.DTSTART?.value ?? ""),
           url: /^https?:\/\//.test(url) ? url : feedUrl,
           place: loc && !/^https?:\/\//.test(loc) ? loc.slice(0, 300) : null,
           online: /online|zoom|teams|webinar|^https?:\/\//i.test(loc),

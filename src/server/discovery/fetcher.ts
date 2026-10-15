@@ -53,7 +53,9 @@ export class PoliteFetcher {
     const [st] = await db().select().from(hostState).where(eq(hostState.host, host)).limit(1);
     let txt: string | null = null;
     let status: number | null = null;
-    if (st?.robotsFetchedAt && Date.now() - st.robotsFetchedAt.getTime() < ROBOTS_TTL_MS) {
+    // A failed robots.txt fetch (network error, 5xx) counts as "disallowed", but is retried within an hour.
+    const ttl = st?.robotsStatus && st.robotsStatus < 500 ? ROBOTS_TTL_MS : 3_600_000;
+    if (st?.robotsFetchedAt && Date.now() - st.robotsFetchedAt.getTime() < ttl) {
       txt = st.robotsTxt;
       status = st.robotsStatus;
     } else {

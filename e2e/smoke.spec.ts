@@ -27,6 +27,7 @@ const SCREENS: [string, RegExp][] = [
   ["/materialy", /Moja oferta/],
   ["/oferty", /Oferty pracy/],
   ["/zapytania", /Zapytania ofertowe/],
+  ["/wydarzenia", /Wydarzenia/],
   ["/aktywnosc", /Statystyki/],
   ["/ustawienia", /Ustawienia/],
 ];

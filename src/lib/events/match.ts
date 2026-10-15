@@ -88,6 +88,13 @@ const OFF: Rule[] = [
     points: -35,
   },
   {
+    label: "kadry i płace",
+    re: w(
+      "kadr\\p{L}* i p[łl]ac\\p{L}*|kadry, p[łl]ac\\p{L}*|kadrowo-p[łl]acow\\p{L}*|p[łl]ac\\p{L}* i kadr\\p{L}*|prawo pracy|prawa pracy|ZUS(?!\\p{L})",
+    ),
+    points: -25,
+  },
+  {
     label: "targi pracy / dla studentów",
     re: w("targi pracy|job fair|career fair|dla student\\p{L}*|dzie[ńn] otwarty|rekrutac\\p{L}* na studia"),
     points: -30,

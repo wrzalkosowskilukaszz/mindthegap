@@ -6,6 +6,7 @@
  *   ... discover-companies [--max 10]  find new companies (Wikidata)
  *   ... jobs [--seconds 120] [--no-detect]  read job boards and feeds now (Oferty pracy)
  *   ... tenders [--seconds 120]          read Baza Konkurencyjności now (Zapytania ofertowe)
+ *   ... events [--seconds 120]           check event feeds and watched pages now (Wydarzenia)
  *   ... status                         print scheduler / run status
  */
 import { eq, or } from "drizzle-orm";
@@ -15,6 +16,7 @@ import { companies } from "../server/db/schema.ts";
 import { discoverCompanies } from "../server/discovery/company-discovery.ts";
 import { PoliteFetcher } from "../server/discovery/fetcher.ts";
 import { researchCompany } from "../server/discovery/research-company.ts";
+import { syncEvents } from "../server/events/sync.ts";
 import { createManualRun, processRun } from "../server/jobs/runs.ts";
 import { runTick } from "../server/jobs/tick.ts";
 import { discoveryStatus } from "../server/services/discovery-status.ts";
@@ -50,6 +52,14 @@ try {
     }
     case "tenders": {
       const r = await syncTenders({ deadline: Date.now() + Number(flag("seconds", "120")) * 1000 });
+      console.log(JSON.stringify(r, null, 2));
+      break;
+    }
+    case "events": {
+      const r = await syncEvents({
+        deadline: Date.now() + Number(flag("seconds", "120")) * 1000,
+        force: true,
+      });
       console.log(JSON.stringify(r, null, 2));
       break;
     }

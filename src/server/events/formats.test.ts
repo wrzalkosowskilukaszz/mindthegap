@@ -47,6 +47,34 @@ describe("event formats", () => {
     expect(ev[1]!.startsAt.toISOString()).toBe("2026-11-10T11:00:00.000Z");
   });
 
+  it("drops placeholder venues and organisers and does not repeat the city", () => {
+    const html = `<script type="application/ld+json">${JSON.stringify([
+      {
+        "@type": "Event",
+        name: "A",
+        startDate: "2026-11-05",
+        location: { name: "brak danych (m.in. ADN Akademia)", address: { addressLocality: "Warszawa" } },
+        organizer: { name: "brak danych (prelegent: X)" },
+      },
+      {
+        "@type": "Event",
+        name: "B",
+        startDate: "2026-11-06",
+        location: { name: "Warszawa", address: { addressLocality: "Warszawa" } },
+      },
+      {
+        "@type": "Event",
+        name: "C",
+        startDate: "2026-11-07",
+        location: { name: "Online", address: { addressLocality: "Online" } },
+      },
+    ])}</script>`;
+    const [a, b, c] = eventsFromJsonLd(html, "https://example.org/");
+    expect(a).toMatchObject({ place: "Warszawa", organiser: null, allDay: true });
+    expect(b).toMatchObject({ place: "Warszawa" });
+    expect(c).toMatchObject({ place: null, online: true });
+  });
+
   it("reads an iCalendar feed with folded lines, time zones and escapes", () => {
     const ics = [
       "BEGIN:VCALENDAR",
@@ -60,6 +88,11 @@ describe("event formats", () => {
       "  sesje i networking",
       "URL:https://example.org/konf",
       "ORGANIZER;CN=Stowarzyszenie Y:mailto:biuro@example.org",
+      "END:VEVENT",
+      "BEGIN:VEVENT",
+      "SUMMARY:Coffee",
+      "DTSTART;VALUE=DATE:20261015",
+      "DTEND;VALUE=DATE:20261016",
       "END:VEVENT",
       "BEGIN:VEVENT",
       "SUMMARY:Webinar",
@@ -79,7 +112,21 @@ describe("event formats", () => {
     });
     expect(ev[0]!.description).toBe("Dla menedżerów HR\nprogram: sesje i networking");
     expect(ev[0]!.startsAt.toISOString()).toBe("2026-11-20T08:00:00.000Z");
-    expect(ev[1]).toMatchObject({ online: true, place: null, url: "https://example.org/feed.ics" });
-    expect(ev[1]!.startsAt.toISOString()).toBe("2026-12-01T10:00:00.000Z");
+    // A one-day all-day event: the exclusive iCal end becomes "no separate end".
+    expect(ev[1]).toMatchObject({ title: "Coffee", allDay: true, endsAt: null });
+    expect(ev[2]).toMatchObject({ online: true, place: null, url: "https://example.org/feed.ics" });
+    expect(ev[2]!.startsAt.toISOString()).toBe("2026-12-01T10:00:00.000Z");
+  });
+});
+
+describe("same event from two sources", () => {
+  it("matches a shorter aggregator title to the organiser's full title on the same day", async () => {
+    const { sameEvent } = await import("./sync.ts");
+    const seen = new Map([
+      ["2027-05-17", [{ title: "x kongres hr 2027 człowiek technologia kompetencje", source: "kongreshr" }]],
+    ]);
+    expect(sameEvent(seen, "X Kongres HR 2027", new Date("2027-05-17T08:00:00Z"))).toBe("kongreshr");
+    expect(sameEvent(seen, "X Kongres HR 2027", new Date("2027-05-18T08:00:00Z"))).toBeNull();
+    expect(sameEvent(seen, "Inne wydarzenie", new Date("2027-05-17T08:00:00Z"))).toBeNull();
   });
 });

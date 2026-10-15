@@ -50,6 +50,13 @@
       "when": 1792099370371,
       "tag": "0006_tenders",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792100686352,
+      "tag": "0007_events",
+      "breakpoints": true
     }
   ]
 }

@@ -25,7 +25,7 @@ One Next.js application and one Postgres database. Background work runs in short
 
 ```
 src/
-  app/(app)/        the tabs: kontakty, wiadomosci, materialy, zapytania (requests for quotes), oferty (job offers), aktywnosc, ustawienia
+  app/(app)/        the tabs: kontakty, wiadomosci, materialy, zapytania (requests for quotes), wydarzenia (events), oferty (job offers), aktywnosc, ustawienia
   app/api/          JSON API used by the screens, plus /api/cron/tick
   components/       shared UI (table cells, panel, dialogs, toasts)
   lib/              pure logic shared by server and browser: roles, contact rules, email lint, CSV, time
@@ -41,6 +41,7 @@ src/
     services/       contacts, messages, companies, privacy, activity
     careers/        job offers: careers-page detection, job-board and feed readers, sync, Word export
     tenders/        requests for quotes from Baza Konkurencyjności: reader, sync, list and detail
+    events/         events: source registry, schema.org Event and iCalendar readers, watched pages, .ics export
   worker/cli.ts     the same jobs from the command line
 scripts/            migrate, import research, seed brand, hash password
 research/           the researched company universe (public business data)
@@ -80,6 +81,16 @@ research/           the researched company universe (public business data)
 - **Sync** (`sync.ts`): the tick runs it every 12 hours, with its own lease. New relevant requests get their full text fetched ahead; others when opened. Requests close when their deadline passes or they are no longer published.
 - **Scoring** (`match.ts`): word rules for the owner's topics (title weighs more; the description adds a capped amount) minus vocational, language, school, medical and venue requests, plus place. Reasons are shown on every card.
 - **Table:** `tenders` (request, deadline, detail JSON, score and reasons, status, note).
+
+## Events (Wydarzenia)
+
+`src/server/events/`, `src/lib/events/match.ts`
+
+- **Sources** (`sources.ts`): a fixed registry, each entry checked for robots.txt and format. *Feeds* publish events for machines (schema.org Event in the page, or iCalendar); *watched pages* do not, so the app stores their lines that carry a date and reports new ones.
+- **Readers** (`formats.ts`): schema.org Event (graph, lists, sub-events, online locations, offers) and iCalendar (folded lines, time zones, exclusive all-day ends). Aggregator placeholders ("brak danych") are dropped.
+- **Sync** (`sync.ts`): once a day per source, in the tick, with its own lease. The same event from two sources (same Polish day, one title the start of the other) is kept once, the organiser's own feed first.
+- **Scoring** (`match.ts`): audience words (L&D, HR, leadership, coaching), format (networking, conference), place (Warsaw, online) minus developer, job-fair and payroll events.
+- **Tables:** `events` (event, score and reasons, status, note) and `event_sources` (last check, dated lines, new lines, when the owner last opened the page).
 
 ## Job engine
 

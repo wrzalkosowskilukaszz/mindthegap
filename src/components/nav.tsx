@@ -3,6 +3,7 @@
 import {
   BarChart3,
   BriefcaseBusiness,
+  CalendarDays,
   ClipboardList,
   Layers,
   LogOut,
@@ -21,8 +22,11 @@ const MAIN = [
   { href: "/materialy", label: "Moja oferta", icon: Layers },
 ] as const;
 
-/** Places where buyers come to you: requests for quotes (and, later, events). */
-const CHANCES = [{ href: "/zapytania", label: "Zapytania ofertowe", icon: ClipboardList }] as const;
+/** Places where you meet buyers: requests for quotes and events. */
+const CHANCES = [
+  { href: "/zapytania", label: "Zapytania ofertowe", icon: ClipboardList },
+  { href: "/wydarzenia", label: "Wydarzenia", icon: CalendarDays },
+] as const;
 
 const CAREER = [{ href: "/oferty", label: "Oferty pracy", icon: BriefcaseBusiness }] as const;
 
@@ -34,7 +38,7 @@ const OTHER = [
 const ALL = [...MAIN, ...CHANCES, ...CAREER, ...OTHER];
 // Phone tab bar: four places plus "Więcej", which lists the rest.
 const TABS = [MAIN[0], MAIN[1], { ...CHANCES[0], label: "Zapytania" }, { ...CAREER[0], label: "Praca" }];
-const MORE = [MAIN[2], ...OTHER];
+const MORE = [CHANCES[1], MAIN[2], ...OTHER];
 
 const isActive = (path: string, href: string) => path === href || path.startsWith(`${href}/`);
 
