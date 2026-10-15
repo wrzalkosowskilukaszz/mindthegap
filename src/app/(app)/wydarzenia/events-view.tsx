@@ -73,7 +73,7 @@ export function EventsView() {
     try {
       const u = new URLSearchParams({ view });
       if (qRef.current.trim()) u.set("q", qRef.current.trim());
-      setData(await apiFetch<EventList>(`/api/events?${u}`));
+      setData(await apiFetch<EventList>(`/api/hr-events?${u}`));
       setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Nie udało się wczytać wydarzeń");
@@ -96,7 +96,7 @@ export function EventsView() {
     setSyncing(true);
     try {
       const r = await apiFetch<{ busy: boolean; added?: number; changedPages?: string[] }>(
-        "/api/events/sync",
+        "/api/hr-events/sync",
         {
           body: {},
         },
@@ -117,7 +117,7 @@ export function EventsView() {
   }
 
   async function openWatched(key: string) {
-    await apiFetch(`/api/events/watch/${encodeURIComponent(key)}`, { body: {} }).catch(() => null);
+    await apiFetch(`/api/hr-events/watch/${encodeURIComponent(key)}`, { body: {} }).catch(() => null);
     await load();
   }
 
@@ -383,7 +383,7 @@ function EventPanel({ id, onClose, onChanged }: { id: string; onClose: () => voi
   const saveNote = useCallback(async () => {
     if (noteTimer.current) clearTimeout(noteTimer.current);
     noteTimer.current = null;
-    await apiFetch(`/api/events/${id}`, { method: "PATCH", body: { note: noteRef.current } }).catch(() =>
+    await apiFetch(`/api/hr-events/${id}`, { method: "PATCH", body: { note: noteRef.current } }).catch(() =>
       toast("Nie zapisano notatki", "error"),
     );
     setNoteState("saved");
@@ -395,7 +395,7 @@ function EventPanel({ id, onClose, onChanged }: { id: string; onClose: () => voi
     [saveNote],
   );
   const load = useCallback(async () => {
-    const x = await apiFetch<EventDetail>(`/api/events/${id}`);
+    const x = await apiFetch<EventDetail>(`/api/hr-events/${id}`);
     setD(x);
     setNote(x.note ?? "");
     noteRef.current = x.note ?? "";
@@ -407,7 +407,7 @@ function EventPanel({ id, onClose, onChanged }: { id: string; onClose: () => voi
   }, [load, toast]);
 
   async function status(s: "new" | "saved" | "going" | "dismissed", msg: string) {
-    await apiFetch(`/api/events/${id}`, { method: "PATCH", body: { status: s } });
+    await apiFetch(`/api/hr-events/${id}`, { method: "PATCH", body: { status: s } });
     toast(msg);
     await load();
     onChanged();
@@ -492,7 +492,7 @@ function EventPanel({ id, onClose, onChanged }: { id: string; onClose: () => voi
                   <Bookmark size={14} /> Zapisz
                 </button>
               ) : null}
-              <a className="btn btn-quiet" href={`/api/events/${d.id}/ics`}>
+              <a className="btn btn-quiet" href={`/api/hr-events/${d.id}/ics`}>
                 <CalendarPlus size={14} /> Do kalendarza
               </a>
             </div>
@@ -600,7 +600,7 @@ function AddEventDialog({
   async function add() {
     setBusy(true);
     try {
-      const r = await apiFetch<{ id: string }>("/api/events", {
+      const r = await apiFetch<{ id: string }>("/api/hr-events", {
         body: { ...f, time: f.time || null, place: f.place || null, organiser: f.organiser || null },
       });
       toast("Dodano wydarzenie");

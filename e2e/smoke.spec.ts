@@ -59,3 +59,18 @@ test("the contact panel opens with evidence and the send guard", async ({ page }
   // Without a documented basis, the app asks for it before sending (Art. 398 PKE; docs/research/LEGAL-PL.md).
   await expect(page.getByText("Przed wysłaniem zapytamy, skąd wiesz")).toBeVisible();
 });
+
+test("every screen's API answers (no route shadowed by another)", async ({ page }) => {
+  await login(page);
+  const origin = new URL(page.url()).origin;
+  const headers = { origin, "content-type": "application/json" };
+  const none = "00000000-0000-4000-8000-000000000000";
+  // "Rozwiązane" on a discovery issue (Kontakty → Odkrywanie): marking an unknown id is a no-op.
+  const resolve = await page.request.post(`/api/events/${none}`, { headers, data: {} });
+  expect(resolve.status(), "issue resolve").toBe(200);
+  for (const path of ["/api/jobs?view=best", "/api/tenders?view=best", "/api/hr-events?view=best"]) {
+    const r = await page.request.get(path);
+    expect(r.status(), path).toBe(200);
+  }
+  expect((await page.request.get(`/api/hr-events/${none}`)).status(), "unknown event").toBe(404);
+});
