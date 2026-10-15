@@ -1,5 +1,6 @@
 "use client";
 
+import { MailPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -73,9 +74,20 @@ export function NewDraft() {
 
   if (ids.length === 0)
     return (
-      <Empty title="Nie wybrano kontaktu">
-        Wybierz kontakt w zakładce Kontakty i kliknij „Przygotuj email”.
-      </Empty>
+      <div className="empty-page">
+        <Empty
+          icon={<MailPlus size={28} strokeWidth={1.5} />}
+          title="Najpierw wybierz, do kogo piszesz"
+          actions={
+            <Link href="/kontakty" className="btn btn-primary">
+              Przejdź do kontaktów
+            </Link>
+          }
+        >
+          Otwórz kontakt i kliknij „Przygotuj email”, albo zaznacz kilka kontaktów, aby przygotować szkice dla
+          wszystkich naraz.
+        </Empty>
+      </div>
     );
 
   return (

@@ -313,6 +313,30 @@ async function finishTask(
 
 type Ctx = { run: RunRow; fetcher: PoliteFetcher; deadline: number };
 
+const TASK_FAILURE: Record<TaskKind, string> = {
+  maintenance: "Porządkowanie danych nie powiodło się",
+  find_companies: "Wyszukiwanie nowych firm nie powiodło się",
+  research_company: "Nie udało się zbadać strony firmy",
+  enrich_company: "Nie udało się uzupełnić kontaktów firmy",
+  enrich_person: "Nie udało się znaleźć adresu osoby",
+  verify_email: "Nie udało się zweryfikować adresu",
+  recheck_employment: "Nie udało się sprawdzić zatrudnienia",
+};
+
+/** A readable title for the attention list, with the company's name when the task is about one. */
+async function failureTitle(task: TaskRow): Promise<string> {
+  const base = TASK_FAILURE[task.kind as TaskKind] ?? "Zadanie nie powiodło się";
+  if ((task.kind === "research_company" || task.kind === "enrich_company") && task.targetId) {
+    const [co] = await db()
+      .select({ name: companies.name, brand: companies.brand })
+      .from(companies)
+      .where(eq(companies.id, task.targetId))
+      .limit(1);
+    if (co) return `${base}: ${co.brand ?? co.name}`;
+  }
+  return base;
+}
+
 async function execute(task: TaskRow, ctx: Ctx): Promise<Record<string, unknown>> {
   const s = await getSettings("discovery");
   switch (task.kind as TaskKind) {
@@ -506,7 +530,7 @@ export async function processRun(runId: string, deadline: number, holder: string
           await logEvent(
             "warning",
             "discovery",
-            `Zadanie ${task.kind} nie powiodło się`,
+            await failureTitle(task),
             { key: task.key, message: msg.slice(0, 300) },
             runId,
           );

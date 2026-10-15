@@ -26,6 +26,9 @@ const OPERATION_LABEL: Record<string, string> = {
   search: "wyszukiwanie firm",
 };
 
+const dayLabel = (day: string) =>
+  new Date(`${day}T12:00:00Z`).toLocaleDateString("pl-PL", { day: "numeric", month: "short" });
+
 export function ActivityView() {
   const [days, setDays] = useState(30);
   const [m, setM] = useState<ActivityMetrics | null>(null);
@@ -158,7 +161,12 @@ export function ActivityView() {
             <h3>Dzień po dniu</h3>
             <div
               className="row"
-              style={{ alignItems: "flex-end", gap: 3, height: 120 }}
+              style={{
+                alignItems: "flex-end",
+                gap: 3,
+                height: 120,
+                borderBottom: "1px solid var(--separator)",
+              }}
               role="img"
               aria-label="Nowe kontakty i wysłane wiadomości dziennie"
             >
@@ -189,6 +197,12 @@ export function ActivityView() {
                 </div>
               ))}
             </div>
+            {m.timeline.length > 1 ? (
+              <div className="row-between xsmall muted tabular" style={{ marginTop: -4 }}>
+                <span>{dayLabel(m.timeline[0]!.day)}</span>
+                <span>{dayLabel(m.timeline[m.timeline.length - 1]!.day)}</span>
+              </div>
+            ) : null}
             <div className="row xsmall muted" style={{ gap: 14 }}>
               <span className="status">
                 <span className="dot" style={{ background: "var(--separator-strong)" }} /> nowe kontakty

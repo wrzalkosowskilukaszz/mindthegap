@@ -411,7 +411,7 @@ export function ContactsView({
             void load(rows.length);
         }}
       >
-        <table className="data-table" aria-label="Kontakty" aria-rowcount={total}>
+        <table className="data-table contacts-table" aria-label="Kontakty" aria-rowcount={total}>
           <thead>
             <tr>
               <th className="col-check">
@@ -487,36 +487,43 @@ export function ContactsView({
                       onChange={() => toggle(r.id)}
                     />
                   </td>
-                  <td>
+                  <td className="col-main">
                     <div className="cell-stack">
                       <span className="cell-primary ellipsis">
+                        {r.reviewStatus === "new" ? (
+                          <span
+                            className="new-dot"
+                            role="img"
+                            aria-label="Nowy"
+                            title="Nowy — do przejrzenia"
+                          />
+                        ) : null}
                         {r.fullName ??
                           r.departmentLabel ??
                           (r.kind === "general_inbox" ? "Adres ogólny" : "Skrzynka działu")}
-                        {r.reviewStatus === "new" ? (
-                          <span className="tag tag-accent" style={{ marginLeft: 8 }}>
-                            Nowy
-                          </span>
-                        ) : null}
                       </span>
-                      <span className="cell-sub">{r.title ?? KIND_LABEL[r.kind]}</span>
+                      <span className="cell-sub">
+                        {r.title ?? (r.email && r.kind !== "person" ? r.email : KIND_LABEL[r.kind])}
+                      </span>
                     </div>
                   </td>
-                  <td>
+                  <td className="col-company">
                     <div className="cell-stack">
                       <span className="ellipsis">{r.companyBrand ?? r.companyName}</span>
                       <span className="cell-sub">{SECTOR_LABEL[r.companySector] ?? r.companySector}</span>
                     </div>
                   </td>
-                  <td>
+                  <td className="col-role">
                     <div className="cell-stack">
-                      <span className="small ellipsis">
+                      <span className="ellipsis">
                         {r.roleFunction !== "other" ? FUNCTION_LABEL[r.roleFunction] : "Dział nieustalony"}
                       </span>
-                      <span className="cell-sub">{ROLE_LABEL[r.roleCategory]}</span>
+                      {r.kind === "person" ? (
+                        <span className="cell-sub">{ROLE_LABEL[r.roleCategory]}</span>
+                      ) : null}
                     </div>
                   </td>
-                  <td>
+                  <td className="col-email">
                     {r.email ? (
                       <div className="cell-stack">
                         <span className="ellipsis">{r.email}</span>
@@ -528,17 +535,17 @@ export function ContactsView({
                       <span className="muted small">Brak adresu</span>
                     )}
                   </td>
-                  <td>
+                  <td className="col-verify">
                     {r.email ? (
                       <EmailStatusLabel status={r.emailStatus} at={r.emailCheckedAt} />
                     ) : (
                       <span className="muted small">—</span>
                     )}
                   </td>
-                  <td className="small secondary tabular">
+                  <td className="col-last small secondary tabular">
                     {r.lastContactedAt ? new Date(r.lastContactedAt).toLocaleDateString("pl-PL") : "—"}
                   </td>
-                  <td>
+                  <td className="col-status" data-status={r.outreachStatus}>
                     <OutreachLabel status={r.outreachStatus} />
                   </td>
                 </tr>

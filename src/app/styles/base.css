@@ -35,6 +35,7 @@ h4 {
 
 h1 {
   font-size: var(--text-2xl);
+  font-weight: var(--weight-title);
   letter-spacing: var(--tracking-title);
 }
 
@@ -125,9 +126,9 @@ table {
   background: var(--surface);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-popover);
 }
 
 .skip-link:focus {
   top: var(--space-3);
+  box-shadow: var(--shadow-popover);
 }

@@ -1,7 +1,8 @@
 /*
  * Design tokens — the single source of every visual value.
  * Palette derived from the Mind the Gap brand (cream, ink, deep teal), restrained for a working tool:
- * warm-white surfaces, deep charcoal text, one accent (teal), muted semantic colours used as small dots.
+ * near-neutral surfaces with a trace of warmth, graphite text, one accent (teal), semantic colours only
+ * as small dots and icons. Calm first: hierarchy comes from type and space, not from colour or boxes.
  */
 :root {
   /* Typography */
@@ -13,37 +14,38 @@
   --text-md: 13.5px;
   --text-base: 14px;
   --text-lg: 16px;
-  --text-xl: 20px;
-  --text-2xl: 26px;
+  --text-xl: 19px;
+  --text-2xl: 30px;
   --leading-tight: 1.25;
   --leading: 1.5;
   --leading-relaxed: 1.65;
   --weight-regular: 430;
   --weight-medium: 520;
   --weight-semibold: 600;
-  --tracking-tight: -0.012em;
-  --tracking-title: -0.02em;
+  --weight-title: 660;
+  --tracking-tight: -0.014em;
+  --tracking-title: -0.028em;
 
   /* Surfaces */
-  --bg: #fbfaf7;
-  --bg-sidebar: #f4f2ed;
+  --bg: #fafaf8;
+  --bg-sidebar: #f3f3f0;
   --surface: #ffffff;
-  --surface-sunken: #f6f4f0;
-  --surface-hover: #f3f1ec;
-  --surface-selected: #eaf3f2;
-  --overlay: rgba(28, 25, 23, 0.22);
+  --surface-sunken: #f3f3f1;
+  --surface-hover: #f6f6f4;
+  --surface-selected: #eef5f4;
+  --overlay: rgba(20, 20, 22, 0.24);
 
   /* Text */
-  --text: #1c1917;
-  --text-secondary: #57534e;
-  --text-tertiary: #6f675e;
+  --text: #1d1d1f;
+  --text-secondary: #5b5b60;
+  --text-tertiary: #727277;
   --text-on-accent: #ffffff;
-  --text-placeholder: #8f877e;
+  --text-placeholder: #9a9a9f;
 
   /* Lines */
-  --separator: rgba(28, 25, 23, 0.08);
-  --separator-strong: rgba(28, 25, 23, 0.14);
-  --control-border: rgba(28, 25, 23, 0.16);
+  --separator: rgba(20, 20, 22, 0.07);
+  --separator-strong: rgba(20, 20, 22, 0.12);
+  --control-border: rgba(20, 20, 22, 0.14);
 
   /* Accent (one) */
   --accent: #0a7a73;
@@ -65,8 +67,8 @@
   /* Shape */
   --radius-sm: 6px;
   --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
 
   /* Spacing (4pt) */
   --space-1: 4px;
@@ -80,7 +82,8 @@
   --space-14: 56px;
 
   /* Depth: only where it clarifies a layer */
-  --shadow-control: 0 1px 1px rgba(28, 25, 23, 0.04);
+  --shadow-control: 0 1px 1px rgba(20, 20, 22, 0.04);
+  --shadow-card: 0 1px 2px rgba(20, 20, 22, 0.03);
   --shadow-popover: 0 0 0 1px rgba(28, 25, 23, 0.06), 0 10px 30px -6px rgba(28, 25, 23, 0.16);
   --shadow-panel: 0 0 0 1px rgba(28, 25, 23, 0.06), -18px 0 40px -18px rgba(28, 25, 23, 0.18);
   --shadow-dialog: 0 0 0 1px rgba(28, 25, 23, 0.06), 0 24px 60px -12px rgba(28, 25, 23, 0.28);
@@ -93,7 +96,7 @@
   /* Layout */
   --sidebar-width: 216px;
   --panel-width: 480px;
-  --row-height: 44px;
+  --row-height: 52px;
   --header-height: 56px;
 }
 

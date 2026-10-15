@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, FileText, Plus, Sparkles, Trash2, Upload } from "lucide-react";
+import { BadgeCheck, Check, CircleAlert, FileText, Plus, Sparkles, Trash2, Upload } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/toast";
 import { Callout, Dialog, Dot, Empty } from "@/components/ui";
@@ -53,6 +53,14 @@ const USAGE: Record<Doc["usage"], { label: string; hint: string }> = {
     hint: "Po zatwierdzeniu może być dołączany do maili (dokładna wersja jest zapamiętywana).",
   },
 };
+
+/** "Strona https://site.com/ (odczyt 2026-10-15) — …" → "Źródło: site.com · 15.10.2026". */
+function sourceLabel(src: string): string {
+  const url = src.match(/https?:\/\/([^/\s)]+)/)?.[1]?.replace(/^www\./, "");
+  const date = src.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (!url) return src;
+  return `Źródło: ${url}${date ? ` · ${date[3]}.${date[2]}.${date[1]}` : ""}`;
+}
 
 export function MaterialsView() {
   const toast = useToast();
@@ -263,7 +271,11 @@ function ProgramCard({
                 ? `Zatwierdzony ${formatWarsaw(p.approvedAt, "d LLL yyyy")}`
                 : "Szkic — nieużywany w mailach"}
             </span>
-            {p.summarySource ? <span className="muted xsmall">{p.summarySource}</span> : null}
+            {p.summarySource ? (
+              <span className="muted xsmall" title={p.summarySource}>
+                {sourceLabel(p.summarySource)}
+              </span>
+            ) : null}
           </div>
         </div>
         <div className="btn-group">
@@ -366,10 +378,15 @@ function ProgramCard({
                     <span key={x.value}>
                       {x.value}
                       {x.quote ? (
-                        <span className="xsmall muted" title={x.quote}>
-                          {" "}
-                          · {x.quoteVerified ? "cytat ze źródła ✓" : "cytat do sprawdzenia"}
-                        </span>
+                        x.quoteVerified ? (
+                          <span className="quote-mark" title={`Dosłownie ze źródła: „${x.quote}”`}>
+                            <BadgeCheck size={13} aria-label="Dosłownie ze źródła" />
+                          </span>
+                        ) : (
+                          <span className="quote-mark quote-mark-warn" title={x.quote}>
+                            <CircleAlert size={13} aria-hidden="true" /> cytat do sprawdzenia
+                          </span>
+                        )
                       ) : null}
                     </span>
                   ))}

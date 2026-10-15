@@ -128,9 +128,9 @@
 }
 
 .page-header p {
-  color: var(--text-secondary);
-  margin-top: 6px;
-  font-size: var(--text-md);
+  color: var(--text-tertiary);
+  margin-top: 8px;
+  font-size: var(--text-base);
 }
 
 .subnav {
@@ -393,7 +393,7 @@
 
 .search {
   position: relative;
-  flex: 1;
+  flex: 1 1 260px;
   max-width: 420px;
 }
 
@@ -438,6 +438,7 @@ kbd,
 /* ============================== Segmented control ============================== */
 .segmented {
   display: inline-flex;
+  align-self: flex-start;
   margin: 0;
   min-width: 0;
   padding: 2px;
@@ -510,8 +511,8 @@ kbd,
   display: inline-flex;
   align-items: center;
   height: 20px;
-  padding: 0 7px;
-  border-radius: 5px;
+  padding: 0 8px;
+  border-radius: 10px;
   background: var(--surface-sunken);
   color: var(--text-secondary);
   font-size: var(--text-xs);
@@ -961,14 +962,17 @@ kbd,
   margin-top: 6px;
 }
 
+/* Callouts stay quiet: a white surface and a coloured icon; only blocking issues get a tint. */
 .callout {
   display: flex;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  background: var(--warn-soft);
+  padding: 11px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--separator);
   color: var(--text);
   font-size: var(--text-md);
+  line-height: var(--leading);
 }
 
 .callout svg {
@@ -978,7 +982,7 @@ kbd,
 }
 
 .callout-info {
-  background: var(--accent-soft);
+  background: var(--surface);
 }
 
 .callout-info svg {
@@ -987,6 +991,7 @@ kbd,
 
 .callout-bad {
   background: var(--bad-soft);
+  border-color: transparent;
 }
 
 .callout-bad svg {
@@ -998,10 +1003,11 @@ kbd,
   background: var(--surface);
   border: 1px solid var(--separator);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .card-pad {
-  padding: var(--space-5);
+  padding: var(--space-6);
 }
 
 .list {
@@ -1069,7 +1075,7 @@ button.list-row {
 }
 
 .metric {
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-5) var(--space-6);
   border-right: 1px solid var(--separator);
 }
 
@@ -1078,16 +1084,18 @@ button.list-row {
 }
 
 .metric-value {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-title);
   font-variant-numeric: tabular-nums;
+  line-height: 1.15;
 }
 
 .metric-label {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  margin-top: 2px;
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+  margin-top: 6px;
 }
 
 .metric-def {
@@ -1627,4 +1635,155 @@ dialog.dialog::backdrop {
   width: auto;
   height: 28px;
   font-size: var(--text-sm);
+}
+
+/* ============================== Contacts: unread dot and phone layout ============================== */
+.new-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin: 0 8px 1px 0;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+
+@media (max-width: 860px) {
+  /* The table becomes a list: name and status on top, company and department below. */
+  .contacts-table,
+  .contacts-table tbody {
+    display: block;
+  }
+
+  .contacts-table thead {
+    display: none;
+  }
+
+  .contacts-table tbody tr {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "check main status"
+      "check company company"
+      "check role role";
+    column-gap: var(--space-2);
+    row-gap: 2px;
+    padding: 12px var(--space-3);
+    border-bottom: 1px solid var(--separator);
+  }
+
+  .contacts-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .contacts-table tbody td {
+    height: auto;
+    padding: 0;
+    border: 0;
+    max-width: none;
+  }
+
+  .contacts-table .col-check {
+    grid-area: check;
+    width: auto;
+    padding-top: 2px;
+  }
+
+  .contacts-table .col-main {
+    grid-area: main;
+  }
+
+  .contacts-table .col-status {
+    grid-area: status;
+    align-self: start;
+  }
+
+  .contacts-table .col-company {
+    grid-area: company;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+  }
+
+  .contacts-table .col-company .cell-stack {
+    flex-direction: row;
+    gap: 6px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .contacts-table .col-company .cell-sub::before {
+    content: "· ";
+  }
+
+  .contacts-table .col-role {
+    grid-area: role;
+    font-size: var(--text-sm);
+    color: var(--text-tertiary);
+  }
+
+  .contacts-table .col-role .cell-stack {
+    flex-direction: row;
+    gap: 6px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .contacts-table .col-role .cell-sub::before {
+    content: "· ";
+  }
+
+  .contacts-table .col-email,
+  .contacts-table .col-verify,
+  .contacts-table .col-last,
+  .contacts-table .col-status[data-status="not_contacted"] > * {
+    display: none;
+  }
+
+  .search {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .search kbd {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  /* Loading and empty rows keep a simple block layout. */
+  .contacts-table tbody tr:not([data-index]) {
+    display: block;
+    padding: 12px var(--space-3);
+  }
+
+  .contacts-table tbody tr:not([data-index]) td:nth-child(n + 3) {
+    display: none;
+  }
+}
+
+/* A verified verbatim quote: a small quiet mark, the quote itself on hover. */
+.quote-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  vertical-align: -2px;
+}
+
+.quote-mark-warn {
+  color: var(--warn);
+}
+
+/* A whole page that is only an empty state: centred in the viewport, not stuck to the top. */
+.empty-page {
+  display: grid;
+  place-items: center;
+  min-height: 70vh;
+}
+
+.empty p {
+  max-width: 440px;
+  line-height: var(--leading);
 }

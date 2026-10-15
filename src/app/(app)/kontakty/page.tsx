@@ -29,7 +29,9 @@ export default async function ContactsPage() {
   else if (s.scheduler.enabled && !s.scheduler.tickHealthy && s.lastRun)
     attention = {
       tone: "warn",
-      text: "Harmonogram nie zgłosił się od ponad 3 godzin — codzienne odkrywanie może nie działać.",
+      text: s.scheduler.lastTickAt
+        ? "Harmonogram nie zgłosił się od ponad 3 godzin — codzienne odkrywanie może nie działać."
+        : "Harmonogram jeszcze się nie zgłosił — bez niego codzienne odkrywanie nie ruszy.",
       href: "/kontakty/odkrywanie",
     };
   return (
