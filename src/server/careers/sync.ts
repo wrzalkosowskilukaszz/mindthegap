@@ -175,14 +175,18 @@ export async function syncJobs(opts: { deadline: number; detect?: boolean }): Pr
   const disc = await getSettings("discovery");
   const fetcher = new PoliteFetcher({
     minDelayMs: Math.min(disc.minDelayMsPerHost, 2000),
-    timeoutMs: 20_000,
+    timeoutMs: 12_000,
   });
   await ensureFeedSources();
   const left = () => opts.deadline - Date.now();
+  // When boards are waiting to be read, website checks get only the first half of the time.
+  const [waiting] = await db().select({ id: jobSources.id }).from(jobSources).where(fetchDue()).limit(1);
+  const detectUntil = waiting ? Date.now() + left() / 2 : opts.deadline;
 
   // 1. Find job boards on company websites (a few companies at a time, different hosts in parallel).
   if (opts.detect !== false) {
-    while (left() > 25_000) {
+    // A batch takes up to ~3 page reads of 12 s each; start one only with time to finish it.
+    while (left() > 40_000 && Date.now() < detectUntil) {
       const batch = await db()
         .select({
           id: companies.id,

@@ -147,7 +147,7 @@ export function JobsView() {
   async function syncNow() {
     setSyncing("Sprawdzam oferty…");
     try {
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 3; i++) {
         const r = await apiFetch<{
           busy: boolean;
           remainingFetch?: number;
