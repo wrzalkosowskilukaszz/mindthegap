@@ -14,6 +14,7 @@ import { db } from "../db/client.ts";
 import { companies, contacts, documents, documentVersions, messages, programs } from "../db/schema.ts";
 import { getSettings, type SettingsOf } from "../settings.ts";
 import { structured } from "./client.ts";
+import { templateDraft } from "./templates.ts";
 
 export const PROMPT_VERSION = "compose-2026-10-15";
 
@@ -37,6 +38,9 @@ export type ComposeContext = {
   };
   sender: SettingsOf<"profile">;
   programName: string | null;
+  companyName: string | null;
+  /** Stable per contact: picks template wording so drafts in a batch differ. */
+  seed: string;
   allowedUrls: string[];
   previous: { subject: string; body: string; sentAt: string | null }[];
   threadSubject: string | null;
@@ -182,6 +186,8 @@ export async function buildComposeContext(opts: {
     },
     sender: profile,
     programName,
+    companyName: co ? (co.brand ?? co.name) : null,
+    seed: c.id,
     allowedUrls,
     previous: prev.map((p) => ({ subject: p.subject, body: p.body, sentAt: iso(p.sentAt) })),
     threadSubject: opts.kind === "follow_up" ? (prev[0]?.subject ?? null) : null,
@@ -320,12 +326,13 @@ function lintFor(ctx: ComposeContext, subject: string, body: string): LintFindin
   });
 }
 
-export async function generateEmail(ctx: ComposeContext): Promise<Generated> {
+/** The instructions and facts for one email, shared by the API call and the copy-to-chat prompt. */
+function promptCore(ctx: ComposeContext): string {
   const task =
     ctx.kind === "follow_up"
       ? `Write a short follow-up to our previous email (see <previous_messages>). Do not assume it was read. Add one new, useful angle. Keep the original thread subject if replying in the thread: "${ctx.threadSubject ?? ""}".`
       : `Write a first email introducing ${ctx.programName ? `the programme "${ctx.programName}"` : "the sender's leadership and team development work"} to this recipient.`;
-  const user = `${task}
+  return `${task}
 
 <language_and_voice>
 ${languageGuide(ctx)}
@@ -349,7 +356,54 @@ ${ctx.allowedUrls.join("\n") || "(none)"}
 ${ctx.cta ? `\n<preferred_cta>\n${ctx.cta}\n</preferred_cta>` : ""}
 ${ctx.previous.length ? `\n<previous_messages>\n${ctx.previous.map((p) => `Sent ${p.sentAt}: Subject: ${p.subject}\n${p.body}`).join("\n---\n")}\n</previous_messages>` : ""}
 ${samplesBlock(ctx)}
+`;
+}
 
+/**
+ * A prompt you can paste into a free ChatGPT or Claude chat: the same rules and approved facts as the
+ * built-in AI, asking for plain text back.
+ */
+export function chatPrompt(ctx: ComposeContext): string {
+  return `${SYSTEM}
+
+${promptCore(ctx)}
+
+Answer in plain text, in the email's language, in exactly this form:
+Temat 1: <subject>
+Temat 2: <subject>
+
+<email body, greeting included, no signature>`;
+}
+
+/** Free draft without a model: department templates filled with the company, programme and sender. */
+export function templateEmail(ctx: ComposeContext): Generated {
+  const sig = ctx.language === "pl" ? ctx.sender.signaturePl : ctx.sender.signatureEn;
+  const d = templateDraft({
+    language: ctx.language,
+    kind: ctx.kind,
+    seed: ctx.seed,
+    recipient: ctx.recipient,
+    company: ctx.companyName,
+    program: ctx.programName,
+    businessName: ctx.sender.businessName || "Mind the Gap",
+    senderName: ctx.sender.senderName,
+    hasSignature: Boolean(sig.trim()),
+    previousSentAt: ctx.previous[0]?.sentAt ?? null,
+    threadSubject: ctx.threadSubject,
+  });
+  return {
+    subjects: d.subjects,
+    body: d.body,
+    variants: d.variants,
+    explanation: d.notes,
+    sources: [],
+    warnings: lintFor(ctx, d.subjects[0] ?? "", d.body),
+    model: "template:v1",
+  };
+}
+
+export async function generateEmail(ctx: ComposeContext): Promise<Generated> {
+  const user = `${promptCore(ctx)}
 Return:
 - subjects: exactly two distinct subject lines (short, specific, honest).
 - body: the email body only, greeting included, no signature.

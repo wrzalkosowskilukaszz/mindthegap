@@ -3,11 +3,13 @@ import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 import { aiConfigured } from "../ai/client.ts";
 import {
   buildComposeContext,
+  chatPrompt,
   generateEmail,
   lintDraft,
   PROMPT_VERSION,
   type QuickAction,
   rewriteEmail,
+  templateEmail,
 } from "../ai/compose.ts";
 import { db } from "../db/client.ts";
 import { companies, documents, documentVersions, messageRevisions, programs } from "../db/schema.ts";
@@ -137,7 +139,8 @@ export async function runGenerate(id: string, salutation: "neutral" | "pani" | "
     parentMessageId: m.parentMessageId,
     salutation,
   });
-  const g = await generateEmail(ctx);
+  // No API key: a free draft from the department templates.
+  const g = aiConfigured() ? await generateEmail(ctx) : templateEmail(ctx);
   const subject = m.kind === "follow_up" && m.subject ? m.subject : (g.subjects[0] ?? "");
   await saveGenerated(id, {
     subject,
@@ -189,4 +192,18 @@ export async function runRewrite(
     label: labels[action],
   });
   return { ok: true, note: r.note, warnings: r.warnings };
+}
+
+/** The copy-to-chat prompt for a draft (free ChatGPT / Claude), built from the same approved facts. */
+export async function promptFor(id: string, salutation: "neutral" | "pani" | "pan") {
+  const m = await getMessage(id);
+  const ctx = await buildComposeContext({
+    contactId: m.contactId,
+    programId: m.programId,
+    language: m.language,
+    kind: m.kind as "initial" | "follow_up",
+    parentMessageId: m.parentMessageId,
+    salutation,
+  });
+  return { prompt: chatPrompt(ctx) };
 }

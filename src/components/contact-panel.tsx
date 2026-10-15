@@ -54,13 +54,6 @@ export function ContactPanel({
   const [note, setNote] = useState("");
   const [eligOpen, setEligOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [emailOpen, setEmailOpen] = useState(false);
-  const [emailDraft, setEmailDraft] = useState("");
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset the inline form when another contact opens
-  useEffect(() => {
-    setEmailOpen(false);
-    setEmailDraft("");
-  }, [id]);
   const closeRef = useRef<HTMLButtonElement>(null);
   const lastFocus = useRef<HTMLElement | null>(null);
 
@@ -389,63 +382,23 @@ export function ContactPanel({
                       ? "Osoba jest w źródłach, ale jej adres nie został opublikowany."
                       : ""}
                   </p>
-                  {emailOpen ? (
-                    <form
-                      className="row"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        void patch({ email: emailDraft.trim() }, "Zapisano adres").then(
-                          (ok) => ok && setEmailOpen(false),
-                        );
-                      }}
-                    >
-                      <input
-                        className="input"
-                        type="email"
-                        required
-                        autoFocus
-                        placeholder="imie.nazwisko@firma.pl"
-                        aria-label="Adres e-mail"
-                        value={emailDraft}
-                        onChange={(e) => setEmailDraft(e.target.value)}
-                      />
-                      <button type="submit" className="btn btn-sm">
-                        Zapisz
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-quiet btn-sm"
-                        onClick={() => setEmailOpen(false)}
-                      >
-                        Anuluj
-                      </button>
-                    </form>
-                  ) : (
+                  {c.kind === "person" && d.finder ? (
                     <div className="btn-group">
-                      {c.kind === "person" && d.finder ? (
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={findEmail}
-                          disabled={busy === "find"}
-                        >
-                          {busy === "find" ? <span className="spinner" /> : <Search size={13} />} Znajdź adres
-                          (Hunter)
-                        </button>
-                      ) : null}
                       <button
                         type="button"
-                        className="btn btn-quiet btn-sm"
-                        onClick={() => setEmailOpen(true)}
+                        className="btn btn-sm"
+                        onClick={findEmail}
+                        disabled={busy === "find"}
                       >
-                        Wpisz adres
+                        {busy === "find" ? <span className="spinner" /> : <Search size={13} />} Znajdź adres
+                        (Hunter)
                       </button>
                     </div>
-                  )}
+                  ) : null}
                   {c.kind === "person" && !d.finder ? (
                     <p className="xsmall muted">
-                      Automatyczne wyszukiwanie adresu wymaga klucza Hunter (plan darmowy: 50 kredytów
-                      miesięcznie) — zob. Ustawienia › Integracje.
+                      Adresy osób uzupełnia Hunter (darmowy plan: 50 adresów miesięcznie) — wystarczy dodać
+                      klucz, zob. Ustawienia › Integracje.
                     </p>
                   ) : null}
                 </div>

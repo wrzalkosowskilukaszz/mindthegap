@@ -5,6 +5,7 @@ import {
   Check,
   Clipboard,
   Clock,
+  Copy,
   ExternalLink as Ext,
   FileText,
   History,
@@ -183,6 +184,17 @@ export function Composer({ id }: { id: string }) {
       else toast(e instanceof ApiError ? e.message : "Generowanie nie powiodło się", "error");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function copyPrompt() {
+    await flush();
+    try {
+      const r = await apiFetch<{ prompt: string }>(`/api/messages/${id}/prompt`, { body: { salutation } });
+      await navigator.clipboard.writeText(r.prompt);
+      toast("Skopiowano. Wklej w ChatGPT lub Claude, a odpowiedź wklej tutaj jako treść.");
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Nie udało się skopiować", "error");
     }
   }
 
@@ -412,21 +424,22 @@ export function Composer({ id }: { id: string }) {
                 <p>
                   {d.ai
                     ? "Wygeneruj szkic na podstawie zatwierdzonego programu, roli odbiorcy i faktów o firmie — albo zacznij pisać samodzielnie."
-                    : "Generowanie AI nie jest skonfigurowane. Napisz treść samodzielnie — linter nadal sprawdzi liczby, linki i obietnice."}
+                    : "Wypełnij szkic gotowym szablonem dopasowanym do działu odbiorcy (bez kosztów), albo skopiuj polecenie do darmowego ChatGPT lub Claude i wklej odpowiedź."}
                 </p>
-                {d.ai ? (
-                  <div className="btn-group">
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => generate(false)}
-                      disabled={busy !== null}
-                    >
-                      {busy === "generate" ? <span className="spinner" /> : <Sparkles size={15} />} Wygeneruj
-                      szkic
-                    </button>
-                  </div>
-                ) : null}
+                <div className="btn-group">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => generate(false)}
+                    disabled={busy !== null}
+                  >
+                    {busy === "generate" ? <span className="spinner" /> : <Sparkles size={15} />}{" "}
+                    {d.ai ? "Wygeneruj szkic" : "Wypełnij z szablonu"}
+                  </button>
+                  <button type="button" className="btn" onClick={copyPrompt} disabled={busy !== null}>
+                    <Copy size={14} /> Kopiuj polecenie do ChatGPT / Claude
+                  </button>
+                </div>
                 <button
                   type="button"
                   className="link-button small"
@@ -451,6 +464,22 @@ export function Composer({ id }: { id: string }) {
                 lang={m.language}
               />
             )}
+            {editable && !d.ai && !empty ? (
+              <div className="quick-actions" role="toolbar" aria-label="Szablon i polecenie">
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={busy !== null}
+                  onClick={() => generate(false)}
+                >
+                  {busy === "generate" ? <span className="spinner" /> : <Sparkles size={13} />} Wypełnij
+                  ponownie z szablonu
+                </button>
+                <button type="button" className="btn btn-sm" disabled={busy !== null} onClick={copyPrompt}>
+                  <Copy size={13} /> Kopiuj polecenie do ChatGPT / Claude
+                </button>
+              </div>
+            ) : null}
             {editable && d.ai && !empty ? (
               <div className="quick-actions" role="toolbar" aria-label="Szybkie zmiany">
                 {QUICK.map((q) => (

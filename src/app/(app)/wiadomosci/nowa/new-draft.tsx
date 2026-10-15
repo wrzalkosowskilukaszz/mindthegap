@@ -44,7 +44,7 @@ export function NewDraft() {
         const r = await apiFetch<{ id: string }>("/api/messages", {
           body: { contactId: ids[0], programId: programId || null, language },
         });
-        if (ai) await apiFetch(`/api/messages/${r.id}/generate`, { body: {} }).catch(() => null);
+        await apiFetch(`/api/messages/${r.id}/generate`, { body: {} }).catch(() => null);
         router.replace(`/wiadomosci/${r.id}`);
         return;
       }
@@ -55,16 +55,14 @@ export function NewDraft() {
       setCreated(b.created);
       const failed = b.skipped.map((s) => s.reason);
       setProgress({ done: 0, total: b.created.length, failed });
-      if (ai) {
-        for (const [i, c] of b.created.entries()) {
-          try {
-            await apiFetch(`/api/messages/${c.messageId}/generate`, { body: {} });
-          } catch (e) {
-            failed.push(e instanceof ApiError ? e.message : "Błąd generowania");
-          }
-          setProgress({ done: i + 1, total: b.created.length, failed: [...failed] });
+      for (const [i, c] of b.created.entries()) {
+        try {
+          await apiFetch(`/api/messages/${c.messageId}/generate`, { body: {} });
+        } catch (e) {
+          failed.push(e instanceof ApiError ? e.message : "Błąd generowania");
         }
-      } else setProgress({ done: b.created.length, total: b.created.length, failed });
+        setProgress({ done: i + 1, total: b.created.length, failed: [...failed] });
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Nie udało się utworzyć szkicu");
     } finally {
@@ -103,8 +101,8 @@ export function NewDraft() {
       </header>
       {!ai ? (
         <Callout tone="info">
-          Generowanie AI nie jest skonfigurowane (ANTHROPIC_API_KEY). Utworzę puste szkice, które możesz
-          napisać samodzielnie.
+          Szkice powstaną z gotowych szablonów dopasowanych do działu odbiorcy i wybranego programu — bez
+          kosztów i bez AI. Przeczytaj każdy przed wysłaniem.
         </Callout>
       ) : null}
       {programs && programs.length === 0 ? (
@@ -147,7 +145,7 @@ export function NewDraft() {
               onClick={start}
               disabled={busy || !programs}
             >
-              {busy ? <span className="spinner" /> : null} {ai ? "Przygotuj szkic" : "Utwórz szkic"}
+              {busy ? <span className="spinner" /> : null} Przygotuj szkic
               {ids.length > 1 ? "e" : ""}
             </button>
             <button type="button" className="btn btn-quiet btn-lg" onClick={() => router.back()}>
