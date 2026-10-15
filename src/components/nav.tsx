@@ -1,15 +1,28 @@
 "use client";
 
-import { BarChart3, BriefcaseBusiness, Layers, LogOut, Mail, Settings, Users } from "lucide-react";
+import {
+  BarChart3,
+  BriefcaseBusiness,
+  ClipboardList,
+  Layers,
+  LogOut,
+  Mail,
+  MoreHorizontal,
+  Settings,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 const MAIN = [
   { href: "/kontakty", label: "Kontakty", icon: Users },
   { href: "/wiadomosci", label: "Wiadomości", icon: Mail },
   { href: "/materialy", label: "Moja oferta", icon: Layers },
 ] as const;
+
+/** Places where buyers come to you: requests for quotes (and, later, events). */
+const CHANCES = [{ href: "/zapytania", label: "Zapytania ofertowe", icon: ClipboardList }] as const;
 
 const CAREER = [{ href: "/oferty", label: "Oferty pracy", icon: BriefcaseBusiness }] as const;
 
@@ -18,9 +31,10 @@ const OTHER = [
   { href: "/ustawienia", label: "Ustawienia", icon: Settings },
 ] as const;
 
-const ALL = [...MAIN, ...CAREER, ...OTHER];
-// Phone tab bar: five places that fit; Statystyki is one tap away from Ustawienia.
-const TABS = [...MAIN.slice(0, 2), { ...CAREER[0], label: "Praca" }, MAIN[2], OTHER[1]];
+const ALL = [...MAIN, ...CHANCES, ...CAREER, ...OTHER];
+// Phone tab bar: four places plus "Więcej", which lists the rest.
+const TABS = [MAIN[0], MAIN[1], { ...CHANCES[0], label: "Zapytania" }, { ...CAREER[0], label: "Praca" }];
+const MORE = [MAIN[2], ...OTHER];
 
 const isActive = (path: string, href: string) => path === href || path.startsWith(`${href}/`);
 
@@ -45,6 +59,8 @@ export function SidebarNav({ counts }: { counts: Partial<Record<string, number>>
     <nav aria-label="Główna nawigacja" className="stack" style={{ gap: 4 }}>
       <div className="nav-section-label">Główne</div>
       {MAIN.map(item)}
+      <div className="nav-section-label">Okazje</div>
+      {CHANCES.map(item)}
       <div className="nav-section-label">Kariera</div>
       {CAREER.map(item)}
       <div className="nav-section-label">Inne</div>
@@ -74,6 +90,8 @@ export function LogoutButton() {
 
 export function TabBar() {
   const path = usePathname();
+  const sheet = useRef<HTMLDivElement>(null);
+  const moreActive = MORE.some((m) => isActive(path, m.href));
   return (
     <nav aria-label="Nawigacja" className="tabbar">
       {TABS.map(({ href, label, icon: Icon }) => (
@@ -82,6 +100,29 @@ export function TabBar() {
           {label}
         </Link>
       ))}
+      <button
+        type="button"
+        popoverTarget="more-sheet"
+        aria-current={moreActive ? "page" : undefined}
+        aria-label="Więcej miejsc"
+      >
+        <MoreHorizontal size={20} strokeWidth={1.75} aria-hidden="true" />
+        Więcej
+      </button>
+      <div id="more-sheet" ref={sheet} popover="auto" className="more-sheet">
+        {MORE.map(({ href, label, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            aria-current={isActive(path, href) ? "page" : undefined}
+            onClick={() => sheet.current?.hidePopover()}
+          >
+            <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+            {label}
+          </Link>
+        ))}
+        <LogoutButton />
+      </div>
     </nav>
   );
 }

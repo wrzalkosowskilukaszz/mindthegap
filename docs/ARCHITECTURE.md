@@ -25,7 +25,7 @@ One Next.js application and one Postgres database. Background work runs in short
 
 ```
 src/
-  app/(app)/        the tabs: kontakty, wiadomosci, materialy, oferty (job offers), aktywnosc, ustawienia
+  app/(app)/        the tabs: kontakty, wiadomosci, materialy, zapytania (requests for quotes), oferty (job offers), aktywnosc, ustawienia
   app/api/          JSON API used by the screens, plus /api/cron/tick
   components/       shared UI (table cells, panel, dialogs, toasts)
   lib/              pure logic shared by server and browser: roles, contact rules, email lint, CSV, time
@@ -40,6 +40,7 @@ src/
     materials/      uploads and text extraction (PDF, DOCX, PPTX, images)
     services/       contacts, messages, companies, privacy, activity
     careers/        job offers: careers-page detection, job-board and feed readers, sync, Word export
+    tenders/        requests for quotes from Baza Konkurencyjności: reader, sync, list and detail
   worker/cli.ts     the same jobs from the command line
 scripts/            migrate, import research, seed brand, hash password
 research/           the researched company universe (public business data)
@@ -70,6 +71,15 @@ research/           the researched company universe (public business data)
 - **Matching** (`src/lib/jobs/match.ts`): a transparent rule-based score from role family, place, required languages, seniority and words from the CV, with the reasons shown on every card. No AI.
 - **Tailored CV** (`src/lib/jobs/tailor.ts`, `docx.ts`): the offer's skill words are checked against the CV text, a prompt for ChatGPT or Claude is prepared, and the answer the owner pastes back is stored with the offer (`job_offers.tailored_cv`) and exported as a Word file built with JSZip.
 - **Tables:** `job_sources` (kind, token, schedule, last status) and `job_offers` (offer, match, status, note, tailored CV). Only the CV text is kept, in `settings`.
+
+## Requests for quotes (Zapytania ofertowe)
+
+`src/server/tenders/`, `src/lib/tenders/match.ts`
+
+- **Source** (`bk.ts`): Baza Konkurencyjności, the public register where organisations spending EU funds publish requests for quotes. The reader uses the public JSON behind the site's own search (training category plus title searches such as "coaching" and "warsztaty"), validates every field with Zod and never reads the contact persons.
+- **Sync** (`sync.ts`): the tick runs it every 12 hours, with its own lease. New relevant requests get their full text fetched ahead; others when opened. Requests close when their deadline passes or they are no longer published.
+- **Scoring** (`match.ts`): word rules for the owner's topics (title weighs more; the description adds a capped amount) minus vocational, language, school, medical and venue requests, plus place. Reasons are shown on every card.
+- **Table:** `tenders` (request, deadline, detail JSON, score and reasons, status, note).
 
 ## Job engine
 

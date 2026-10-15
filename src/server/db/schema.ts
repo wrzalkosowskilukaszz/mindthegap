@@ -951,3 +951,53 @@ export const jobOffers = pgTable(
     index("job_offers_company_idx").on(t.companyId),
   ],
 );
+
+// ------------------------------------------------------------------------------------------------
+// Zapytania ofertowe: requests for quotes for training work, read from Baza Konkurencyjności
+// ------------------------------------------------------------------------------------------------
+
+export const tenderStatusEnum = pgEnum("tender_status", ["new", "saved", "applied", "dismissed"]);
+
+export type TenderReasons = { text: string; tone: "good" | "warn" | "bad" }[];
+export type TenderDetail = {
+  description: string;
+  conditions: string[];
+  criteria: string[];
+  attachments: string[];
+  places: string[];
+  advertiserCity: string | null;
+};
+
+export const tenders = pgTable(
+  "tenders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** "bk": Baza Konkurencyjności (Ministerstwo Funduszy i Polityki Regionalnej). */
+    source: text("source").notNull().default("bk"),
+    externalId: text("external_id").notNull(),
+    number: text("number"),
+    title: text("title").notNull(),
+    advertiser: text("advertiser").notNull(),
+    place: text("place"),
+    snippet: text("snippet").notNull().default(""),
+    url: text("url").notNull(),
+    publishedOn: date("published_on"),
+    deadlineAt: ts("deadline_at"),
+    detail: jsonb("detail").$type<TenderDetail>(),
+    detailFetchedAt: ts("detail_fetched_at"),
+    score: integer("score").notNull().default(0),
+    reasons: jsonb("reasons").$type<TenderReasons>().notNull().default([]),
+    status: tenderStatusEnum("status").notNull().default("new"),
+    statusAt: ts("status_at"),
+    note: text("note"),
+    firstSeenAt: ts("first_seen_at").notNull().defaultNow(),
+    lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
+    closedAt: ts("closed_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("tenders_source_ext_uq").on(t.source, t.externalId),
+    index("tenders_list_idx").on(t.status, t.score),
+  ],
+);

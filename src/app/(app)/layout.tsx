@@ -33,7 +33,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <Link href="/kontakty" style={{ textDecoration: "none" }}>
             <Brand />
           </Link>
-          <SidebarNav counts={{ "/kontakty": s.newContacts, "/wiadomosci": s.drafts }} />
+          <SidebarNav
+            counts={{ "/kontakty": s.newContacts, "/wiadomosci": s.drafts, "/zapytania": s.newTenders }}
+          />
           <div className="sidebar-footer">
             <Link href="/kontakty/odkrywanie" className="health secondary" style={{ textDecoration: "none" }}>
               <span

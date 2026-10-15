@@ -66,7 +66,7 @@ function ago(iso: string | null): string {
   return formatWarsaw(iso, "d LLL yyyy");
 }
 
-function ScoreRing({ score, size = 54 }: { score: number; size?: number }) {
+export function ScoreRing({ score, size = 54 }: { score: number; size?: number }) {
   const r = 22;
   const c = 2 * Math.PI * r;
   const tone = score >= 70 ? "#17b67d" : score >= 50 ? "#3b9eff" : "#a3a9b4";
@@ -91,7 +91,7 @@ function ScoreRing({ score, size = 54 }: { score: number; size?: number }) {
   );
 }
 
-function CompanyMark({ name }: { name: string }) {
+export function CompanyMark({ name }: { name: string }) {
   const hues = [152, 200, 260, 330, 30, 175];
   const h = hues[[...name].reduce((a, ch) => a + ch.charCodeAt(0), 0) % hues.length];
   return (

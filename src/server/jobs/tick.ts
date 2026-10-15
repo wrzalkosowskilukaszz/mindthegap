@@ -17,6 +17,7 @@ import { syncRepliesIfDue } from "../gmail/sync.ts";
 import { refreshDerived } from "../services/contacts.ts";
 import { applyRetention } from "../services/privacy.ts";
 import { getSettings } from "../settings.ts";
+import { syncTenders, type TendersReport, tendersDue } from "../tenders/sync.ts";
 import { acquireLease, releaseLease } from "./lease.ts";
 import { createScheduledRun, processRun, resumableRuns, type SliceResult } from "./runs.ts";
 
@@ -31,6 +32,7 @@ export type TickReport = {
   followUpsRefreshed: number;
   retention: { deleted: number } | null;
   jobs: SyncReport | null;
+  tenders: TendersReport | null;
   busy: string[];
 };
 
@@ -63,6 +65,7 @@ export async function runTick(opts: {
     followUpsRefreshed: 0,
     retention: null,
     jobs: null,
+    tenders: null,
     busy: [],
   };
   await recordTick({ ...report, schedule: `started (${opts.trigger})` });
@@ -125,6 +128,21 @@ export async function runTick(opts: {
         await releaseLease("jobs", holder);
       }
     } else report.busy.push("jobs");
+  }
+
+  // 5b. Zapytania ofertowe: Baza Konkurencyjności every 12 hours (about 20 paced requests).
+  if (opts.jobs !== false && Date.now() < deadline - 60_000 && (await tendersDue())) {
+    if (await acquireLease("tenders", holder, 3 * 60_000)) {
+      try {
+        report.tenders = await syncTenders({ deadline: Math.min(deadline - 30_000, Date.now() + 100_000) });
+      } catch (e) {
+        await logEvent("error", "tenders", "Pobieranie zapytań ofertowych nie powiodło się", {
+          message: errMsg(e),
+        });
+      } finally {
+        await releaseLease("tenders", holder);
+      }
+    } else report.busy.push("tenders");
   }
 
   // 6. Discovery: start today's scheduled run when due, then work on any active run.

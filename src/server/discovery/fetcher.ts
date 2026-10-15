@@ -122,7 +122,7 @@ export class PoliteFetcher {
     if (delta < gap) await new Promise((r) => setTimeout(r, gap - delta));
   }
 
-  async get(url: string, kind: "html" | "xml" | "json" = "html"): Promise<FetchOutcome> {
+  async get(url: string, kind: "html" | "xml" | "json" | "api" = "html"): Promise<FetchOutcome> {
     let current = url;
     for (let hop = 0; hop < 5; hop++) {
       const u = new URL(current);
@@ -141,7 +141,7 @@ export class PoliteFetcher {
             Accept:
               kind === "xml"
                 ? "application/xml,text/xml;q=0.9,*/*;q=0.1"
-                : kind === "json"
+                : kind === "json" || kind === "api"
                   ? "application/json;q=1,*/*;q=0.1"
                   : "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
             "Accept-Language": "pl,en;q=0.8",
@@ -172,7 +172,10 @@ export class PoliteFetcher {
           ? /xml|rss|text\/plain/.test(ct)
           : kind === "json"
             ? /json|javascript|text\/plain/.test(ct)
-            : /html|xhtml/.test(ct);
+            : kind === "api"
+              ? // Some public APIs label JSON as text/html; the caller validates the body.
+                /json|javascript|text\//.test(ct)
+              : /html|xhtml/.test(ct);
       if (!okType) {
         await this.log(current, res.status, "skipped_type");
         return { ok: false, url: current, reason: "skipped_type", status: res.status, detail: ct };

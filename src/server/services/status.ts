@@ -2,9 +2,10 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { nextScheduledInstant } from "@/lib/time";
 import { db } from "../db/client.ts";
-import { appEvents, contacts, googleAccounts, jobRuns, messages, settings } from "../db/schema.ts";
+import { appEvents, contacts, googleAccounts, jobRuns, messages, settings, tenders } from "../db/schema.ts";
 import { integrations } from "../env.ts";
 import { getSettings } from "../settings.ts";
+import { TENDER_SHOW_FROM } from "../tenders/service.ts";
 
 export async function systemStatus() {
   const sched = await getSettings("scheduler");
@@ -44,6 +45,13 @@ export async function systemStatus() {
     .select({ drafts: sql<number>`count(*)::int` })
     .from(messages)
     .where(sql`${messages.status} in ('draft','approved')`);
+  // Relevant requests for quotes found in the last 3 days and not yet looked at.
+  const [{ newTenders } = { newTenders: 0 }] = await db()
+    .select({ newTenders: sql<number>`count(*)::int` })
+    .from(tenders)
+    .where(
+      sql`${tenders.closedAt} is null and ${tenders.status} = 'new' and ${tenders.score} >= ${TENDER_SHOW_FROM} and ${tenders.firstSeenAt} >= now() - interval '3 days'`,
+    );
   const scopes = google?.scopes ?? [];
   return {
     integrations: integrations(),
@@ -81,6 +89,7 @@ export async function systemStatus() {
     openIssues,
     newContacts,
     drafts,
+    newTenders,
   };
 }
 

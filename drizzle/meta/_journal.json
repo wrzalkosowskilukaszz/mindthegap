@@ -43,6 +43,13 @@
       "when": 1792096699864,
       "tag": "0005_tailored_cv",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792099370371,
+      "tag": "0006_tenders",
+      "breakpoints": true
     }
   ]
 }

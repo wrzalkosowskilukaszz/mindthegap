@@ -414,7 +414,8 @@
     padding: 6px;
   }
 
-  .tabbar a {
+  .tabbar a,
+  .tabbar > button {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -426,9 +427,53 @@
     border-radius: 14px;
   }
 
-  .tabbar a[aria-current="page"] {
+  .tabbar > a[aria-current="page"],
+  .tabbar > button[aria-current="page"] {
     color: var(--text-on-accent);
     background: var(--accent-gradient);
+  }
+
+  .tabbar > button {
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 10.5px;
+    cursor: pointer;
+  }
+
+  /* "Więcej": the places that do not fit in the tab bar. */
+  .more-sheet[popover] {
+    inset: auto 12px calc(84px + env(safe-area-inset-bottom)) auto;
+    margin: 0;
+    min-width: 220px;
+    padding: var(--space-2);
+    border: 0;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-dialog);
+  }
+
+  .more-sheet a,
+  .more-sheet .logout {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: var(--text-md);
+    color: var(--text);
+  }
+
+  .more-sheet .logout {
+    width: 100%;
+    margin-top: 0;
+    color: var(--bad);
+  }
+
+  .more-sheet a[aria-current="page"] {
+    background: var(--accent-soft);
+    color: var(--accent);
   }
 
   .hide-mobile {
@@ -2839,6 +2884,17 @@ button.stat-card:hover {
   margin-top: auto;
   font-size: var(--text-xs);
   color: var(--text-tertiary);
+}
+
+.text-warn {
+  color: var(--warn);
+  font-weight: var(--weight-medium);
+}
+
+.btn[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
 }
 
 .job-match {

@@ -5,6 +5,7 @@
  *   ... research <domain-or-slug>      research one company now (bounded crawl)
  *   ... discover-companies [--max 10]  find new companies (Wikidata)
  *   ... jobs [--seconds 120] [--no-detect]  read job boards and feeds now (Oferty pracy)
+ *   ... tenders [--seconds 120]          read Baza Konkurencyjności now (Zapytania ofertowe)
  *   ... status                         print scheduler / run status
  */
 import { eq, or } from "drizzle-orm";
@@ -18,6 +19,7 @@ import { createManualRun, processRun } from "../server/jobs/runs.ts";
 import { runTick } from "../server/jobs/tick.ts";
 import { discoveryStatus } from "../server/services/discovery-status.ts";
 import { getSettings } from "../server/settings.ts";
+import { syncTenders } from "../server/tenders/sync.ts";
 
 const [cmd, ...rest] = process.argv.slice(2);
 const flag = (name: string, def?: string) => {
@@ -43,6 +45,11 @@ try {
         deadline: Date.now() + Number(flag("seconds", "120")) * 1000,
         detect: !rest.includes("--no-detect"),
       });
+      console.log(JSON.stringify(r, null, 2));
+      break;
+    }
+    case "tenders": {
+      const r = await syncTenders({ deadline: Date.now() + Number(flag("seconds", "120")) * 1000 });
       console.log(JSON.stringify(r, null, 2));
       break;
     }
