@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Download, Filter, Plus, Search, Upload, Users, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Download, Filter, Search, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -43,6 +43,7 @@ type CustomView = { id: string; name: string; query: Partial<ContactQuery> };
 const PAGE = 100;
 const FILTER_KEYS = [
   "q",
+  "withEmail",
   "sector",
   "size",
   "role",
@@ -60,6 +61,7 @@ const FILTER_KEYS = [
 ] as const;
 
 const SORT_OPTIONS: { value: NonNullable<ContactQuery["sort"]>; label: string }[] = [
+  { value: "reach", label: "Najlepsze na górze" },
   { value: "quality", label: "Jakość danych" },
   { value: "company", label: "Firma" },
   { value: "name", label: "Osoba / dział" },
@@ -292,6 +294,7 @@ export function ContactsView({
 
   return (
     <>
+      <HowItWorks />
       {attention ? (
         <div style={{ marginBottom: 16 }}>
           <Callout tone={attention.tone}>
@@ -612,39 +615,21 @@ export function ContactsView({
           openPanel(id);
         }}
       />
-      <HeaderActions
-        onImport={() => setDialog("import")}
-        onAdd={() => setDialog("add")}
-        exportHref={`/api/contacts/export?${queryString}`}
-      />
+      <HeaderActions exportHref={`/api/contacts/export?${queryString}`} />
     </>
   );
 }
 
-function HeaderActions({
-  onImport,
-  onAdd,
-  exportHref,
-}: {
-  onImport: () => void;
-  onAdd: () => void;
-  exportHref: string;
-}) {
+function HeaderActions({ exportHref }: { exportHref: string }) {
   const [host, setHost] = useState<HTMLElement | null>(null);
   useEffect(() => setHost(document.getElementById("contacts-actions")), []);
   if (!host) return null;
   return (
     <PortalInto host={host}>
       <div className="btn-group">
-        <button type="button" className="btn btn-quiet hide-mobile" onClick={onImport}>
-          <Upload size={15} /> Import CSV
-        </button>
         <a className="btn btn-quiet hide-mobile" href={exportHref}>
-          <Download size={15} /> Eksport
+          <Download size={15} /> Pobierz listę (CSV)
         </a>
-        <button type="button" className="btn" onClick={onAdd}>
-          <Plus size={15} /> Dodaj kontakt
-        </button>
       </div>
     </PortalInto>
   );
@@ -664,6 +649,8 @@ function chipLabel(k: string, v: unknown): string {
       return `Wielkość: ${map((x) => SIZE_LABEL[x as keyof typeof SIZE_LABEL] ?? x)}`;
     case "role":
       return `Rola: ${map((x) => ROLE_LABEL[x as keyof typeof ROLE_LABEL] ?? x)}`;
+    case "withEmail":
+      return "Tylko z adresem e-mail";
     case "dept":
       return `Dział: ${map((x) => FUNCTION_LABEL[x as keyof typeof FUNCTION_LABEL] ?? x)}`;
     case "kind":
@@ -851,5 +838,50 @@ function FiltersButton({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** First-use guide: the whole daily flow in three steps. Hidden once dismissed (this browser only). */
+function HowItWorks() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    try {
+      setOpen(localStorage.getItem("mtg-howto-hidden") !== "1");
+    } catch {
+      setOpen(true);
+    }
+  }, []);
+  if (!open) return null;
+  const hide = () => {
+    setOpen(false);
+    try {
+      localStorage.setItem("mtg-howto-hidden", "1");
+    } catch {
+      /* private mode: show again next time */
+    }
+  };
+  return (
+    <section className="howto card" aria-label="Jak to działa">
+      <div className="row-between">
+        <h3>Jak to działa</h3>
+        <button type="button" className="btn btn-quiet btn-sm" onClick={hide}>
+          Rozumiem, ukryj
+        </button>
+      </div>
+      <ol className="howto-steps">
+        <li>
+          <strong>Wybierz z listy osobę albo dział.</strong> Najlepsze kontakty są na górze. Aplikacja sama
+          dokłada nowe firmy i adresy każdego ranka.
+        </li>
+        <li>
+          <strong>Kliknij „Przygotuj email”.</strong> Gotowy tekst dopasowany do działu i firmy pojawi się od
+          razu — popraw, co chcesz.
+        </li>
+        <li>
+          <strong>Skopiuj go do swojej poczty i wyślij, potem kliknij „Wysłane”.</strong> Aplikacja zapamięta,
+          do kogo i kiedy pisałeś, i przypomni o odpowiedzi.
+        </li>
+      </ol>
+    </section>
   );
 }

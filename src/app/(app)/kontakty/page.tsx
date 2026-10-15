@@ -39,7 +39,7 @@ export default async function ContactsPage() {
       <header className="page-header">
         <div>
           <h1>Kontakty</h1>
-          <p>Osoby i działy odpowiedzialne za rozwój pracowników — z dowodami i statusem weryfikacji.</p>
+          <p>Osoby i działy w dużych firmach, do których możesz napisać o swoich szkoleniach.</p>
         </div>
         <div id="contacts-actions" />
       </header>

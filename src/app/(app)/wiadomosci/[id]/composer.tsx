@@ -599,7 +599,7 @@ export function Composer({ id }: { id: string }) {
         <aside className="side-stack">
           {editable ? (
             <div className="side-card stack">
-              <h4>Program i język</h4>
+              <h4>Usługa i język</h4>
               <select
                 className="select"
                 value={m.programId ?? ""}
@@ -607,17 +607,17 @@ export function Composer({ id }: { id: string }) {
                   await flush();
                   await persist({ programId: e.target.value || null });
                   await load();
-                  toast("Zmieniono program — wygeneruj szkic ponownie, jeśli treść ma się dopasować");
+                  // Refresh the text right away; if you edited it, you are asked first.
+                  await generate(false);
                 }}
                 aria-label="Program"
               >
-                <option value="">Bez programu</option>
+                <option value="">Bez konkretnej usługi</option>
                 {d.programs
-                  .filter((p) => p.status === "approved" || p.id === m.programId)
+                  .filter((p) => p.status !== "archived" || p.id === m.programId)
                   .map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}
-                      {p.status !== "approved" ? " (niezatwierdzony)" : ""}
                     </option>
                   ))}
               </select>
@@ -633,7 +633,7 @@ export function Composer({ id }: { id: string }) {
                         await flush();
                         await persist({ language: l });
                         await load();
-                        toast("Zmieniono język — użyj „Od nowa”, aby napisać treść w tym języku");
+                        await generate(false);
                       }}
                     >
                       {l.toUpperCase()}

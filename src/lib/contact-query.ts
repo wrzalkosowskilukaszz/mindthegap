@@ -36,6 +36,7 @@ export const OUTREACH = [
 export const REVIEW = ["new", "accepted", "rejected"] as const;
 export const SIZE_BANDS = ["200-999", "1000-4999", "5000+", "unknown", "<200"] as const;
 export const SORTS = [
+  "reach",
   "company",
   "name",
   "role",
@@ -59,6 +60,8 @@ export const ContactQuery = z.object({
   email: list(z.enum(EMAIL_STATUSES)),
   outreach: list(z.enum(OUTREACH)),
   review: list(z.enum(REVIEW)),
+  /** Only contacts with a usable address (not marked invalid). */
+  withEmail: z.preprocess((v) => v === "1" || v === true, z.boolean()).optional(),
   verifiedOlderThan: z.coerce.number().int().min(1).max(3650).optional(),
   verifiedWithin: z.coerce.number().int().min(1).max(3650).optional(),
   fallback: z.enum(["exclude", "include", "only"]).optional(),
@@ -80,13 +83,13 @@ export const BUILTIN_VIEWS: { id: string; name: string; query: Partial<ContactQu
     id: "to-contact",
     name: "Do kontaktu",
     query: {
-      fallback: "exclude",
+      fallback: "include",
+      withEmail: true,
       review: ["new", "accepted"],
-      role: ["decision_maker", "organizer_influencer", "departmental_inbox"],
       outreach: ["not_contacted", "draft_ready"],
-      sort: "quality",
+      sort: "reach",
     },
-    hint: "Osoby i skrzynki działów, do których jeszcze nie pisałeś — najlepsze dane na górze.",
+    hint: "Wszyscy, do których możesz napisać: najpierw konkretne osoby, potem skrzynki działów, na końcu ogólny adres firmy.",
   },
   {
     id: "latest-run",

@@ -77,6 +77,10 @@ export async function buildWhere(qIn: ContactQuery): Promise<SQL | undefined> {
   if (q.email?.length) conds.push(inArray(contacts.emailStatus, q.email));
   if (q.outreach?.length) conds.push(inArray(contacts.outreachStatus, q.outreach));
   if (q.review?.length) conds.push(inArray(contacts.reviewStatus, q.review));
+  if (q.withEmail) {
+    conds.push(isNotNull(contacts.emailNormalized));
+    conds.push(sql`${contacts.emailStatus} <> 'invalid'`);
+  }
   if (q.verifiedOlderThan) {
     conds.push(
       or(
@@ -105,6 +109,11 @@ function orderBy(q: ContactQuery): SQL[] {
   const roleOrder = sql`case ${contacts.roleCategory} when 'decision_maker' then 0 when 'organizer_influencer' then 1 when 'departmental_inbox' then 2 when 'uncertain' then 3 else 4 end`;
   const qualityOrder = sql`case ${contacts.quality} when 'ready' then 0 when 'caution' then 1 when 'needs_research' then 2 else 3 end`;
   switch (q.sort) {
+    case "reach": {
+      // People first, then department mailboxes, then the company's general address; best data first.
+      const kindOrder = sql`case ${contacts.kind} when 'person' then 0 when 'department_inbox' then 1 else 2 end`;
+      return [asc(kindOrder), asc(roleOrder), asc(qualityOrder), asc(companies.name), asc(contacts.id)];
+    }
     case "name":
       return [dir(nameExpr), asc(contacts.id)];
     case "role":

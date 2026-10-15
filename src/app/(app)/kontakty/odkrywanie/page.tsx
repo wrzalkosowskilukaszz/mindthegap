@@ -1,18 +1,20 @@
-import { CONTACTS_SUBNAV, SubNav } from "@/components/ui";
+import Link from "next/link";
 import { DiscoveryView } from "./discovery-view";
 
-export const metadata = { title: "Odkrywanie" };
+export const metadata = { title: "Wyszukiwanie kontaktów" };
 
 export default function DiscoveryPage() {
   return (
     <div className="page">
       <header className="page-header">
         <div>
-          <h1>Kontakty</h1>
-          <p>Codzienne odkrywanie: nowe firmy, badanie stron, uzupełnianie i odświeżanie danych.</p>
+          <Link href="/ustawienia" className="small">
+            ← Ustawienia
+          </Link>
+          <h1>Wyszukiwanie kontaktów</h1>
+          <p>Aplikacja sama szuka nowych firm i kontaktów codziennie rano. Tu widać, jak jej idzie.</p>
         </div>
       </header>
-      <SubNav items={CONTACTS_SUBNAV} />
       <DiscoveryView />
     </div>
   );

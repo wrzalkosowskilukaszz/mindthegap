@@ -1,6 +1,7 @@
 "use client";
 
 import { LogOut, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/toast";
@@ -61,6 +62,27 @@ export function SettingsView() {
 
   return (
     <div className="stack-lg">
+      <section className="card card-pad stack">
+        <h3>Na skróty</h3>
+        <div className="link-list">
+          <Link href="/kontakty/odkrywanie" className="link-row">
+            <span>
+              <strong>Wyszukiwanie kontaktów</strong>
+              <span className="small secondary">
+                Kiedy aplikacja szuka nowych firm i adresów, ile to kosztuje, „Szukaj teraz”.
+              </span>
+            </span>
+            <span aria-hidden="true">›</span>
+          </Link>
+          <Link href="/aktywnosc" className="link-row">
+            <span>
+              <strong>Statystyki</strong>
+              <span className="small secondary">Znalezione kontakty, wysłane maile, odpowiedzi.</span>
+            </span>
+            <span aria-hidden="true">›</span>
+          </Link>
+        </div>
+      </section>
       <section className="card card-pad stack" id="gmail">
         <h3>Gmail (opcjonalnie)</h3>
         <p className="small secondary">

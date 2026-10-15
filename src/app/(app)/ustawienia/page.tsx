@@ -9,7 +9,7 @@ export default function SettingsPage() {
       <header className="page-header">
         <div>
           <h1>Ustawienia</h1>
-          <p>Połączenia, zasady świeżości danych, korespondencja i prywatność.</p>
+          <p>Rzeczy, które ustawia się raz. Na co dzień nie musisz tu zaglądać.</p>
         </div>
       </header>
       <Suspense>

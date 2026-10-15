@@ -189,9 +189,8 @@ export function SubNav({ items }: { items: { href: string; label: string }[] }) 
 }
 
 export const CONTACTS_SUBNAV = [
-  { href: "/kontakty", label: "Osoby" },
-  { href: "/kontakty/firmy", label: "Firmy i pokrycie" },
-  { href: "/kontakty/odkrywanie", label: "Odkrywanie" },
+  { href: "/kontakty", label: "Do kogo pisać" },
+  { href: "/kontakty/firmy", label: "Firmy" },
 ];
 
 /** Click-outside + Escape for popovers. */

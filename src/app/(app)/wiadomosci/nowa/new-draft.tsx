@@ -28,10 +28,10 @@ export function NewDraft() {
   useEffect(() => {
     apiFetch<{ programs: Program[]; ai: boolean }>("/api/materials")
       .then((r) => {
-        const approved = r.programs.filter((p) => p.status === "approved");
-        setPrograms(approved);
+        const usable = r.programs.filter((p) => p.status !== "archived");
+        setPrograms(usable);
         setAi(r.ai);
-        if (approved[0]) setProgramId(approved[0].id);
+        if (usable[0]) setProgramId(usable[0].id);
       })
       .catch(() => setPrograms([]));
   }, []);
@@ -95,8 +95,8 @@ export function NewDraft() {
         <h1>{ids.length === 1 ? "Nowa wiadomość" : `Szkice dla ${ids.length} kontaktów`}</h1>
         <p className="secondary" style={{ marginTop: 6 }}>
           {ids.length === 1
-            ? "Wybierz program i język. Szkic powstanie na podstawie zatwierdzonych materiałów i roli odbiorcy."
-            : "Każdy kontakt dostanie osobny, indywidualny szkic — nigdy jedną wspólną wiadomość. Każdy przejrzysz i zatwierdzisz osobno."}
+            ? "Wybierz usługę, o której chcesz napisać, i język. Tekst dopasuje się do działu odbiorcy."
+            : "Każdy kontakt dostanie osobny szkic, dopasowany do swojego działu — nie jedną wspólną wiadomość."}
         </p>
       </header>
       {!ai ? (
@@ -105,20 +105,13 @@ export function NewDraft() {
           kosztów i bez AI. Przeczytaj każdy przed wysłaniem.
         </Callout>
       ) : null}
-      {programs && programs.length === 0 ? (
-        <Callout tone="warn">
-          <span>
-            Nie masz jeszcze zatwierdzonego programu. Szkic powstanie bez opisu oferty — lepiej najpierw
-            zatwierdzić program w <Link href="/materialy">Materiałach</Link>.
-          </span>
-        </Callout>
-      ) : null}
+
       {!progress ? (
         <div className="card card-pad stack">
           <label className="field">
-            <span className="field-label">Program</span>
+            <span className="field-label">Usługa</span>
             <select className="select" value={programId} onChange={(e) => setProgramId(e.target.value)}>
-              <option value="">Bez programu (ogólne przedstawienie)</option>
+              <option value="">Ogólnie o mojej pracy</option>
               {programs?.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}

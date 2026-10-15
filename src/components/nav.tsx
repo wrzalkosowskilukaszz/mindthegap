@@ -1,14 +1,13 @@
 "use client";
 
-import { Activity, FileText, Mail, Settings, Users } from "lucide-react";
+import { Briefcase, Mail, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
   { href: "/kontakty", label: "Kontakty", icon: Users },
   { href: "/wiadomosci", label: "Wiadomości", icon: Mail },
-  { href: "/materialy", label: "Materiały", icon: FileText },
-  { href: "/aktywnosc", label: "Aktywność", icon: Activity },
+  { href: "/materialy", label: "Moja oferta", icon: Briefcase },
   { href: "/ustawienia", label: "Ustawienia", icon: Settings },
 ] as const;
 

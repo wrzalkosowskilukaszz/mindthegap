@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/toast";
 import { Callout, Dialog, Dot, Empty } from "@/components/ui";
 import { ApiError, apiFetch } from "@/lib/api-client";
-import { formatWarsaw } from "@/lib/time";
 import type { ProgramField, ProgramSummary } from "@/server/db/schema";
 import type { SettingsOf } from "@/server/settings";
 import { uploadVersion } from "./upload";
@@ -92,9 +91,9 @@ export function MaterialsView() {
       <div className="segmented" role="tablist" aria-label="Sekcje materiałów">
         {(
           [
-            ["programs", `Programy (${lib.programs.filter((p) => p.status !== "archived").length})`],
-            ["documents", `Pliki (${lib.documents.length})`],
-            ["profile", "Profil i głos"],
+            ["programs", "Usługi"],
+            ["documents", "Pliki do maili"],
+            ["profile", "Ty i podpis"],
           ] as const
         ).map(([k, l]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>
@@ -103,9 +102,7 @@ export function MaterialsView() {
         ))}
       </div>
 
-      {tab === "programs" ? (
-        <Programs lib={lib} reload={load} onUpload={(programId) => setUploadOpen({ programId })} />
-      ) : null}
+      {tab === "programs" ? <Programs lib={lib} reload={load} /> : null}
       {tab === "documents" ? (
         <Documents
           lib={lib}
@@ -129,19 +126,11 @@ export function MaterialsView() {
 // Programmes
 // ---------------------------------------------------------------------------
 
-function Programs({
-  lib,
-  reload,
-  onUpload,
-}: {
-  lib: Library;
-  reload: () => void;
-  onUpload: (programId: string | null) => void;
-}) {
+function Programs({ lib, reload }: { lib: Library; reload: () => void }) {
   const toast = useToast();
   const active = lib.programs.filter((p) => p.status !== "archived");
   async function create() {
-    const name = window.prompt("Nazwa programu");
+    const name = window.prompt("Nazwa usługi (np. „Warsztat dla menedżerów”)");
     if (!name) return;
     await apiFetch("/api/programs", { body: { name } });
     reload();
@@ -151,15 +140,14 @@ function Programs({
       <div className="card">
         <Empty
           icon={<FileText size={22} />}
-          title="Brak programów"
+          title="Nie masz jeszcze usług"
           actions={
             <button type="button" className="btn btn-primary" onClick={create}>
-              <Plus size={15} /> Dodaj program
+              <Plus size={15} /> Dodaj usługę
             </button>
           }
         >
-          Program to opis oferty, z którego korzysta generator maili: odbiorcy, problem, efekty, format.
-          Możesz go wpisać lub wgrać ofertę (PDF, JPG) i poprosić AI o propozycję streszczenia.
+          Dodaj nazwę usługi, którą chcesz proponować firmom — szkice maili będą o niej wspominać.
         </Empty>
       </div>
     );
@@ -168,22 +156,15 @@ function Programs({
     <div className="stack-lg">
       <div className="row-between">
         <p className="secondary small">
-          Szkic programu nie jest używany w mailach, dopóki go nie zatwierdzisz. Pola z cytatem pokazują, skąd
-          pochodzą.
+          To usługi z Twojej strony. Pisząc maila, wybierasz jedną z nich — szablon o niej wspomni. Możesz
+          zmienić opis albo usunąć usługę, której nie oferujesz.
         </p>
         <button type="button" className="btn" onClick={create}>
-          <Plus size={15} /> Dodaj program
+          <Plus size={15} /> Dodaj usługę
         </button>
       </div>
       {active.map((p) => (
-        <ProgramCard
-          key={p.id}
-          p={p}
-          lib={lib}
-          reload={reload}
-          onUpload={() => onUpload(p.id)}
-          toast={toast}
-        />
+        <ProgramCard key={p.id} p={p} lib={lib} reload={reload} toast={toast} />
       ))}
     </div>
   );
@@ -204,13 +185,11 @@ function ProgramCard({
   p,
   lib,
   reload,
-  onUpload,
   toast,
 }: {
   p: Program;
   lib: Library;
   reload: () => void;
-  onUpload: () => void;
   toast: ReturnType<typeof useToast>;
 }) {
   const [edit, setEdit] = useState(false);
@@ -265,12 +244,6 @@ function ProgramCard({
         <div>
           <h3>{p.name}</h3>
           <div className="row small secondary" style={{ marginTop: 4, gap: 10 }}>
-            <span className="status">
-              <Dot tone={p.status === "approved" ? "ok" : "hollow"} />
-              {p.status === "approved"
-                ? `Zatwierdzony ${formatWarsaw(p.approvedAt, "d LLL yyyy")}`
-                : "Szkic — nieużywany w mailach"}
-            </span>
             {p.summarySource ? (
               <span className="muted xsmall" title={p.summarySource}>
                 {sourceLabel(p.summarySource)}
@@ -284,29 +257,19 @@ function ProgramCard({
               {busy ? <span className="spinner" /> : <Sparkles size={13} />} Zaproponuj z plików
             </button>
           ) : null}
-          <button type="button" className="btn btn-quiet btn-sm" onClick={onUpload}>
-            <Upload size={13} /> Wgraj ofertę
-          </button>
           <button type="button" className="btn btn-sm" onClick={() => setEdit(!edit)}>
-            {edit ? "Zamknij edycję" : "Edytuj"}
+            {edit ? "Zamknij" : "Zmień opis"}
           </button>
-          {p.status !== "approved" ? (
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={() => patch({ status: "approved" }, "Program zatwierdzony")}
-            >
-              <Check size={13} /> Zatwierdź
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-sm"
-              onClick={() => patch({ status: "draft" }, "Cofnięto zatwierdzenie")}
-            >
-              Cofnij zatwierdzenie
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn btn-quiet btn-sm"
+            onClick={() => {
+              if (window.confirm(`Usunąć usługę „${p.name}”? Nie będzie już proponowana w mailach.`))
+                void patch({ status: "archived" }, "Usunięto usługę");
+            }}
+          >
+            Usuń
+          </button>
         </div>
       </div>
       {unverified.length ? (
@@ -397,7 +360,7 @@ function ProgramCard({
         </dl>
       )}
       <div className="row wrap" style={{ gap: 12 }}>
-        <span className="small secondary">Domyślny załącznik:</span>
+        <span className="small secondary">Plik dołączany do maili o tej usłudze:</span>
         <select
           className="select"
           style={{ width: 320 }}
@@ -406,7 +369,7 @@ function ProgramCard({
             patch({ defaultAttachmentVersionId: e.target.value || null }, "Ustawiono domyślny załącznik")
           }
         >
-          <option value="">Brak</option>
+          <option value="">Bez załącznika</option>
           {attachVersions.map((v) => (
             <option key={v.id} value={v.id}>
               {v.title} — {v.filename} (v{v.version})
@@ -414,7 +377,7 @@ function ProgramCard({
           ))}
         </select>
         {attachVersions.length === 0 ? (
-          <span className="xsmall muted">Wgraj plik typu „Załącznik do wysyłki” i zatwierdź wersję.</span>
+          <span className="xsmall muted">Najpierw dodaj plik w zakładce „Pliki do maili”.</span>
         ) : null}
       </div>
     </section>

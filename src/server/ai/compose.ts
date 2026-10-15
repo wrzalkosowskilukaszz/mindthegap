@@ -83,7 +83,8 @@ export async function buildComposeContext(opts: {
   let programName: string | null = null;
   if (opts.programId) {
     const [p] = await db().select().from(programs).where(eq(programs.id, opts.programId)).limit(1);
-    if (p && p.status === "approved") {
+    // Any service in "Moja oferta" can be used (archived ones cannot).
+    if (p && p.status !== "archived") {
       programName = p.name;
       add("program", `Programme name: ${p.name}`);
       const s = p.summary;

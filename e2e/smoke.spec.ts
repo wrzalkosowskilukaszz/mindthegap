@@ -21,11 +21,11 @@ test("login is required and a wrong password is refused", async ({ page }) => {
 const SCREENS: [string, RegExp][] = [
   ["/kontakty", /Kontakty/],
   ["/kontakty/firmy", /Kontakty/],
-  ["/kontakty/odkrywanie", /Kontakty/],
+  ["/kontakty/odkrywanie", /Wyszukiwanie kontaktów/],
   ["/wiadomosci", /Wiadomości/],
   ["/wiadomosci/nowa", /Nowa wiadomość/],
-  ["/materialy", /Materiały/],
-  ["/aktywnosc", /Aktywność/],
+  ["/materialy", /Moja oferta/],
+  ["/aktywnosc", /Statystyki/],
   ["/ustawienia", /Ustawienia/],
 ];
 
