@@ -17,10 +17,9 @@ body {
   font-size: var(--text-base);
   font-weight: var(--weight-regular);
   line-height: var(--leading);
-  font-feature-settings: "cv11", "ss01", "ss03";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  letter-spacing: -0.003em;
+  letter-spacing: -0.005em;
 }
 
 h1,
@@ -79,6 +78,11 @@ button {
   cursor: pointer;
 }
 
+input[type="radio"],
+input[type="checkbox"] {
+  accent-color: var(--accent-bright);
+}
+
 button:disabled {
   cursor: not-allowed;
 }
@@ -95,6 +99,7 @@ button:disabled {
 
 ::selection {
   background: var(--accent-soft);
+  color: var(--text);
 }
 
 table {

@@ -17,7 +17,7 @@ export function LoginForm() {
       body: JSON.stringify({ password }),
     }).catch(() => null);
     if (res?.ok) {
-      window.location.assign("/kontakty");
+      window.location.assign("/witaj");
       return;
     }
     const data = res ? await res.json().catch(() => ({})) : {};
@@ -34,6 +34,7 @@ export function LoginForm() {
           name="password"
           type="password"
           autoComplete="current-password"
+          placeholder="••••••••••"
           required
           autoFocus
         />

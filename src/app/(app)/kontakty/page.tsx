@@ -1,12 +1,14 @@
 import { Suspense } from "react";
 import { CONTACTS_SUBNAV, SubNav } from "@/components/ui";
+import { homeStats } from "@/server/services/home";
 import { systemStatus } from "@/server/services/status";
 import { ContactsView } from "./contacts-view";
+import { StatCards } from "./stat-cards";
 
 export const metadata = { title: "Kontakty" };
 
 export default async function ContactsPage() {
-  const s = await systemStatus();
+  const [s, stats] = await Promise.all([systemStatus(), homeStats()]);
   let attention: { tone: "warn" | "bad" | "info"; text: string; href: string } | null = null;
   if (s.lastRun?.status === "failed")
     attention = {
@@ -43,6 +45,7 @@ export default async function ContactsPage() {
         </div>
         <div id="contacts-actions" />
       </header>
+      <StatCards s={stats} />
       <SubNav items={CONTACTS_SUBNAV} />
       <Suspense>
         <ContactsView attention={attention} />

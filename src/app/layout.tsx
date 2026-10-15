@@ -1,4 +1,5 @@
 import "@fontsource-variable/inter";
+import "@fontsource-variable/plus-jakarta-sans";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/components.css";
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#fbfaf7",
+  themeColor: "#f3f5f8",
   width: "device-width",
   initialScale: 1,
 };

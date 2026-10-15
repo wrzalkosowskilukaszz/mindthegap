@@ -7,7 +7,7 @@ State on 2026-10-15. What each status means:
 - **Partial:** works, with a stated limit.
 - **Not implemented:** not built yet.
 
-How it was checked: 127 unit and integration tests (`pnpm test`), 6 Playwright smoke tests on desktop and phone (`pnpm e2e`), Biome and TypeScript clean, a production build, and full discovery sweeps over the ~420-company universe on a local database.
+How it was checked: 136 unit and integration tests (`pnpm test`), 6 Playwright smoke tests on desktop and phone (`pnpm e2e`), Biome and TypeScript clean, a production build, and full discovery sweeps over the ~420-company universe on a local database.
 
 ## Contacts and discovery
 
@@ -44,12 +44,13 @@ How it was checked: 127 unit and integration tests (`pnpm test`), 6 Playwright s
 |---|---|---|
 | Materials: programmes, uploads (PDF, DOCX, PPTX, TXT, JPG, PNG, WEBP), versions, approvals | Operational | Text extraction runs locally. Images need AI to be summarised. |
 | Programme summaries proposed from your files, with verified quotes | Awaiting configuration | `ANTHROPIC_API_KEY`. |
-| Sender profile and approved facts | Operational | Seeded from your website and brief as **unapproved**; nothing is used until you approve it. |
+| Sender profile and approved facts | Operational | Seeded from your website and brief as **unapproved**; nothing is used until you approve it. The profile tab saves by itself. |
+| Signature | Operational | Built from your name, position, company and website unless you write your own. Shown under the text on the email screen and editable there (*Edytuj podpis*). |
 | Composer: editing, autosave, revisions and restore, deterministic checks (linter) | Operational | |
 | Free drafts from templates (per department, PL/EN, first email and follow-up), copy-to-ChatGPT/Claude prompt | Operational | Used whenever no AI key is set: no cost. |
 | AI drafting (two subjects, variants, explanation, quick rewrites), PL/EN, department-specific angle | Awaiting configuration (optional) | `ANTHROPIC_API_KEY`, paid per use. Not yet run against the real API in this environment. |
 | Approval snapshot, pre-send checks (suppression, basis, recent contact with the company, daily limit), information footer | Operational | |
-| Copy / open in mail app / mark as sent by hand; log a reply by hand | Operational | The full workflow works without Gmail. |
+| Copy / open in mail app / mark as sent by hand; log a reply by hand | Operational | The full workflow works without Gmail and without a separate approval step: *Kopiuj* or *Otwórz w poczcie*, then *Wysłane*. If the recipient has no recorded basis, the email screen asks for it in plain words first (one click when the company's page invites offers to that address). |
 | Gmail: connect (incremental scopes), send, schedule, reconcile uncertain sends, reply sync with auto-reply and bounce detection | Awaiting configuration | Google OAuth client ([SETUP.md](SETUP.md#gmail-optional)). Sending also needs `SENDING_ENABLED=true`. Not yet run against a real Google account. |
 
 ## Activity, privacy, security
@@ -66,6 +67,7 @@ How it was checked: 127 unit and integration tests (`pnpm test`), 6 Playwright s
 | Feature | Status | Notes |
 |---|---|---|
 | Documentation (README, architecture, setup, deployment, costs, research) | Operational | |
+| Look and feel | Operational | Owner's reference (2026-10-15): grey canvas, white rounded cards, green accent, number cards on Kontakty, a greeting animation after login. |
 | Production deployment | Operational | https://mindthegap-outreach.vercel.app (Vercel Hobby + Neon Frankfurt). Smoke tests pass on desktop and phone; the hourly scheduler runs and researched 40 companies in its first tick. |
 | Coverage report from the first full sweep | In progress | Written after the sweep finishes: `docs/COVERAGE.md` (aggregate numbers only, no personal data). |
 | Job offers tab (*Oferty pracy*) | Not implemented | Planned next step, after the core is in use. |
