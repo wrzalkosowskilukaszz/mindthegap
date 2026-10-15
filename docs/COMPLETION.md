@@ -46,7 +46,8 @@ How it was checked: 127 unit and integration tests (`pnpm test`), 6 Playwright s
 | Programme summaries proposed from your files, with verified quotes | Awaiting configuration | `ANTHROPIC_API_KEY`. |
 | Sender profile and approved facts | Operational | Seeded from your website and brief as **unapproved**; nothing is used until you approve it. |
 | Composer: editing, autosave, revisions and restore, deterministic checks (linter) | Operational | |
-| AI drafting (two subjects, variants, explanation, quick rewrites), PL/EN, department-specific angle | Awaiting configuration | `ANTHROPIC_API_KEY`. Not yet run against the real API in this environment. |
+| Free drafts from templates (per department, PL/EN, first email and follow-up), copy-to-ChatGPT/Claude prompt | Operational | Used whenever no AI key is set: no cost. |
+| AI drafting (two subjects, variants, explanation, quick rewrites), PL/EN, department-specific angle | Awaiting configuration (optional) | `ANTHROPIC_API_KEY`, paid per use. Not yet run against the real API in this environment. |
 | Approval snapshot, pre-send checks (suppression, basis, recent contact with the company, daily limit), information footer | Operational | |
 | Copy / open in mail app / mark as sent by hand; log a reply by hand | Operational | The full workflow works without Gmail. |
 | Gmail: connect (incremental scopes), send, schedule, reconcile uncertain sends, reply sync with auto-reply and bounce detection | Awaiting configuration | Google OAuth client ([SETUP.md](SETUP.md#gmail-optional)). Sending also needs `SENDING_ENABLED=true`. Not yet run against a real Google account. |
@@ -65,6 +66,6 @@ How it was checked: 127 unit and integration tests (`pnpm test`), 6 Playwright s
 | Feature | Status | Notes |
 |---|---|---|
 | Documentation (README, architecture, setup, deployment, costs, research) | Operational | |
-| Production deployment | Not done | Needs your decision on the Vercel plan and your accounts ([DEPLOYMENT.md](DEPLOYMENT.md)). |
+| Production deployment | Operational | https://mindthegap-outreach.vercel.app (Vercel Hobby + Neon Frankfurt). Smoke tests pass on desktop and phone; the hourly scheduler runs and researched 40 companies in its first tick. |
 | Coverage report from the first full sweep | In progress | Written after the sweep finishes: `docs/COVERAGE.md` (aggregate numbers only, no personal data). |
 | Job offers tab (*Oferty pracy*) | Not implemented | Planned next step, after the core is in use. |

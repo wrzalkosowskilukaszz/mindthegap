@@ -1,5 +1,7 @@
 # Deployment
 
+**Current production (set up 2026-10-15):** https://mindthegap-outreach.vercel.app — Vercel project `mindthegap-outreach` (Hobby, region `fra1`), deploying from the repository's default branch; database: Neon project `mindthegap` (Frankfurt, Postgres 18). The tables were created and the researched data copied with `scripts/push-to-neon.ts` (HTTPS, because the setup environment could not reach Postgres directly). Environment variables are set in Vercel for Production only.
+
 The app needs three things in production: the Next.js app, a Postgres database, and a scheduler that calls `/api/cron/tick` every hour. The recommended setup costs nothing fixed: **Vercel + Neon**, with Vercel's own cron jobs.
 
 > **Plan choice is yours.** Vercel's terms say "Hobby teams are restricted to non-commercial personal use only", and list "advertising the sale of a product or service" as commercial ([docs/research/HOSTING.md](research/HOSTING.md) §1). You said the tool is for your own use and not for sale. It does, however, support outreach for your training business, so it may count as commercial use under those terms. If you want to be certain, use Vercel Pro ($20/month) or the Cloud Run setup below (about $0–6/month). Nothing in the code depends on the plan.
