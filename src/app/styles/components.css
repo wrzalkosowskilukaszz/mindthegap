@@ -1830,6 +1830,17 @@ dialog.dialog::backdrop {
   .toast-region[popover] {
     bottom: 84px;
   }
+  /* Three buttons do not fit side by side on a phone: let them wrap instead of falling off screen. */
+  .dialog-header {
+    padding: var(--space-5) var(--space-5) var(--space-3);
+  }
+  .dialog-body {
+    padding: var(--space-2) var(--space-5) var(--space-5);
+  }
+  .dialog-footer {
+    flex-wrap: wrap;
+    padding: var(--space-3) var(--space-5) var(--space-5);
+  }
 }
 
 /* ============================== Composer ============================== */
