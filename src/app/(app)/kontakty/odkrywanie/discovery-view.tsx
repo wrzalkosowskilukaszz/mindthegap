@@ -513,131 +513,138 @@ function RunSettingsDialog({
           />
           <span className="field-hint">Czas lokalny {sched.timezone}</span>
         </label>
-        {field("Nowe firmy na przebieg", "maxNewCompaniesPerRun")}
         {field("Badane firmy na przebieg", "maxCompaniesResearchedPerRun")}
-        {field("Maks. nowych kontaktów", "maxNewContactsPerRun")}
+        {field("Limit wydatków na miesiąc (USD)", "monthlySpendLimitUsd", "Dotyczy tylko płatnych usług")}
       </div>
-      <div className="field-row">
-        {field(
-          "Maks. kontaktów na firmę",
-          "maxContactsPerCompany",
-          "Zalecane 3–5: po jednym z HR/L&D, zakupów i kierownictwa",
-        )}
-        {field("Uzupełnienia (płatne) na przebieg", "maxEnrichmentsPerRun")}
-        {field("Ponowne sprawdzenia na przebieg", "maxRechecksPerRun")}
-        {field("Min. liczba pracowników", "minEmployees", "Kryterium wielkości (konfigurowalne)")}
-      </div>
-      <div className="field-row">
-        {field("Limit dzienny (USD)", "dailySpendLimitUsd")}
-        {field("Limit miesięczny (USD)", "monthlySpendLimitUsd")}
-        {field("Stron na firmę", "maxPagesPerCompany")}
-        {field("Odstęp między zapytaniami (ms)", "minDelayMsPerHost")}
-      </div>
-      <label className="check-row">
-        <input
-          type="checkbox"
-          className="checkbox"
-          checked={disc.includeUnknownSize}
-          onChange={(e) => setDisc((d) => ({ ...d, includeUnknownSize: e.target.checked }))}
-        />
-        Uwzględniaj firmy bez danych o liczbie pracowników
-      </label>
-      <label className="field">
-        <span className="field-label">Wykluczone domeny (po przecinku)</span>
-        <input
-          className="input"
-          value={disc.excludedDomains.join(", ")}
-          onChange={(e) =>
-            setDisc((d) => ({
-              ...d,
-              excludedDomains: e.target.value
-                .split(",")
-                .map((x) => x.trim())
-                .filter(Boolean),
-            }))
-          }
-        />
-      </label>
-      <label className="field">
-        <span className="field-label">Regiony / miasta (opcjonalnie, po przecinku)</span>
-        <input
-          className="input"
-          value={disc.regions.join(", ")}
-          onChange={(e) =>
-            setDisc((d) => ({
-              ...d,
-              regions: e.target.value
-                .split(",")
-                .map((x) => x.trim())
-                .filter(Boolean),
-            }))
-          }
-          placeholder="np. Warszawa, Kraków"
-        />
-      </label>
-      <label className="field">
-        <span className="field-label">Dodatkowe słowa trafnych stanowisk (po przecinku)</span>
-        <input
-          className="input"
-          value={disc.roleIncludeKeywords.join(", ")}
-          placeholder="np. people ops, akademia lidera"
-          onChange={(e) =>
-            setDisc((d) => ({
-              ...d,
-              roleIncludeKeywords: e.target.value
-                .split(",")
-                .map((x) => x.trim())
-                .filter(Boolean),
-            }))
-          }
-        />
-        <span className="field-hint">
-          Stanowisko z takim słowem trafia na listę, nawet jeśli wbudowane reguły go nie rozpoznają.
-        </span>
-      </label>
-      <label className="field">
-        <span className="field-label">Słowa wykluczające stanowiska (po przecinku)</span>
-        <input
-          className="input"
-          value={disc.roleExcludeKeywords.join(", ")}
-          onChange={(e) =>
-            setDisc((d) => ({
-              ...d,
-              roleExcludeKeywords: e.target.value
-                .split(",")
-                .map((x) => x.trim())
-                .filter(Boolean),
-            }))
-          }
-        />
-        <span className="field-hint">
-          Stanowisko z takim słowem jest pomijane, chyba że dotyczy też szkoleń lub rozwoju ludzi.
-        </span>
-      </label>
-      <label className="check-row">
-        <input
-          type="checkbox"
-          className="checkbox"
-          checked={disc.aiAssistedExtraction}
-          onChange={(e) => setDisc((d) => ({ ...d, aiAssistedExtraction: e.target.checked }))}
-        />
-        AI pomaga czytać strony, których reguły nie rozumieją (płatne, liczone w limicie; każda wartość
-        sprawdzana dosłownie ze stroną)
-      </label>
-      <div className="field-row">
-        {field(
-          "Szacowany koszt AI (USD za mln tokenów)",
-          "aiUsdPerMillionTokens",
-          "Założenie do liczenia kosztów — sprawdź cennik Anthropic dla wybranego modelu",
-        )}
-      </div>
-      <p className="xsmall muted">
-        Limity miesięcznych kredytów dostawców:{" "}
-        {Object.entries(disc.monthlyProviderCredits)
-          .map(([k, v]) => `${k}: ${v}`)
-          .join(", ")}{" "}
-        (Ustawienia › Integracje).
-      </p>
+      <details className="disclosure">
+        <summary>Zaawansowane</summary>
+        <div className="stack disclosure-body">
+          <div className="field-row">
+            {field("Nowe firmy na przebieg", "maxNewCompaniesPerRun")}
+            {field("Maks. nowych kontaktów", "maxNewContactsPerRun")}
+          </div>
+          <div className="field-row">
+            {field(
+              "Maks. kontaktów na firmę",
+              "maxContactsPerCompany",
+              "Zalecane 3–5: po jednym z HR/L&D, zakupów i kierownictwa",
+            )}
+            {field("Uzupełnienia (płatne) na przebieg", "maxEnrichmentsPerRun")}
+            {field("Ponowne sprawdzenia na przebieg", "maxRechecksPerRun")}
+            {field("Min. liczba pracowników", "minEmployees", "Kryterium wielkości (konfigurowalne)")}
+          </div>
+          <div className="field-row">
+            {field("Limit dzienny (USD)", "dailySpendLimitUsd")}
+            {field("Stron na firmę", "maxPagesPerCompany")}
+            {field("Odstęp między zapytaniami (ms)", "minDelayMsPerHost")}
+          </div>
+          <label className="check-row">
+            <input
+              type="checkbox"
+              className="checkbox"
+              checked={disc.includeUnknownSize}
+              onChange={(e) => setDisc((d) => ({ ...d, includeUnknownSize: e.target.checked }))}
+            />
+            Uwzględniaj firmy bez danych o liczbie pracowników
+          </label>
+          <label className="field">
+            <span className="field-label">Wykluczone domeny (po przecinku)</span>
+            <input
+              className="input"
+              value={disc.excludedDomains.join(", ")}
+              onChange={(e) =>
+                setDisc((d) => ({
+                  ...d,
+                  excludedDomains: e.target.value
+                    .split(",")
+                    .map((x) => x.trim())
+                    .filter(Boolean),
+                }))
+              }
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">Regiony / miasta (opcjonalnie, po przecinku)</span>
+            <input
+              className="input"
+              value={disc.regions.join(", ")}
+              onChange={(e) =>
+                setDisc((d) => ({
+                  ...d,
+                  regions: e.target.value
+                    .split(",")
+                    .map((x) => x.trim())
+                    .filter(Boolean),
+                }))
+              }
+              placeholder="np. Warszawa, Kraków"
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">Dodatkowe słowa trafnych stanowisk (po przecinku)</span>
+            <input
+              className="input"
+              value={disc.roleIncludeKeywords.join(", ")}
+              placeholder="np. people ops, akademia lidera"
+              onChange={(e) =>
+                setDisc((d) => ({
+                  ...d,
+                  roleIncludeKeywords: e.target.value
+                    .split(",")
+                    .map((x) => x.trim())
+                    .filter(Boolean),
+                }))
+              }
+            />
+            <span className="field-hint">
+              Stanowisko z takim słowem trafia na listę, nawet jeśli wbudowane reguły go nie rozpoznają.
+            </span>
+          </label>
+          <label className="field">
+            <span className="field-label">Słowa wykluczające stanowiska (po przecinku)</span>
+            <input
+              className="input"
+              value={disc.roleExcludeKeywords.join(", ")}
+              onChange={(e) =>
+                setDisc((d) => ({
+                  ...d,
+                  roleExcludeKeywords: e.target.value
+                    .split(",")
+                    .map((x) => x.trim())
+                    .filter(Boolean),
+                }))
+              }
+            />
+            <span className="field-hint">
+              Stanowisko z takim słowem jest pomijane, chyba że dotyczy też szkoleń lub rozwoju ludzi.
+            </span>
+          </label>
+          <label className="check-row">
+            <input
+              type="checkbox"
+              className="checkbox"
+              checked={disc.aiAssistedExtraction}
+              onChange={(e) => setDisc((d) => ({ ...d, aiAssistedExtraction: e.target.checked }))}
+            />
+            AI pomaga czytać strony, których reguły nie rozumieją (płatne, liczone w limicie; każda wartość
+            sprawdzana dosłownie ze stroną)
+          </label>
+          <div className="field-row">
+            {field(
+              "Szacowany koszt AI (USD za mln tokenów)",
+              "aiUsdPerMillionTokens",
+              "Założenie do liczenia kosztów — sprawdź cennik Anthropic dla wybranego modelu",
+            )}
+          </div>
+          <p className="xsmall muted">
+            Limity miesięcznych kredytów dostawców:{" "}
+            {Object.entries(disc.monthlyProviderCredits)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join(", ")}{" "}
+            (Ustawienia › Integracje).
+          </p>
+        </div>
+      </details>
     </Dialog>
   );
 }

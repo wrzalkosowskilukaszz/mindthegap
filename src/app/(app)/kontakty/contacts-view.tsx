@@ -703,8 +703,7 @@ function EmptyContacts({
   if (filtered) {
     return (
       <Empty icon={<Filter size={22} />} title="Brak wyników dla tych filtrów">
-        Zmień lub wyczyść filtry. Kontakty ogólne (info@, rekrutacja) są domyślnie ukryte w widokach
-        priorytetowych.
+        Zmień lub wyczyść filtry. Kontakty ogólne (info@, rekrutacja) są ukryte w widoku „Do kontaktu”.
       </Empty>
     );
   }

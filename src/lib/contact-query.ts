@@ -71,60 +71,34 @@ export const ContactQuery = z.object({
 });
 export type ContactQuery = z.infer<typeof ContactQuery>;
 
-/** Built-in saved views. Priority views exclude generic fallback contacts by default. */
+/**
+ * Built-in views: four, for the daily flow (find someone to write to → follow the conversation).
+ * Everything else (general addresses, do-not-contact, rejected) is one filter away.
+ */
 export const BUILTIN_VIEWS: { id: string; name: string; query: Partial<ContactQuery>; hint: string }[] = [
   {
-    id: "priority",
-    name: "Priorytetowe",
+    id: "to-contact",
+    name: "Do kontaktu",
     query: {
       fallback: "exclude",
       review: ["new", "accepted"],
       role: ["decision_maker", "organizer_influencer", "departmental_inbox"],
+      outreach: ["not_contacted", "draft_ready"],
       sort: "quality",
     },
-    hint: "Osoby i skrzynki związane z rozwojem, bez kontaktów ogólnych i odrzuconych.",
+    hint: "Osoby i skrzynki działów, do których jeszcze nie pisałeś — najlepsze dane na górze.",
   },
   {
     id: "latest-run",
-    name: "Nowe z ostatniego przebiegu",
+    name: "Nowe",
     query: { latestRun: true, review: ["new"], fallback: "include" },
-    hint: "Do przeglądu: dodane w ostatnim przebiegu odkrywania.",
+    hint: "Dodane w ostatnim przebiegu odkrywania.",
   },
   {
-    id: "review",
-    name: "Do przeglądu",
-    query: { review: ["new"], fallback: "exclude" },
-    hint: "Nowe kontakty, których jeszcze nie oceniono.",
-  },
-  {
-    id: "awaiting",
-    name: "Czekają na odpowiedź",
-    query: { outreach: ["sent", "follow_up_due"], fallback: "include" },
-    hint: "Wysłane, bez odpowiedzi.",
-  },
-  {
-    id: "replied",
-    name: "Odpowiedzieli",
-    query: { outreach: ["replied"], fallback: "include" },
-    hint: "Kontakty z odpowiedzią.",
-  },
-  {
-    id: "needs-research",
-    name: "Do uzupełnienia",
-    query: { quality: ["needs_research"], fallback: "exclude", review: ["new", "accepted"] },
-    hint: "Brak adresu lub adres przewidziany i niezweryfikowany.",
-  },
-  {
-    id: "fallback",
-    name: "Kontakty ogólne",
-    query: { fallback: "only" },
-    hint: "Adresy typu info@, rekrutacja — tylko jako ostateczność.",
-  },
-  {
-    id: "dnc",
-    name: "Nie kontaktować",
-    query: { outreach: ["do_not_contact"], fallback: "include", review: ["new", "accepted", "rejected"] },
-    hint: "Wykluczone i oznaczone.",
+    id: "conversations",
+    name: "Korespondencja",
+    query: { outreach: ["scheduled", "sent", "follow_up_due", "replied"], fallback: "include" },
+    hint: "Zaplanowane, wysłane, czekające na odpowiedź i z odpowiedzią.",
   },
   {
     id: "all",
@@ -134,7 +108,7 @@ export const BUILTIN_VIEWS: { id: string; name: string; query: Partial<ContactQu
   },
 ];
 
-export const DEFAULT_VIEW = "priority";
+export const DEFAULT_VIEW = "to-contact";
 
 export function queryToSearch(q: Partial<ContactQuery>): string {
   const p = new URLSearchParams();

@@ -19,7 +19,7 @@ importers:
         version: 1.2.0
       drizzle-orm:
         specifier: 0.45.4
-        version: 0.45.4(@opentelemetry/api@1.9.1)(postgres@3.4.9)
+        version: 0.45.4(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(postgres@3.4.9)
       jszip:
         specifier: 3.10.2
         version: 3.10.2
@@ -69,6 +69,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.5.15
         version: 2.5.15
+      '@neondatabase/serverless':
+        specifier: ^1.2.0
+        version: 1.2.0
       '@playwright/test':
         specifier: 1.64.1
         version: 1.64.1
@@ -787,6 +790,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@neondatabase/serverless@1.2.0':
+    resolution: {integrity: sha512-tnaqgixUengZQNd9ZrS3ytQfamJzLKY8QxgqWQTNHHtB+KrFQWk77JTbbpg4RD+J3qE4eO2lVytvGDX5Kj6FdQ==}
+    engines: {node: '>=19.0.0'}
 
   '@next/env@16.4.1':
     resolution: {integrity: sha512-5sUUrrSvs/2/2LnLoesybMGx12EtPB46fdZ6RhAw0XDGSPxU2LFyQBB7yuEiOFFJPKmBY6+q2jTr1/AMbnp0/g==}
@@ -2209,6 +2216,8 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
+  '@neondatabase/serverless@1.2.0': {}
+
   '@next/env@16.4.1': {}
 
   '@next/swc-darwin-arm64@16.4.1':
@@ -2486,8 +2495,9 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.15
 
-  drizzle-orm@0.45.4(@opentelemetry/api@1.9.1)(postgres@3.4.9):
+  drizzle-orm@0.45.4(@neondatabase/serverless@1.2.0)(@opentelemetry/api@1.9.1)(postgres@3.4.9):
     optionalDependencies:
+      '@neondatabase/serverless': 1.2.0
       '@opentelemetry/api': 1.9.1
       postgres: 3.4.9
 
