@@ -11,7 +11,7 @@
  */
 import path from "node:path";
 import { neon } from "@neondatabase/serverless";
-import { sql } from "drizzle-orm";
+import { eq, gt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 import { migrate } from "drizzle-orm/neon-http/migrator";
 import type { PgTable } from "drizzle-orm/pg-core";
@@ -59,5 +59,30 @@ if (process.argv.includes("--copy")) {
     }
     console.log(`${name}: ${rows.length}`);
   }
+}
+// --companies-since=<ISO time>: add companies created locally after that time (e.g. a new research import)
+// together with their sources. Existing companies in the target are left untouched.
+const since = process.argv.find((a) => a.startsWith("--companies-since="))?.split("=")[1];
+if (since) {
+  const fresh = await localDb()
+    .select()
+    .from(schema.companies)
+    .where(gt(schema.companies.createdAt, new Date(since)));
+  let added = 0;
+  for (const co of fresh) {
+    const rows = await remote
+      .insert(schema.companies)
+      .values(co)
+      .onConflictDoNothing()
+      .returning({ id: schema.companies.id });
+    if (!rows.length) continue;
+    added++;
+    const srcs = await localDb()
+      .select()
+      .from(schema.companySources)
+      .where(eq(schema.companySources.companyId, co.id));
+    if (srcs.length) await remote.insert(schema.companySources).values(srcs).onConflictDoNothing();
+  }
+  console.log(`new companies: ${added} of ${fresh.length}`);
 }
 await closeDb();
