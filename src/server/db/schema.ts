@@ -239,6 +239,10 @@ export const companies = pgTable(
       checkedAt: string;
     } | null>(),
     isDemo: boolean("is_demo").notNull().default(false),
+    /** A company you would like to work for: all its EU job offers are shown (Oferty pracy). */
+    favourite: boolean("favourite").notNull().default(false),
+    careersUrl: text("careers_url"),
+    careersCheckedAt: ts("careers_checked_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -844,4 +848,102 @@ export const loginAttempts = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("login_attempts_idx").on(t.ipHash, t.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
+// Job offers (Oferty pracy)
+// ---------------------------------------------------------------------------
+
+export const jobSourceKindEnum = pgEnum("job_source_kind", [
+  "greenhouse",
+  "lever",
+  "ashby",
+  "smartrecruiters",
+  "workable",
+  "recruitee",
+  "personio",
+  "teamtailor",
+  "eightfold",
+  "workday",
+  "successfactors",
+  "arbeitnow",
+  "himalayas",
+  "adzuna",
+  "jooble",
+  "manual",
+]);
+
+export const jobOfferStatusEnum = pgEnum("job_offer_status", ["new", "saved", "applied", "dismissed"]);
+
+/** Where offers come from: a company's public job board (found on its careers page) or a job feed. */
+export const jobSources = pgTable(
+  "job_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: jobSourceKindEnum("kind").notNull(),
+    token: text("token").notNull(),
+    name: text("name").notNull(),
+    companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
+    url: text("url"),
+    supported: boolean("supported").notNull().default(true),
+    enabled: boolean("enabled").notNull().default(true),
+    lastFetchedAt: ts("last_fetched_at"),
+    nextFetchAt: ts("next_fetch_at"),
+    lastStatus: text("last_status"),
+    lastError: text("last_error"),
+    jobsTotal: integer("jobs_total").notNull().default(0),
+    jobsKept: integer("jobs_kept").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("job_sources_kind_token_uq").on(t.kind, t.token),
+    index("job_sources_due_idx").on(t.nextFetchAt),
+  ],
+);
+
+export type JobMatch = {
+  reasons: { text: string; tone: "good" | "warn" | "bad" }[];
+  region: string;
+  requiredLanguages: string[];
+  hits: string[];
+};
+
+export const jobOffers = pgTable(
+  "job_offers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => jobSources.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
+    companyName: text("company_name").notNull(),
+    title: text("title").notNull(),
+    location: text("location"),
+    workplace: text("workplace").notNull().default("unknown"),
+    employmentType: text("employment_type"),
+    department: text("department"),
+    description: text("description").notNull().default(""),
+    url: text("url").notNull(),
+    postedAt: ts("posted_at"),
+    firstSeenAt: ts("first_seen_at").notNull().defaultNow(),
+    lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
+    closedAt: ts("closed_at"),
+    score: integer("score").notNull().default(0),
+    match: jsonb("match")
+      .$type<JobMatch>()
+      .notNull()
+      .default({ reasons: [], region: "unknown", requiredLanguages: [], hits: [] }),
+    status: jobOfferStatusEnum("status").notNull().default("new"),
+    statusAt: ts("status_at"),
+    note: text("note"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("job_offers_source_ext_uq").on(t.sourceId, t.externalId),
+    index("job_offers_list_idx").on(t.status, t.score),
+    index("job_offers_company_idx").on(t.companyId),
+  ],
 );

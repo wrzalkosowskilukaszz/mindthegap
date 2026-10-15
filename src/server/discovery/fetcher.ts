@@ -122,7 +122,7 @@ export class PoliteFetcher {
     if (delta < gap) await new Promise((r) => setTimeout(r, gap - delta));
   }
 
-  async get(url: string, kind: "html" | "xml" = "html"): Promise<FetchOutcome> {
+  async get(url: string, kind: "html" | "xml" | "json" = "html"): Promise<FetchOutcome> {
     let current = url;
     for (let hop = 0; hop < 5; hop++) {
       const u = new URL(current);
@@ -141,7 +141,9 @@ export class PoliteFetcher {
             Accept:
               kind === "xml"
                 ? "application/xml,text/xml;q=0.9,*/*;q=0.1"
-                : "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
+                : kind === "json"
+                  ? "application/json;q=1,*/*;q=0.1"
+                  : "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
             "Accept-Language": "pl,en;q=0.8",
           },
         });
@@ -165,7 +167,12 @@ export class PoliteFetcher {
         return { ok: false, url: current, reason: "http_error", status: res.status };
       }
       const ct = res.headers.get("content-type") ?? "";
-      const okType = kind === "xml" ? /xml|text\/plain/.test(ct) : /html|xhtml/.test(ct);
+      const okType =
+        kind === "xml"
+          ? /xml|rss|text\/plain/.test(ct)
+          : kind === "json"
+            ? /json|javascript|text\/plain/.test(ct)
+            : /html|xhtml/.test(ct);
       if (!okType) {
         await this.log(current, res.status, "skipped_type");
         return { ok: false, url: current, reason: "skipped_type", status: res.status, detail: ct };
@@ -181,6 +188,49 @@ export class PoliteFetcher {
       return { ok: true, url: current, status: res.status, body, contentType: ct };
     }
     return { ok: false, url: current, reason: "redirect_loop" };
+  }
+
+  /** A JSON POST to a public search endpoint (Workday career sites), with the same robots and pacing rules. */
+  async postJson(url: string, body: unknown): Promise<FetchOutcome> {
+    const u = new URL(url);
+    if (!(await this.allowed(url))) {
+      await this.log(url, null, "robots_disallowed");
+      return { ok: false, url, reason: "robots_disallowed" };
+    }
+    await this.wait(u.host);
+    let res: Response;
+    try {
+      res = await httpFetch(url, {
+        method: "POST",
+        timeoutMs: this.opts.timeoutMs ?? 15_000,
+        headers: {
+          "User-Agent": this.userAgent,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      this.lastHit.set(u.host, Date.now());
+      await this.log(url, null, "network_error");
+      return { ok: false, url, reason: "network_error", detail: e instanceof Error ? e.message : String(e) };
+    }
+    this.lastHit.set(u.host, Date.now());
+    if (!res.ok) {
+      await this.log(url, res.status, "http_error");
+      return { ok: false, url, reason: "http_error", status: res.status };
+    }
+    const text = await readCapped(res, this.opts.maxBytes ?? 4_000_000);
+    if (text === null) return { ok: false, url, reason: "too_large" };
+    this.pagesFetched++;
+    await this.log(url, res.status, "ok", text.length);
+    return {
+      ok: true,
+      url,
+      status: res.status,
+      body: text,
+      contentType: res.headers.get("content-type") ?? "",
+    };
   }
 
   private async log(url: string, status: number | null, outcome: string, bytes?: number) {

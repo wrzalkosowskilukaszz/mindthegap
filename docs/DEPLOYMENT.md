@@ -37,7 +37,7 @@ Neon Free is enough to start (0.5 GB storage). The app wakes the database once a
    | `SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY` | two different random strings, 32+ characters (`openssl rand -base64 48`) |
    | `CRON_SECRET` | a random string; Vercel sends it to the cron endpoint automatically |
    | `DB_POOL_MAX` | `2` |
-   | optional | `ANTHROPIC_API_KEY`, `HUNTER_API_KEY`, `TAVILY_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SENDING_ENABLED` |
+   | optional | `ANTHROPIC_API_KEY`, `HUNTER_API_KEY`, `TAVILY_API_KEY`, `ADZUNA_APP_ID`, `ADZUNA_APP_KEY`, `JOOBLE_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SENDING_ENABLED` |
 
    Keep `TOKEN_ENCRYPTION_KEY` safe: changing it makes the stored Gmail tokens unreadable, and you would have to reconnect Gmail.
 3. Deploy. Open the URL and log in.

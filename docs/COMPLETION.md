@@ -7,7 +7,7 @@ State on 2026-10-15. What each status means:
 - **Partial:** works, with a stated limit.
 - **Not implemented:** not built yet.
 
-How it was checked: 136 unit and integration tests (`pnpm test`), 6 Playwright smoke tests on desktop and phone (`pnpm e2e`), Biome and TypeScript clean, a production build, and full discovery sweeps over the ~420-company universe on a local database.
+How it was checked: 145 unit and integration tests (`pnpm test`), 6 Playwright smoke tests on desktop and phone (`pnpm e2e`), Biome and TypeScript clean, a production build, and full discovery sweeps over the ~420-company universe on a local database.
 
 ## Contacts and discovery
 
@@ -70,4 +70,8 @@ How it was checked: 136 unit and integration tests (`pnpm test`), 6 Playwright s
 | Look and feel | Operational | Owner's reference (2026-10-15): grey canvas, white rounded cards, green accent, number cards on Kontakty, a greeting animation after login. |
 | Production deployment | Operational | https://mindthegap-outreach.vercel.app (Vercel Hobby + Neon Frankfurt). Smoke tests pass on desktop and phone; the hourly scheduler runs and researched 40 companies in its first tick. |
 | Coverage report from the first full sweep | In progress | Written after the sweep finishes: `docs/COVERAGE.md` (aggregate numbers only, no personal data). |
-| Job offers tab (*Oferty pracy*) | Not implemented | Planned next step, after the core is in use. |
+| Job offers tab (*Oferty pracy*): cards with match score and reasons, details, save / applied / hide, notes, favourite companies, add an offer by hand, copy-to-ChatGPT prompt | Operational | Checked every 4 hours by the scheduler, or *Odśwież teraz*. |
+| Job sources: company career sites (Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee, Personio, Teamtailor, Netflix's Eightfold), found automatically on the companies' own websites | Operational, partial | Only public job feeds that robots.txt allows. SuccessFactors and custom career sites are not read yet (their careers link is kept). |
+| Job feeds: Arbeitnow, Himalayas (free, no key) | Operational | |
+| Job feeds: Adzuna, Jooble (free keys) | Awaiting configuration | `ADZUNA_APP_ID`/`ADZUNA_APP_KEY`, `JOOBLE_API_KEY`. They cover many Polish job sites. LinkedIn, pracuj.pl, Rocketjobs/JustJoin and praca.pl forbid automated reading and are not used; offers from them can be added by hand. |
+| CV upload and free matching (role, topics from your CV, place, languages, seniority) | Operational | Only the CV text is stored. The score is a transparent rule-based count, not AI. |

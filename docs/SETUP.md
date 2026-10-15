@@ -80,6 +80,15 @@ Every Hunter result keeps the source pages Hunter reports. Guessed (pattern) add
 
 It is used only when a company's website, read from its homepage links, gives no relevant person or department mailbox: one search (1 credit) limited to that company's own domains, then up to four of the suggested pages are read politely. New companies are found through Wikidata, which is free.
 
+## 5. Job feeds for Oferty pracy (optional)
+
+Without keys the tab already reads company career sites (found on the companies' own websites), Arbeitnow and Himalayas. Two free keys add listings collected from many Polish and EU job sites:
+
+- **Adzuna:** register at [developer.adzuna.com](https://developer.adzuna.com/), create an app, and set `ADZUNA_APP_ID` and `ADZUNA_APP_KEY`. Free use is limited (about 250 requests a day); the app makes about 30 requests per check, every 4 hours. Adzuna asks that its listings are credited ("Jobs by Adzuna").
+- **Jooble:** request a key at [jooble.org/api/about](https://jooble.org/api/about) and set `JOOBLE_API_KEY`. About 12 requests per check.
+
+Not used, because their terms or robots.txt forbid automated reading: LinkedIn, pracuj.pl, Rocketjobs/JustJoin, praca.pl. Offers from those sites can be added by hand (*Dodaj ofertę*). The CV you upload is stored only as text in your database.
+
 ## Gmail (optional)
 
 Without Gmail you can still do everything: the composer has *Kopiuj*, *Otwórz w programie pocztowym* and *Oznacz jako wysłaną ręcznie*, and replies can be logged by hand in the contact panel.

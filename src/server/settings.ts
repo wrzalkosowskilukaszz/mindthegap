@@ -144,6 +144,26 @@ export const ProfileSettings = z.object({
   defaultCtaEn: z.string().default(""),
 });
 
+/** Oferty pracy: what to look for and the owner's CV text (kept only in this database). */
+export const CareerSettings = z.object({
+  roleFamilies: z
+    .array(z.enum(["learning", "people", "coaching", "creative"]))
+    .default(["learning", "people", "coaching", "creative"]),
+  workTypes: z.array(z.enum(["full_time", "freelance", "part_time"])).default(["full_time", "freelance"]),
+  locations: z
+    .array(z.enum(["warsaw", "remote_poland", "eu_relocation", "poland_other"]))
+    .default(["warsaw", "remote_poland", "eu_relocation"]),
+  languages: z.array(z.string().max(5)).default(["en", "pl"]),
+  extraKeywords: z.array(z.string().max(60)).max(60).default([]),
+  excludeKeywords: z.array(z.string().max(60)).max(60).default([]),
+  cvText: z.string().max(60_000).default(""),
+  cvFilename: z.string().nullable().default(null),
+  cvUploadedAt: z.string().nullable().default(null),
+  cvKeywords: z.array(z.string().max(60)).max(60).default([]),
+  showFrom: z.number().int().min(0).max(100).default(45),
+  syncEveryHours: z.number().int().min(2).max(24).default(4),
+});
+
 export const SETTINGS = {
   scheduler: SchedulerSettings,
   discovery: DiscoverySettings,
@@ -151,6 +171,7 @@ export const SETTINGS = {
   outreach: OutreachSettings,
   privacy: PrivacySettings,
   profile: ProfileSettings,
+  career: CareerSettings,
 } as const;
 
 export type SettingsKey = keyof typeof SETTINGS;

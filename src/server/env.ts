@@ -26,6 +26,10 @@ const EnvSchema = z.object({
   HUNTER_API_KEY: optional,
   // Web search for discovery (optional; Tavily recommended in docs/research/PROVIDERS.md)
   TAVILY_API_KEY: optional,
+  // Job feeds (Oferty pracy), optional free keys: Adzuna (developer.adzuna.com), Jooble (jooble.org/api/about)
+  ADZUNA_APP_ID: optional,
+  ADZUNA_APP_KEY: optional,
+  JOOBLE_API_KEY: optional,
   // Google OAuth (Gmail)
   GOOGLE_CLIENT_ID: optional,
   GOOGLE_CLIENT_SECRET: optional,
@@ -64,6 +68,8 @@ export function integrations() {
     ai: Boolean(e.ANTHROPIC_API_KEY),
     hunter: Boolean(e.HUNTER_API_KEY),
     search: Boolean(e.TAVILY_API_KEY),
+    adzuna: Boolean(e.ADZUNA_APP_ID && e.ADZUNA_APP_KEY),
+    jooble: Boolean(e.JOOBLE_API_KEY),
     google: Boolean(e.GOOGLE_CLIENT_ID && e.GOOGLE_CLIENT_SECRET),
     sendingEnabled: e.SENDING_ENABLED,
   };

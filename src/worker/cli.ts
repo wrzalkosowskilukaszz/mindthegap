@@ -4,9 +4,11 @@
  *   ... run-now [--seconds 900]        create (or reuse) a manual discovery run and process it
  *   ... research <domain-or-slug>      research one company now (bounded crawl)
  *   ... discover-companies [--max 10]  find new companies (Wikidata)
+ *   ... jobs [--seconds 120] [--no-detect]  read job boards and feeds now (Oferty pracy)
  *   ... status                         print scheduler / run status
  */
 import { eq, or } from "drizzle-orm";
+import { syncJobs } from "../server/careers/sync.ts";
 import { closeDb, db } from "../server/db/client.ts";
 import { companies } from "../server/db/schema.ts";
 import { discoverCompanies } from "../server/discovery/company-discovery.ts";
@@ -34,6 +36,14 @@ try {
       });
       console.log(JSON.stringify(r, null, 2));
       if (r.slices.some((s) => s.status === "failed")) exitCode = 2;
+      break;
+    }
+    case "jobs": {
+      const r = await syncJobs({
+        deadline: Date.now() + Number(flag("seconds", "120")) * 1000,
+        detect: !rest.includes("--no-detect"),
+      });
+      console.log(JSON.stringify(r, null, 2));
       break;
     }
     case "run-now": {

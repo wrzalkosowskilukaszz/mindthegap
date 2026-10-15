@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { and, eq, lte, sql } from "drizzle-orm";
 import { decideScheduledRun, localDate } from "@/lib/time";
+import { jobsWorkDue, type SyncReport, syncJobs } from "../careers/sync.ts";
 import { db } from "../db/client.ts";
 import { contacts, jobRuns, settings } from "../db/schema.ts";
 import { logEvent } from "../events.ts";
@@ -29,6 +30,7 @@ export type TickReport = {
   sync: { synced: boolean; replies?: number; error?: string } | null;
   followUpsRefreshed: number;
   retention: { deleted: number } | null;
+  jobs: SyncReport | null;
   busy: string[];
 };
 
@@ -45,6 +47,7 @@ export async function runTick(opts: {
   trigger: string;
   holder?: string;
   discovery?: boolean;
+  jobs?: boolean;
 }): Promise<TickReport> {
   const holder = opts.holder ?? `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`;
   const start = Date.now();
@@ -59,6 +62,7 @@ export async function runTick(opts: {
     sync: null,
     followUpsRefreshed: 0,
     retention: null,
+    jobs: null,
     busy: [],
   };
   await recordTick({ ...report, schedule: `started (${opts.trigger})` });
@@ -106,7 +110,20 @@ export async function runTick(opts: {
     // The lease intentionally stays until it expires: it marks "done today".
   }
 
-  // 5. Discovery: start today's scheduled run when due, then work on any active run.
+  // 5. Oferty pracy: read due job boards (every few hours) and look for boards on company sites.
+  if (opts.jobs !== false && Date.now() < deadline - 60_000 && (await jobsWorkDue())) {
+    if (await acquireLease("jobs", holder, 5 * 60_000)) {
+      try {
+        report.jobs = await syncJobs({ deadline: Math.min(deadline - 30_000, Date.now() + 110_000) });
+      } catch (e) {
+        await logEvent("error", "jobs", "Pobieranie ofert pracy nie powiodło się", { message: errMsg(e) });
+      } finally {
+        await releaseLease("jobs", holder);
+      }
+    } else report.busy.push("jobs");
+  }
+
+  // 6. Discovery: start today's scheduled run when due, then work on any active run.
   if (opts.discovery !== false) {
     const sched = await getSettings("scheduler");
     const ran = await db()

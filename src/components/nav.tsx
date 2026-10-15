@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Briefcase, LogOut, Mail, Settings, Users } from "lucide-react";
+import { BarChart3, BriefcaseBusiness, Layers, LogOut, Mail, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -8,15 +8,19 @@ import { useState } from "react";
 const MAIN = [
   { href: "/kontakty", label: "Kontakty", icon: Users },
   { href: "/wiadomosci", label: "Wiadomości", icon: Mail },
-  { href: "/materialy", label: "Moja oferta", icon: Briefcase },
+  { href: "/materialy", label: "Moja oferta", icon: Layers },
 ] as const;
+
+const CAREER = [{ href: "/oferty", label: "Oferty pracy", icon: BriefcaseBusiness }] as const;
 
 const OTHER = [
   { href: "/aktywnosc", label: "Statystyki", icon: BarChart3 },
   { href: "/ustawienia", label: "Ustawienia", icon: Settings },
 ] as const;
 
-const ALL = [...MAIN, ...OTHER];
+const ALL = [...MAIN, ...CAREER, ...OTHER];
+// Phone tab bar: five places that fit; Statystyki is one tap away from Ustawienia.
+const TABS = [...MAIN.slice(0, 2), { ...CAREER[0], label: "Praca" }, MAIN[2], OTHER[1]];
 
 const isActive = (path: string, href: string) => path === href || path.startsWith(`${href}/`);
 
@@ -41,6 +45,8 @@ export function SidebarNav({ counts }: { counts: Partial<Record<string, number>>
     <nav aria-label="Główna nawigacja" className="stack" style={{ gap: 4 }}>
       <div className="nav-section-label">Główne</div>
       {MAIN.map(item)}
+      <div className="nav-section-label">Kariera</div>
+      {CAREER.map(item)}
       <div className="nav-section-label">Inne</div>
       {OTHER.map(item)}
     </nav>
@@ -70,7 +76,7 @@ export function TabBar() {
   const path = usePathname();
   return (
     <nav aria-label="Nawigacja" className="tabbar">
-      {ALL.map(({ href, label, icon: Icon }) => (
+      {TABS.map(({ href, label, icon: Icon }) => (
         <Link key={href} href={href} aria-current={isActive(path, href) ? "page" : undefined}>
           <Icon size={20} strokeWidth={1.75} aria-hidden="true" />
           {label}
