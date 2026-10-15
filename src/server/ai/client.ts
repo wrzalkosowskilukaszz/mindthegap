@@ -53,6 +53,8 @@ export async function structured<S extends z.ZodType>(
     effort?: "low" | "medium" | "high" | "xhigh" | "max";
     model?: string;
     maxTokens?: number;
+    /** Optional files (images / PDFs) placed before the text, e.g. an offer uploaded as JPG. */
+    files?: { mediaType: string; data: Buffer }[];
   },
 ): Promise<StructuredResult<z.infer<S>>> {
   const c = getClient();
@@ -63,11 +65,17 @@ export async function structured<S extends z.ZodType>(
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
       system: [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }],
-      messages: [{ role: "user", content: opts.user }],
+      messages: [
+        {
+          role: "user",
+          content: [...(opts.files ?? []).map(fileBlock), { type: "text" as const, text: opts.user }],
+        },
+      ],
       output_config: { effort: opts.effort ?? "high", format: betaZodOutputFormat(schema) },
     });
     if (res.stop_reason === "refusal") throw new AiRefusalError(res.stop_details?.category ?? null);
-    if (res.stop_reason === "max_tokens") throw new AiOutputError("Odpowiedź modelu została ucięta (limit tokenów).");
+    if (res.stop_reason === "max_tokens")
+      throw new AiOutputError("Odpowiedź modelu została ucięta (limit tokenów).");
     if (!res.parsed_output) throw new AiOutputError("Model nie zwrócił poprawnej struktury.");
     return {
       data: res.parsed_output as z.infer<S>,
@@ -77,10 +85,31 @@ export async function structured<S extends z.ZodType>(
     };
   } catch (e) {
     if (e instanceof AiRefusalError || e instanceof AiOutputError) throw e;
-    if (e instanceof Anthropic.AuthenticationError) throw new AiUnavailableError("Nieprawidłowy klucz API Anthropic.", false);
-    if (e instanceof Anthropic.RateLimitError) throw new AiUnavailableError("Limit zapytań do modelu — spróbuj za chwilę.", true);
-    if (e instanceof Anthropic.BadRequestError) throw new AiUnavailableError(`Błędne zapytanie do modelu: ${e.message.slice(0, 200)}`, false);
-    if (e instanceof Anthropic.APIError) throw new AiUnavailableError(`Usługa AI niedostępna (${e.status ?? "sieć"}).`, true);
+    if (e instanceof Anthropic.AuthenticationError)
+      throw new AiUnavailableError("Nieprawidłowy klucz API Anthropic.", false);
+    if (e instanceof Anthropic.RateLimitError)
+      throw new AiUnavailableError("Limit zapytań do modelu — spróbuj za chwilę.", true);
+    if (e instanceof Anthropic.BadRequestError)
+      throw new AiUnavailableError(`Błędne zapytanie do modelu: ${e.message.slice(0, 200)}`, false);
+    if (e instanceof Anthropic.APIError)
+      throw new AiUnavailableError(`Usługa AI niedostępna (${e.status ?? "sieć"}).`, true);
     throw e;
   }
+}
+
+function fileBlock(f: { mediaType: string; data: Buffer }): Anthropic.Beta.BetaContentBlockParam {
+  if (f.mediaType === "application/pdf") {
+    return {
+      type: "document",
+      source: { type: "base64", media_type: "application/pdf", data: f.data.toString("base64") },
+    };
+  }
+  return {
+    type: "image",
+    source: {
+      type: "base64",
+      media_type: f.mediaType as "image/jpeg" | "image/png" | "image/webp",
+      data: f.data.toString("base64"),
+    },
+  };
 }

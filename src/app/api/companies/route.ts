@@ -13,9 +13,13 @@ export const GET = api(async (req) => {
   const sector = sp.get("sector");
   const limit = Math.min(Number(sp.get("limit") ?? 500), 1000);
   const conds = [eq(companies.isDemo, false)];
-  if (q) conds.push(sql`(lower(${companies.name}) like ${`%${q}%`} or lower(coalesce(${companies.brand},'')) like ${`%${q}%`} or ${companies.domain} like ${`%${q}%`})`);
+  if (q)
+    conds.push(
+      sql`(lower(${companies.name}) like ${`%${q}%`} or lower(coalesce(${companies.brand},'')) like ${`%${q}%`} or ${companies.domain} like ${`%${q}%`})`,
+    );
   if (sector) conds.push(sql`${companies.sector}::text = ${sector}`);
-  if (status === "unresolved") conds.push(sql`${companies.researchOutcome} is distinct from 'relevant_contact_found'`);
+  if (status === "unresolved")
+    conds.push(sql`${companies.researchOutcome} is distinct from 'relevant_contact_found'`);
   if (status === "excluded") conds.push(eq(companies.excluded, true));
   else conds.push(eq(companies.excluded, false));
   const rows = await db()
@@ -48,7 +52,11 @@ export const GET = api(async (req) => {
     .limit(limit);
   const cov = sp.get("coverage") === "1" ? await coverage() : null;
   return {
-    rows: rows.map((r) => ({ ...r, lastResearchedAt: r.lastResearchedAt?.toISOString() ?? null, nextResearchAt: r.nextResearchAt?.toISOString() ?? null })),
+    rows: rows.map((r) => ({
+      ...r,
+      lastResearchedAt: r.lastResearchedAt?.toISOString() ?? null,
+      nextResearchAt: r.nextResearchAt?.toISOString() ?? null,
+    })),
     coverage: cov,
   };
 });
@@ -56,7 +64,19 @@ export const GET = api(async (req) => {
 const NewCompany = z.object({
   name: z.string().trim().min(2).max(200),
   website: z.string().url(),
-  sector: z.enum(["technology", "telecom_media", "financial_services", "business_services", "professional_services", "pharma_healthcare", "manufacturing_industrial", "energy_utilities", "logistics_transport", "retail_consumer", "other"]),
+  sector: z.enum([
+    "technology",
+    "telecom_media",
+    "financial_services",
+    "business_services",
+    "professional_services",
+    "pharma_healthcare",
+    "manufacturing_industrial",
+    "energy_utilities",
+    "logistics_transport",
+    "retail_consumer",
+    "other",
+  ]),
   note: z.string().max(1000).optional(),
 });
 
@@ -66,7 +86,15 @@ export const POST = api(async (req) => {
   if (!domain) throw badRequest("Nieprawidłowa strona WWW");
   const [row] = await db()
     .insert(companies)
-    .values({ slug: slugify(`${b.name}-${domain}`), name: b.name, website: b.website, domain, sector: b.sector, origin: "manual", notes: b.note ?? null })
+    .values({
+      slug: slugify(`${b.name}-${domain}`),
+      name: b.name,
+      website: b.website,
+      domain,
+      sector: b.sector,
+      origin: "manual",
+      notes: b.note ?? null,
+    })
     .onConflictDoNothing()
     .returning({ id: companies.id });
   if (!row) throw badRequest("Firma z tą domeną już istnieje.");

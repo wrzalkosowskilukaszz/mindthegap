@@ -8,6 +8,20 @@
       "when": 1792056963038,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792071899946,
+      "tag": "0001_sent_via",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792073463954,
+      "tag": "0002_role_function",
+      "breakpoints": true
     }
   ]
 }

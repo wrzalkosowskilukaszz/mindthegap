@@ -9,7 +9,10 @@ export const GET = api(
       await db().execute(sql`select 1`);
       return { ok: true, db: true };
     } catch {
-      return new Response(JSON.stringify({ ok: false, db: false }), { status: 503, headers: { "content-type": "application/json" } });
+      return new Response(JSON.stringify({ ok: false, db: false }), {
+        status: 503,
+        headers: { "content-type": "application/json" },
+      });
     }
   },
   { public: true },

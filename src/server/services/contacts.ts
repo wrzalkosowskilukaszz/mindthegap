@@ -3,7 +3,8 @@
  */
 import { and, desc, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
 import { assessContact, type ContactFacts, deriveOutreachStatus } from "@/lib/contact-rules";
-import { emailDomain, nameKey, normalizeEmail } from "@/lib/normalize";
+import { classifyMailbox, emailDomain, nameKey, normalizeEmail } from "@/lib/normalize";
+import { functionFor } from "@/lib/roles";
 import { sha256Hex } from "../crypto.ts";
 import { db } from "../db/client.ts";
 import {
@@ -41,6 +42,7 @@ export type ContactInput = {
   emailOrigin: ContactRow["emailOrigin"];
   roleCategory: ContactRow["roleCategory"];
   roleRationale?: string | null;
+  roleFunction?: ContactRow["roleFunction"];
   sourcePublishedAt?: string | null;
   employmentStatus?: ContactRow["employmentStatus"];
   discoveryMethod: string;
@@ -53,7 +55,11 @@ export type UpsertOutcome =
   | { action: "created"; contactId: string }
   | { action: "updated"; contactId: string }
   | { action: "unchanged"; contactId: string }
-  | { action: "skipped"; reason: "rejected" | "suppressed" | "invalid_email" | "company_excluded" | "conflict"; contactId?: string };
+  | {
+      action: "skipped";
+      reason: "rejected" | "suppressed" | "invalid_email" | "company_excluded" | "conflict";
+      contactId?: string;
+    };
 
 // ---------------------------------------------------------------------------
 // Suppression
@@ -69,14 +75,23 @@ export async function suppressionHits(input: {
   const email = normalizeEmail(input.email ?? null);
   if (email) {
     conds.push(and(eq(suppressions.kind, "email"), eq(suppressions.value, email)));
-    conds.push(and(eq(suppressions.kind, "email_sha256"), eq(suppressions.value, sha256Hex(`email:${email}`))));
+    conds.push(
+      and(eq(suppressions.kind, "email_sha256"), eq(suppressions.value, sha256Hex(`email:${email}`))),
+    );
     conds.push(and(eq(suppressions.kind, "domain"), eq(suppressions.value, emailDomain(email))));
   }
   if (input.companyId && input.nameKey) {
-    conds.push(and(eq(suppressions.kind, "person_sha256"), eq(suppressions.value, sha256Hex(`person:${input.companyId}:${input.nameKey}`))));
+    conds.push(
+      and(
+        eq(suppressions.kind, "person_sha256"),
+        eq(suppressions.value, sha256Hex(`person:${input.companyId}:${input.nameKey}`)),
+      ),
+    );
   }
-  if (input.companyId) conds.push(and(eq(suppressions.kind, "company"), eq(suppressions.value, input.companyId)));
-  if (input.contactId) conds.push(and(eq(suppressions.kind, "contact"), eq(suppressions.value, input.contactId)));
+  if (input.companyId)
+    conds.push(and(eq(suppressions.kind, "company"), eq(suppressions.value, input.companyId)));
+  if (input.contactId)
+    conds.push(and(eq(suppressions.kind, "contact"), eq(suppressions.value, input.contactId)));
   if (conds.length === 0) return [];
   const rows = await db()
     .select({ kind: suppressions.kind, value: suppressions.value })
@@ -85,14 +100,21 @@ export async function suppressionHits(input: {
   return rows.map((r) => `${r.kind}:${r.value}`);
 }
 
-export async function addSuppression(kind: "email" | "domain" | "company" | "contact", value: string, reason: string, source = "user") {
+export async function addSuppression(
+  kind: "email" | "domain" | "company" | "contact",
+  value: string,
+  reason: string,
+  source = "user",
+) {
   const v = kind === "email" ? normalizeEmail(value) : value.trim().toLowerCase();
   if (!v) throw new Error("Nieprawidłowa wartość wykluczenia");
   await db().insert(suppressions).values({ kind, value: v, reason, source }).onConflictDoNothing();
   // Re-derive affected contacts.
   let ids: string[] = [];
   if (kind === "email") {
-    ids = (await db().select({ id: contacts.id }).from(contacts).where(eq(contacts.emailNormalized, v))).map((r) => r.id);
+    ids = (await db().select({ id: contacts.id }).from(contacts).where(eq(contacts.emailNormalized, v))).map(
+      (r) => r.id,
+    );
   } else if (kind === "domain") {
     ids = (
       await db()
@@ -101,7 +123,9 @@ export async function addSuppression(kind: "email" | "domain" | "company" | "con
         .where(sql`split_part(${contacts.emailNormalized}, '@', 2) = ${v}`)
     ).map((r) => r.id);
   } else if (kind === "company") {
-    ids = (await db().select({ id: contacts.id }).from(contacts).where(eq(contacts.companyId, v))).map((r) => r.id);
+    ids = (await db().select({ id: contacts.id }).from(contacts).where(eq(contacts.companyId, v))).map(
+      (r) => r.id,
+    );
   } else {
     ids = [v];
   }
@@ -112,7 +136,11 @@ export async function addSuppression(kind: "email" | "domain" | "company" | "con
 // Events
 // ---------------------------------------------------------------------------
 
-export async function recordContactEvent(contactId: string, type: string, data: Record<string, unknown> = {}) {
+export async function recordContactEvent(
+  contactId: string,
+  type: string,
+  data: Record<string, unknown> = {},
+) {
   await db().insert(contactEvents).values({ contactId, type, data });
 }
 
@@ -192,12 +220,14 @@ export async function upsertContact(input: ContactInput): Promise<UpsertOutcome>
   }
 
   if (existing) {
-    if (existing.reviewStatus === "rejected") return { action: "skipped", reason: "rejected", contactId: existing.id };
+    if (existing.reviewStatus === "rejected")
+      return { action: "skipped", reason: "rejected", contactId: existing.id };
     const patch: Partial<typeof contacts.$inferInsert> = {};
     if (existing.companyId !== input.companyId) {
       // Same email seen at another company: keep data, flag the conflict for review.
       const note = `Ten sam adres pojawił się w źródle innej firmy (${company.name}).`;
-      if (!existing.conflicts?.includes(note)) patch.conflicts = [existing.conflicts, note].filter(Boolean).join(" ");
+      if (!existing.conflicts?.includes(note))
+        patch.conflicts = [existing.conflicts, note].filter(Boolean).join(" ");
     } else {
       if (!existing.title && input.title) patch.title = input.title;
       if (!existing.fullName && input.fullName) {
@@ -208,7 +238,11 @@ export async function upsertContact(input: ContactInput): Promise<UpsertOutcome>
         patch.nameKey = nk;
       }
       if (!existing.email && email) {
-        const taken = await db().select({ id: contacts.id }).from(contacts).where(eq(contacts.emailNormalized, email)).limit(1);
+        const taken = await db()
+          .select({ id: contacts.id })
+          .from(contacts)
+          .where(eq(contacts.emailNormalized, email))
+          .limit(1);
         if (taken.length === 0) {
           patch.email = input.email!.trim();
           patch.emailNormalized = email;
@@ -226,8 +260,14 @@ export async function upsertContact(input: ContactInput): Promise<UpsertOutcome>
       if (existing.roleCategory === "uncertain" && input.roleCategory !== "uncertain") {
         patch.roleCategory = input.roleCategory;
         patch.roleRationale = input.roleRationale ?? null;
+        if (input.roleFunction) patch.roleFunction = input.roleFunction;
+      } else if (existing.roleFunction === "other" && input.roleFunction && input.roleFunction !== "other") {
+        patch.roleFunction = input.roleFunction;
       }
-      if (input.sourcePublishedAt && (!existing.sourcePublishedAt || input.sourcePublishedAt > existing.sourcePublishedAt)) {
+      if (
+        input.sourcePublishedAt &&
+        (!existing.sourcePublishedAt || input.sourcePublishedAt > existing.sourcePublishedAt)
+      ) {
         patch.sourcePublishedAt = input.sourcePublishedAt;
       }
       if (input.evidence.some((e) => e.supports.includes("employment") || e.supports.includes("name"))) {
@@ -238,16 +278,35 @@ export async function upsertContact(input: ContactInput): Promise<UpsertOutcome>
       }
     }
     const added = await addEvidence(existing.id, input.evidence);
+    // Seeing the same person on the same page again only refreshes the employment check: not an "update".
+    const meaningful = Object.keys(patch).filter(
+      (k) =>
+        k !== "employmentCheckedAt" &&
+        !(k === "employmentStatus" && patch.employmentStatus === existing.employmentStatus),
+    );
+    if (meaningful.length === 0 && added === 0) {
+      if (patch.employmentCheckedAt)
+        await db()
+          .update(contacts)
+          .set({ employmentCheckedAt: patch.employmentCheckedAt })
+          .where(eq(contacts.id, existing.id));
+      return { action: "unchanged", contactId: existing.id };
+    }
     if (Object.keys(patch).length > 0) {
       await db()
         .update(contacts)
         .set({ ...patch, updatedAt: new Date() })
         .where(eq(contacts.id, existing.id));
-      await recordContactEvent(existing.id, "updated_by_discovery", { fields: Object.keys(patch), method: input.discoveryMethod });
+      await recordContactEvent(existing.id, "updated_by_discovery", {
+        fields: Object.keys(patch),
+        method: input.discoveryMethod,
+      });
       await refreshDerived([existing.id]);
       return { action: "updated", contactId: existing.id };
     }
-    return added > 0 ? { action: "updated", contactId: existing.id } : { action: "unchanged", contactId: existing.id };
+    return added > 0
+      ? { action: "updated", contactId: existing.id }
+      : { action: "unchanged", contactId: existing.id };
   }
 
   const hits = await suppressionHits({ email, companyId: input.companyId, nameKey: nk });
@@ -267,6 +326,7 @@ export async function upsertContact(input: ContactInput): Promise<UpsertOutcome>
       title: input.title ?? null,
       roleCategory: input.roleCategory,
       roleRationale: input.roleRationale ?? null,
+      roleFunction: input.roleFunction ?? "other",
       email: email ? input.email!.trim() : null,
       emailNormalized: email,
       emailOrigin: email ? input.emailOrigin : "none",
@@ -345,6 +405,27 @@ export async function refreshDerived(contactIds: string[]): Promise<void> {
   void outreach;
 }
 
+/** Fills the department of contacts saved before it was tracked (or added without one). */
+export async function backfillRoleFunctions(): Promise<number> {
+  const rows = await db()
+    .select({
+      id: contacts.id,
+      title: contacts.title,
+      dept: contacts.departmentLabel,
+      email: contacts.emailNormalized,
+    })
+    .from(contacts)
+    .where(eq(contacts.roleFunction, "other"));
+  let n = 0;
+  for (const r of rows) {
+    const fn = functionFor(r.title, r.dept, r.email ? classifyMailbox(r.email) : null);
+    if (fn === "other") continue;
+    await db().update(contacts).set({ roleFunction: fn }).where(eq(contacts.id, r.id));
+    n++;
+  }
+  return n;
+}
+
 export async function refreshAllDerived(): Promise<number> {
   const ids = (await db().select({ id: contacts.id }).from(contacts)).map((r) => r.id);
   await refreshDerived(ids);
@@ -358,7 +439,11 @@ export async function refreshAllDerived(): Promise<number> {
 export type CompanyContactInfo = { contactId: string; who: string; at: Date; status: string };
 
 /** Other people at the same company who received a message within `days` (for the warning). */
-export async function recentCompanyOutreach(companyId: string, excludeContactId: string, days: number): Promise<CompanyContactInfo[]> {
+export async function recentCompanyOutreach(
+  companyId: string,
+  excludeContactId: string,
+  days: number,
+): Promise<CompanyContactInfo[]> {
   const since = new Date(Date.now() - days * 86_400_000);
   const rows = await db()
     .select({
@@ -376,7 +461,7 @@ export async function recentCompanyOutreach(companyId: string, excludeContactId:
         eq(messages.companyId, companyId),
         ne(messages.contactId, excludeContactId),
         isNotNull(messages.sentAt),
-        sql`${messages.sentAt} >= ${since}`,
+        sql`${messages.sentAt} >= ${since.toISOString()}::timestamptz`,
       ),
     )
     .orderBy(desc(messages.sentAt))

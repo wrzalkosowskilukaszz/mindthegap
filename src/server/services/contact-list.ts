@@ -4,7 +4,8 @@ import { BUILTIN_VIEWS, type ContactQuery } from "@/lib/contact-query";
 import { db } from "../db/client.ts";
 import { companies, contacts, jobRuns } from "../db/schema.ts";
 
-const fold = (col: SQL | unknown) => sql`translate(lower(coalesce(${col}, '')), 'ąćęłńóśźżäöüé', 'acelnoszzaoue')`;
+const fold = (col: SQL | unknown) =>
+  sql`translate(lower(coalesce(${col}, '')), 'ąćęłńóśźżäöüé', 'acelnoszzaoue')`;
 
 export function resolveQuery(q: ContactQuery): ContactQuery {
   const view = q.view ? BUILTIN_VIEWS.find((v) => v.id === q.view) : undefined;
@@ -34,7 +35,25 @@ export async function buildWhere(qIn: ContactQuery): Promise<SQL | undefined> {
     const needle = `%${q.q
       .trim()
       .toLowerCase()
-      .replace(/[ąćęłńóśźżäöüé]/g, (c) => ({ ą: "a", ć: "c", ę: "e", ł: "l", ń: "n", ó: "o", ś: "s", ź: "z", ż: "z", ä: "a", ö: "o", ü: "u", é: "e" })[c] ?? c)
+      .replace(
+        /[ąćęłńóśźżäöüé]/g,
+        (c) =>
+          ({
+            ą: "a",
+            ć: "c",
+            ę: "e",
+            ł: "l",
+            ń: "n",
+            ó: "o",
+            ś: "s",
+            ź: "z",
+            ż: "z",
+            ä: "a",
+            ö: "o",
+            ü: "u",
+            é: "e",
+          })[c] ?? c,
+      )
       .replace(/[%_]/g, "\\$&")}%`;
     conds.push(
       or(
@@ -52,6 +71,7 @@ export async function buildWhere(qIn: ContactQuery): Promise<SQL | undefined> {
   if (q.sector?.length) conds.push(sql`${companies.sector}::text in ${q.sector}`);
   if (q.size?.length) conds.push(inArray(companies.sizeBand, q.size));
   if (q.role?.length) conds.push(inArray(contacts.roleCategory, q.role));
+  if (q.dept?.length) conds.push(inArray(contacts.roleFunction, q.dept));
   if (q.kind?.length) conds.push(inArray(contacts.kind, q.kind));
   if (q.quality?.length) conds.push(inArray(contacts.quality, q.quality));
   if (q.email?.length) conds.push(inArray(contacts.emailStatus, q.email));
@@ -59,11 +79,15 @@ export async function buildWhere(qIn: ContactQuery): Promise<SQL | undefined> {
   if (q.review?.length) conds.push(inArray(contacts.reviewStatus, q.review));
   if (q.verifiedOlderThan) {
     conds.push(
-      or(isNull(contacts.emailCheckedAt), sql`${contacts.emailCheckedAt} < now() - make_interval(days => ${q.verifiedOlderThan})`)!,
+      or(
+        isNull(contacts.emailCheckedAt),
+        sql`${contacts.emailCheckedAt} < now() - make_interval(days => ${q.verifiedOlderThan})`,
+      )!,
     );
     conds.push(isNotNull(contacts.emailNormalized));
   }
-  if (q.verifiedWithin) conds.push(sql`${contacts.emailCheckedAt} >= now() - make_interval(days => ${q.verifiedWithin})`);
+  if (q.verifiedWithin)
+    conds.push(sql`${contacts.emailCheckedAt} >= now() - make_interval(days => ${q.verifiedWithin})`);
   const fallbackSql = sql`(${contacts.kind} = 'general_inbox' or ${contacts.roleCategory} = 'general_routing')`;
   if (q.fallback === "only") conds.push(fallbackSql);
   else if (q.fallback !== "include") conds.push(sql`not ${fallbackSql}`);
@@ -86,11 +110,26 @@ function orderBy(q: ContactQuery): SQL[] {
     case "role":
       return [dir(roleOrder), asc(companies.name), asc(contacts.id)];
     case "verification":
-      return [q.dir === "desc" ? sql`${contacts.emailCheckedAt} desc nulls last` : sql`${contacts.emailCheckedAt} asc nulls first`, asc(contacts.id)];
+      return [
+        q.dir === "desc"
+          ? sql`${contacts.emailCheckedAt} desc nulls last`
+          : sql`${contacts.emailCheckedAt} asc nulls first`,
+        asc(contacts.id),
+      ];
     case "last_contact":
-      return [q.dir === "asc" ? sql`${contacts.lastContactedAt} asc nulls last` : sql`${contacts.lastContactedAt} desc nulls last`, asc(contacts.id)];
+      return [
+        q.dir === "asc"
+          ? sql`${contacts.lastContactedAt} asc nulls last`
+          : sql`${contacts.lastContactedAt} desc nulls last`,
+        asc(contacts.id),
+      ];
     case "reply":
-      return [q.dir === "asc" ? sql`${contacts.lastReplyAt} asc nulls last` : sql`${contacts.lastReplyAt} desc nulls last`, asc(contacts.id)];
+      return [
+        q.dir === "asc"
+          ? sql`${contacts.lastReplyAt} asc nulls last`
+          : sql`${contacts.lastReplyAt} desc nulls last`,
+        asc(contacts.id),
+      ];
     case "discovered":
       return [q.dir === "asc" ? asc(contacts.discoveredAt) : desc(contacts.discoveredAt), asc(contacts.id)];
     case "quality":
@@ -107,6 +146,7 @@ export const listColumns = {
   departmentLabel: contacts.departmentLabel,
   title: contacts.title,
   roleCategory: contacts.roleCategory,
+  roleFunction: contacts.roleFunction,
   email: contacts.email,
   emailStatus: contacts.emailStatus,
   emailOrigin: contacts.emailOrigin,

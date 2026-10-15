@@ -8,16 +8,30 @@ import { getSettings } from "../settings.ts";
 
 export async function systemStatus() {
   const sched = await getSettings("scheduler");
-  const [lastRun] = await db().select().from(jobRuns).where(eq(jobRuns.kind, "discovery")).orderBy(desc(jobRuns.createdAt)).limit(1);
+  const [lastRun] = await db()
+    .select()
+    .from(jobRuns)
+    .where(eq(jobRuns.kind, "discovery"))
+    .orderBy(desc(jobRuns.createdAt))
+    .limit(1);
   const [lastOk] = await db()
     .select()
     .from(jobRuns)
-    .where(and(eq(jobRuns.kind, "discovery"), sql`${jobRuns.status} in ('succeeded','partial','budget_exhausted')`))
+    .where(
+      and(
+        eq(jobRuns.kind, "discovery"),
+        sql`${jobRuns.status} in ('succeeded','partial','budget_exhausted')`,
+      ),
+    )
     .orderBy(desc(jobRuns.finishedAt))
     .limit(1);
   const [tick] = await db().select().from(settings).where(eq(settings.key, "tick_state")).limit(1);
   const lastTickAt = (tick?.value as { lastTickAt?: string } | undefined)?.lastTickAt ?? null;
-  const [google] = await db().select().from(googleAccounts).orderBy(desc(googleAccounts.connectedAt)).limit(1);
+  const [google] = await db()
+    .select()
+    .from(googleAccounts)
+    .orderBy(desc(googleAccounts.connectedAt))
+    .limit(1);
   const [{ openIssues } = { openIssues: 0 }] = await db()
     .select({ openIssues: sql<number>`count(*)::int` })
     .from(appEvents)
@@ -35,12 +49,19 @@ export async function systemStatus() {
     integrations: integrations(),
     scheduler: {
       ...sched,
-      nextRunAt: sched.enabled ? nextScheduledInstant(new Date(), sched.localTime, sched.timezone).toISOString() : null,
+      nextRunAt: sched.enabled
+        ? nextScheduledInstant(new Date(), sched.localTime, sched.timezone).toISOString()
+        : null,
       lastTickAt,
       tickHealthy: lastTickAt ? Date.now() - Date.parse(lastTickAt) < 3 * 3_600_000 : false,
     },
     lastRun: lastRun
-      ? { id: lastRun.id, status: lastRun.status, createdAt: lastRun.createdAt.toISOString(), finishedAt: lastRun.finishedAt?.toISOString() ?? null }
+      ? {
+          id: lastRun.id,
+          status: lastRun.status,
+          createdAt: lastRun.createdAt.toISOString(),
+          finishedAt: lastRun.finishedAt?.toISOString() ?? null,
+        }
       : null,
     lastSuccessfulRunAt: lastOk?.finishedAt?.toISOString() ?? null,
     gmail: google

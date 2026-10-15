@@ -1,5 +1,12 @@
 import { db } from "@/server/db/client";
-import { companies, contactEvidence, contacts, inboundMessages, messages, suppressions } from "@/server/db/schema";
+import {
+  companies,
+  contactEvidence,
+  contacts,
+  inboundMessages,
+  messages,
+  suppressions,
+} from "@/server/db/schema";
 import { api } from "@/server/http";
 
 /** Full export of the owner's data (without uploaded files) for portability and backups. */
@@ -14,6 +21,10 @@ export const GET = api(async () => {
     suppressions: await db().select().from(suppressions),
   };
   return new Response(JSON.stringify(data), {
-    headers: { "content-type": "application/json", "content-disposition": `attachment; filename="outreach-studio-export-${data.exportedAt.slice(0, 10)}.json"`, "cache-control": "no-store" },
+    headers: {
+      "content-type": "application/json",
+      "content-disposition": `attachment; filename="outreach-studio-export-${data.exportedAt.slice(0, 10)}.json"`,
+      "cache-control": "no-store",
+    },
   });
 });

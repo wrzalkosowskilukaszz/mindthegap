@@ -20,7 +20,9 @@ export const POST = api<{ id: string }>(async (req, { params }) => {
     return { ok: true };
   }
   const dueAt = new Date(Date.now() + b.days * 86_400_000);
-  await db().insert(reminders).values({ contactId: params.id, dueAt, note: b.note ?? null });
+  await db()
+    .insert(reminders)
+    .values({ contactId: params.id, dueAt, note: b.note ?? null });
   await db().update(contacts).set({ followUpAt: dueAt }).where(eq(contacts.id, params.id));
   await refreshDerived([params.id]);
   return { ok: true, dueAt: dueAt.toISOString() };

@@ -22,11 +22,17 @@ export async function buildRaw(input: MimeInput): Promise<string> {
     messageId: input.messageId,
     inReplyTo: input.inReplyTo ?? undefined,
     references: input.references?.length ? input.references : undefined,
-    attachments: (input.attachments ?? []).map((a) => ({ filename: a.filename, contentType: a.contentType, content: a.content })),
+    attachments: (input.attachments ?? []).map((a) => ({
+      filename: a.filename,
+      contentType: a.contentType,
+      content: a.content,
+    })),
     textEncoding: "quoted-printable",
     headers: { "X-Mailer": "Mind the Gap Outreach Studio" },
   });
-  const buf: Buffer = await new Promise((resolve, reject) => mail.compile().build((err: Error | null, msg: Buffer) => (err ? reject(err) : resolve(msg))));
+  const buf: Buffer = await new Promise((resolve, reject) =>
+    mail.compile().build((err: Error | null, msg: Buffer) => (err ? reject(err) : resolve(msg))),
+  );
   return buf.toString("base64url");
 }
 

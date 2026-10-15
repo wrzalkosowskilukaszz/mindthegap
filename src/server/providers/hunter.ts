@@ -10,7 +10,13 @@
  */
 import type { EmailStatus } from "@/lib/contact-rules";
 import { providerJson } from "./http.ts";
-import { type ContactSource, type EmailVerifier, ProviderError, type ProviderContact, type VerificationResult } from "./types.ts";
+import {
+  type ContactSource,
+  type EmailVerifier,
+  type ProviderContact,
+  ProviderError,
+  type VerificationResult,
+} from "./types.ts";
 
 const BASE = "https://api.hunter.io/v2";
 
@@ -18,7 +24,13 @@ type HunterEmail = {
   value: string;
   type: "personal" | "generic" | null;
   confidence: number | null;
-  sources?: { domain?: string; uri: string; extracted_on?: string; last_seen_on?: string; still_on_page?: boolean }[];
+  sources?: {
+    domain?: string;
+    uri: string;
+    extracted_on?: string;
+    last_seen_on?: string;
+    still_on_page?: boolean;
+  }[];
   first_name: string | null;
   last_name: string | null;
   position: string | null;
@@ -54,7 +66,12 @@ function toContact(e: HunterEmail, ref: string): ProviderContact {
     seniority: e.seniority,
     confidence: e.confidence,
     type: e.type,
-    sources: (e.sources ?? []).map((s) => ({ uri: s.uri, extractedOn: s.extracted_on ?? null, lastSeenOn: s.last_seen_on ?? null, stillOnPage: s.still_on_page ?? null })),
+    sources: (e.sources ?? []).map((s) => ({
+      uri: s.uri,
+      extractedOn: s.extracted_on ?? null,
+      lastSeenOn: s.last_seen_on ?? null,
+      stillOnPage: s.still_on_page ?? null,
+    })),
     verification: e.verification ? { status: e.verification.status, date: e.verification.date } : null,
     providerRef: ref,
     raw: e,
@@ -76,7 +93,8 @@ export class HunterClient implements ContactSource, EmailVerifier {
 
   private url(path: string, params: Record<string, string | number | undefined>): string {
     const u = new URL(`${BASE}/${path}`);
-    for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") u.searchParams.set(k, String(v));
+    for (const [k, v] of Object.entries(params))
+      if (v !== undefined && v !== "") u.searchParams.set(k, String(v));
     return u.toString();
   }
 
@@ -85,7 +103,10 @@ export class HunterClient implements ContactSource, EmailVerifier {
   }
 
   async domainSearch(domain: string, opts: { departments?: string[]; seniority?: string[]; limit?: number }) {
-    const { status, data } = await providerJson<{ data?: { emails: HunterEmail[]; pattern: string | null }; errors?: { details: string }[] }>(
+    const { status, data } = await providerJson<{
+      data?: { emails: HunterEmail[]; pattern: string | null };
+      errors?: { details: string }[];
+    }>(
       this.name,
       this.url("domain-search", {
         domain,
@@ -96,7 +117,8 @@ export class HunterClient implements ContactSource, EmailVerifier {
       }),
       { headers: this.headers },
     );
-    if (status >= 400) throw new ProviderError(this.name, data.errors?.[0]?.details ?? `HTTP ${status}`, false, status);
+    if (status >= 400)
+      throw new ProviderError(this.name, data.errors?.[0]?.details ?? `HTTP ${status}`, false, status);
     const emails = data.data?.emails ?? [];
     return {
       contacts: emails.map((e) => toContact(e, `domain-search:${domain}:${e.value}`)),
@@ -108,32 +130,66 @@ export class HunterClient implements ContactSource, EmailVerifier {
   }
 
   async emailFinder(domain: string, firstName: string, lastName: string) {
-    const { status, data } = await providerJson<{ data?: HunterEmail & { email: string | null; score: number | null }; errors?: { details: string }[] }>(
+    const { status, data } = await providerJson<{
+      data?: HunterEmail & { email: string | null; score: number | null };
+      errors?: { details: string }[];
+    }>(
       this.name,
-      this.url(this.opts.foundOnly === false ? "email-finder" : "email-finder/found", { domain, first_name: firstName, last_name: lastName }),
+      this.url(this.opts.foundOnly === false ? "email-finder" : "email-finder/found", {
+        domain,
+        first_name: firstName,
+        last_name: lastName,
+      }),
       { headers: this.headers },
     );
     if (status === 404 || !data.data?.email) return { contact: null, credits: 0 };
-    if (status >= 400) throw new ProviderError(this.name, data.errors?.[0]?.details ?? `HTTP ${status}`, false, status);
+    if (status >= 400)
+      throw new ProviderError(this.name, data.errors?.[0]?.details ?? `HTTP ${status}`, false, status);
     const d = data.data;
-    const c = toContact({ ...d, value: d.email!, confidence: d.score ?? d.confidence }, `email-finder:${domain}:${firstName}:${lastName}`);
+    const c = toContact(
+      { ...d, value: d.email!, confidence: d.score ?? d.confidence },
+      `email-finder:${domain}:${firstName}:${lastName}`,
+    );
     return { contact: c, credits: 1 };
   }
 
   async verify(email: string): Promise<VerificationResult> {
-    const { status, data } = await providerJson<{ data?: { status: string; result?: string; score?: number }; errors?: { details: string }[] }>(
-      this.name,
-      this.url("email-verifier", { email }),
-      { timeoutMs: 40_000, headers: this.headers },
-    );
-    if (status === 202) return { provider: this.name, status: "unknown", providerStatus: "pending", score: null, raw: data, credits: 0, pending: true };
-    if (status >= 400) throw new ProviderError(this.name, data.errors?.[0]?.details ?? `HTTP ${status}`, status === 400 ? false : true, status);
+    const { status, data } = await providerJson<{
+      data?: { status: string; result?: string; score?: number };
+      errors?: { details: string }[];
+    }>(this.name, this.url("email-verifier", { email }), { timeoutMs: 40_000, headers: this.headers });
+    if (status === 202)
+      return {
+        provider: this.name,
+        status: "unknown",
+        providerStatus: "pending",
+        score: null,
+        raw: data,
+        credits: 0,
+        pending: true,
+      };
+    if (status >= 400)
+      throw new ProviderError(
+        this.name,
+        data.errors?.[0]?.details ?? `HTTP ${status}`,
+        status !== 400,
+        status,
+      );
     const d = data.data!;
-    return { provider: this.name, status: mapHunterStatus(d.status), providerStatus: d.status, score: d.score ?? null, raw: data.data, credits: d.status === "unknown" ? 0 : 0.5 };
+    return {
+      provider: this.name,
+      status: mapHunterStatus(d.status),
+      providerStatus: d.status,
+      score: d.score ?? null,
+      raw: data.data,
+      credits: d.status === "unknown" ? 0 : 0.5,
+    };
   }
 
   async account(): Promise<unknown> {
-    const { data } = await providerJson<{ data?: unknown }>(this.name, this.url("account", {}), { headers: this.headers });
+    const { data } = await providerJson<{ data?: unknown }>(this.name, this.url("account", {}), {
+      headers: this.headers,
+    });
     return data.data ?? null;
   }
 }

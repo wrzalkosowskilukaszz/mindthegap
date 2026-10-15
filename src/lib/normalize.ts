@@ -2,8 +2,27 @@
 import { FIRST_NAMES } from "./first-names.ts";
 
 const DIACRITICS: Record<string, string> = {
-  ą: "a", ć: "c", ę: "e", ł: "l", ń: "n", ó: "o", ś: "s", ź: "z", ż: "z",
-  ä: "a", ö: "o", ü: "u", ß: "ss", é: "e", è: "e", á: "a", í: "i", ú: "u", č: "c", š: "s", ž: "z",
+  ą: "a",
+  ć: "c",
+  ę: "e",
+  ł: "l",
+  ń: "n",
+  ó: "o",
+  ś: "s",
+  ź: "z",
+  ż: "z",
+  ä: "a",
+  ö: "o",
+  ü: "u",
+  ß: "ss",
+  é: "e",
+  è: "e",
+  á: "a",
+  í: "i",
+  ú: "u",
+  č: "c",
+  š: "s",
+  ž: "z",
 };
 
 export function foldDiacritics(s: string): string {
@@ -17,7 +36,11 @@ export function foldDiacritics(s: string): string {
 /** Lower-case, trimmed email; returns null for anything that is not a plausible address. */
 export function normalizeEmail(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const e = raw.trim().replace(/^mailto:/i, "").replace(/[)>.,;:]+$/, "").toLowerCase();
+  const e = raw
+    .trim()
+    .replace(/^mailto:/i, "")
+    .replace(/[)>.,;:]+$/, "")
+    .toLowerCase();
   if (e.length > 254) return null;
   if (!/^[a-z0-9._%+'-]+@[a-z0-9.-]+\.[a-z]{2,24}$/.test(e)) return null;
   if (e.includes("..")) return null;
@@ -28,7 +51,18 @@ export function emailDomain(email: string): string {
   return email.slice(email.lastIndexOf("@") + 1);
 }
 
-const MULTI_PART_SUFFIXES = new Set(["com.pl", "net.pl", "org.pl", "co.uk", "com.au", "co.jp", "com.br", "waw.pl", "gov.pl", "edu.pl"]);
+const MULTI_PART_SUFFIXES = new Set([
+  "com.pl",
+  "net.pl",
+  "org.pl",
+  "co.uk",
+  "com.au",
+  "co.jp",
+  "com.br",
+  "waw.pl",
+  "gov.pl",
+  "edu.pl",
+]);
 
 /** Registrable domain ("www.careers.ing.pl" -> "ing.pl"), simple public-suffix handling. */
 export function registrableDomain(hostOrUrl: string): string | null {
@@ -67,11 +101,15 @@ export function slugify(s: string): string {
 }
 
 /** Generic/role mailbox local parts (fallback contacts). */
-const GENERIC_LOCAL = /^(info|biuro|office|kontakt|contact|hello|hi|mail|sekretariat|recepcja|reception|admin|support|pomoc|help|sales|sprzedaz|marketing|press|media|prasa|pr|newsletter|noreply|no-reply|webmaster|privacy|rodo|gdpr|iod|dpo|daneosobowe|ochronadanych|abuse|postmaster|zarzad|board|investor|ir|relacje)$/;
+const GENERIC_LOCAL =
+  /^(info|biuro|office|kontakt|contact|hello|hi|mail|sekretariat|recepcja|reception|admin|support|pomoc|help|sales|sprzedaz|marketing|press|media|prasa|pr|newsletter|noreply|no-reply|webmaster|privacy|rodo|gdpr|iod|dpo|daneosobowe|ochronadanych|abuse|postmaster|zarzad|board|investor|ir|relacje)$/;
 const RECRUITING_LOCAL = /(rekrutacj|recruit|career|kariera|jobs?$|praca|cv$|hiring|talent\.?acq|ta$)/;
-const DEVELOPMENT_LOCAL = /(szkolen|training|akademi|academy|rozwoj|development|learning|l&d|lnd|ld$|edukacj|education|talent$|people|hr$|kadry|personal|culture|kultur)/;
+const PROCUREMENT_LOCAL =
+  /^(zakupy|zakup|procurement|purchasing|purchase|zaopatrzenie|przetargi|tenders?|sourcing|dostawcy|suppliers?|vendors?|indirect)([._-]?(pl|polska|poland|uslug|services|team))?$/;
+const DEVELOPMENT_LOCAL =
+  /(szkolen|training|akademi|academy|rozwoj|development|learning|l&d|lnd|ld$|edukacj|education|talent$|people|hr$|kadry|personal|culture|kultur)/;
 
-export type MailboxType = "personal" | "development" | "hr" | "recruiting" | "generic";
+export type MailboxType = "personal" | "development" | "hr" | "procurement" | "recruiting" | "generic";
 
 function looksPersonal(local: string): boolean {
   const parts = foldDiacritics(local).split(/[._-]/).filter(Boolean);
@@ -87,6 +125,7 @@ export function classifyMailbox(email: string): MailboxType {
   const local = email.slice(0, email.indexOf("@")).toLowerCase();
   if (RECRUITING_LOCAL.test(local)) return "recruiting";
   if (/^(hr|kadry|personal|people|peopleteam|hrteam)$/.test(local)) return "hr";
+  if (PROCUREMENT_LOCAL.test(local)) return "procurement";
   if (DEVELOPMENT_LOCAL.test(local)) return "development";
   if (GENERIC_LOCAL.test(local)) return "generic";
   if (looksPersonal(local)) return "personal";

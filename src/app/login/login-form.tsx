@@ -29,7 +29,14 @@ export function LoginForm() {
     <form className="stack" onSubmit={onSubmit}>
       <label className="field">
         <span className="field-label">Hasło</span>
-        <input className="input" name="password" type="password" autoComplete="current-password" required autoFocus />
+        <input
+          className="input"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          required
+          autoFocus
+        />
       </label>
       {error && (
         <p role="alert" className="small" style={{ color: "var(--bad)" }}>

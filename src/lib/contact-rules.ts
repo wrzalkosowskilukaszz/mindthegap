@@ -4,8 +4,19 @@
  */
 
 export type EmailStatus = "not_checked" | "valid" | "invalid" | "catch_all" | "unknown" | "expired";
-export type EmailOrigin = "published_source" | "provider_with_sources" | "provider_pattern" | "user_entered" | "imported" | "none";
-export type EmploymentStatus = "confirmed_recent" | "dated_evidence" | "unverified" | "possibly_left" | "left";
+export type EmailOrigin =
+  | "published_source"
+  | "provider_with_sources"
+  | "provider_pattern"
+  | "user_entered"
+  | "imported"
+  | "none";
+export type EmploymentStatus =
+  | "confirmed_recent"
+  | "dated_evidence"
+  | "unverified"
+  | "possibly_left"
+  | "left";
 export type Eligibility =
   | "not_assessed"
   | "consent"
@@ -26,7 +37,12 @@ export type Quality = "ready" | "caution" | "needs_research" | "blocked";
 
 export type ContactFacts = {
   kind: "person" | "department_inbox" | "general_inbox";
-  roleCategory: "decision_maker" | "organizer_influencer" | "departmental_inbox" | "general_routing" | "uncertain";
+  roleCategory:
+    | "decision_maker"
+    | "organizer_influencer"
+    | "departmental_inbox"
+    | "general_routing"
+    | "uncertain";
   email: string | null;
   emailOrigin: EmailOrigin;
   emailStatus: EmailStatus;
@@ -144,9 +160,11 @@ export type Assessment = { quality: Quality; reasons: string[] };
 export function assessContact(c: ContactFacts, policy: FreshnessPolicy, now = new Date()): Assessment {
   const reasons: string[] = [];
   if (c.suppressed) return { quality: "blocked", reasons: ["Na liście wykluczeń"] };
-  if (c.eligibilityBasis === "do_not_contact") return { quality: "blocked", reasons: ["Oznaczony: nie kontaktować"] };
+  if (c.eligibilityBasis === "do_not_contact")
+    return { quality: "blocked", reasons: ["Oznaczony: nie kontaktować"] };
   if (c.reviewStatus === "rejected") return { quality: "blocked", reasons: ["Odrzucony w przeglądzie"] };
-  if (c.employmentStatus === "left") return { quality: "blocked", reasons: ["Osoba nie pracuje już w firmie"] };
+  if (c.employmentStatus === "left")
+    return { quality: "blocked", reasons: ["Osoba nie pracuje już w firmie"] };
   if (!c.email) return { quality: "needs_research", reasons: ["Brak adresu e-mail"] };
   if (c.emailStatus === "invalid") return { quality: "blocked", reasons: ["Adres nieprawidłowy"] };
   if (c.emailOrigin === "provider_pattern" && c.emailStatus !== "valid") {
@@ -200,7 +218,8 @@ export function checkSendable(
   const st = staleness(c, policy, now);
   if (st.email || st.employment) warnings.push(...st.reasons);
   if (c.emailStatus === "not_checked") warnings.push("Adres nie był weryfikowany");
-  if (c.emailStatus === "catch_all") warnings.push("Domena przyjmuje każdy adres (catch-all) — doręczenie niepewne");
+  if (c.emailStatus === "catch_all")
+    warnings.push("Domena przyjmuje każdy adres (catch-all) — doręczenie niepewne");
   if (c.emailStatus === "unknown") warnings.push("Weryfikacja nie dała jednoznacznego wyniku");
   if (isFallback(c)) warnings.push("To ogólny adres firmy, nie osoba odpowiedzialna za rozwój");
   if (c.roleCategory === "uncertain") warnings.push("Trafność roli niepewna");

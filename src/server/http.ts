@@ -38,14 +38,21 @@ export function api<P = Record<string, never>>(
 }
 
 export function errorResponse(err: unknown): Response {
-  if (err instanceof UnauthorizedError) return NextResponse.json({ error: "Brak autoryzacji" }, { status: 401 });
-  if (err instanceof HttpError) return NextResponse.json({ error: err.message, details: err.details }, { status: err.status });
+  if (err instanceof UnauthorizedError)
+    return NextResponse.json({ error: "Brak autoryzacji" }, { status: 401 });
+  if (err instanceof HttpError)
+    return NextResponse.json({ error: err.message, details: err.details }, { status: err.status });
   if (err instanceof ZodError) {
-    return NextResponse.json({ error: "Nieprawidłowe dane", details: err.issues.map((i) => ({ path: i.path, message: i.message })) }, { status: 400 });
+    return NextResponse.json(
+      { error: "Nieprawidłowe dane", details: err.issues.map((i) => ({ path: i.path, message: i.message })) },
+      { status: 400 },
+    );
   }
   const message = err instanceof Error ? err.message : String(err);
   console.error("[api] unhandled", message);
-  void logEvent("error", "api", "Nieobsłużony błąd serwera", { message: message.slice(0, 500) }).catch(() => {});
+  void logEvent("error", "api", "Nieobsłużony błąd serwera", { message: message.slice(0, 500) }).catch(
+    () => {},
+  );
   return NextResponse.json({ error: "Błąd serwera. Szczegóły w dzienniku zdarzeń." }, { status: 500 });
 }
 

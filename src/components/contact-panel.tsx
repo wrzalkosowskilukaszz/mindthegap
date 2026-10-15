@@ -4,12 +4,22 @@ import { Bell, Check, Copy, ExternalLink as ExtIcon, Mail, RefreshCw, ShieldChec
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, apiFetch } from "@/lib/api-client";
-import { KIND_LABEL, ROLE_LABEL, SECTOR_LABEL, SIZE_LABEL } from "@/lib/contact-query";
-import { ELIGIBILITY_LABEL, EMAIL_ORIGIN_LABEL, type Eligibility, OUTREACH_LABEL } from "@/lib/contact-rules";
+import { KIND_LABEL, ROLE_FUNCTIONS, ROLE_LABEL, SECTOR_LABEL, SIZE_LABEL } from "@/lib/contact-query";
+import { ELIGIBILITY_LABEL, type Eligibility, EMAIL_ORIGIN_LABEL, OUTREACH_LABEL } from "@/lib/contact-rules";
+import { FUNCTION_LABEL } from "@/lib/roles";
 import { formatWarsaw } from "@/lib/time";
 import type { ContactDetail } from "@/server/services/contact-detail";
 import { useToast } from "./toast";
-import { Callout, Dialog, Dot, EmailStatusLabel, ExternalLink, hostOf, OutreachLabel, QualityLabel } from "./ui";
+import {
+  Callout,
+  Dialog,
+  Dot,
+  EmailStatusLabel,
+  ExternalLink,
+  hostOf,
+  OutreachLabel,
+  QualityLabel,
+} from "./ui";
 
 const EVIDENCE_SUPPORTS: Record<string, string> = {
   name: "osoba",
@@ -19,7 +29,15 @@ const EVIDENCE_SUPPORTS: Record<string, string> = {
   department: "dział",
 };
 
-export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
+export function ContactPanel({
+  id,
+  onClose,
+  onChanged,
+}: {
+  id: string;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
   const toast = useToast();
   const [d, setD] = useState<ContactDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -99,11 +117,19 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
 
   const c = d?.contact;
   const co = d?.company;
-  const title = c ? (c.fullName ?? c.departmentLabel ?? (c.kind === "general_inbox" ? "Adres ogólny" : "Skrzynka działu")) : "";
-  const blocked = d ? d.send.blockers.some((b) => /wykluczeń|nie kontaktować|demonstracyjny/i.test(b)) : false;
+  const title = c
+    ? (c.fullName ?? c.departmentLabel ?? (c.kind === "general_inbox" ? "Adres ogólny" : "Skrzynka działu"))
+    : "";
+  const blocked = d
+    ? d.send.blockers.some((b) => /wykluczeń|nie kontaktować|demonstracyjny/i.test(b))
+    : false;
 
   return (
-    <aside className="panel" aria-label={`Kontakt: ${title}`} onKeyDown={(e) => e.key === "Escape" && onClose()}>
+    <aside
+      className="panel"
+      aria-label={`Kontakt: ${title}`}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    >
       <div className="panel-header">
         <div style={{ flex: 1, minWidth: 0 }}>
           {c ? (
@@ -122,7 +148,13 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
             <span className="skeleton" style={{ width: 200, height: 16 }} />
           )}
         </div>
-        <button ref={closeRef} type="button" className="btn btn-quiet btn-icon btn-sm" onClick={onClose} aria-label="Zamknij panel (Esc)">
+        <button
+          ref={closeRef}
+          type="button"
+          className="btn btn-quiet btn-icon btn-sm"
+          onClick={onClose}
+          aria-label="Zamknij panel (Esc)"
+        >
           <X size={16} />
         </button>
       </div>
@@ -153,7 +185,8 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
                     <strong>W tej firmie trwa już korespondencja</strong>
                     {d.recentCompanyOutreach.map((r) => (
                       <span key={r.contactId}>
-                        {r.who} — wysłano {formatWarsaw(r.at, "d LLL yyyy")} ({OUTREACH_LABEL[r.status as keyof typeof OUTREACH_LABEL] ?? r.status})
+                        {r.who} — wysłano {formatWarsaw(r.at, "d LLL yyyy")} (
+                        {OUTREACH_LABEL[r.status as keyof typeof OUTREACH_LABEL] ?? r.status})
                       </span>
                     ))}
                   </Callout>
@@ -175,6 +208,21 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
               <dl className="kv">
                 <dt>Rodzaj</dt>
                 <dd>{KIND_LABEL[c.kind]}</dd>
+                <dt>Dział</dt>
+                <dd>
+                  <select
+                    className="select select-inline"
+                    aria-label="Dział"
+                    value={c.roleFunction}
+                    onChange={(e) => patch({ roleFunction: e.target.value }, "Zmieniono dział")}
+                  >
+                    {ROLE_FUNCTIONS.map((f) => (
+                      <option key={f} value={f}>
+                        {f === "other" ? "Nieustalony / inny" : FUNCTION_LABEL[f]}
+                      </option>
+                    ))}
+                  </select>
+                </dd>
                 <dt>Kategoria</dt>
                 <dd>
                   {ROLE_LABEL[c.roleCategory]}
@@ -197,16 +245,25 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
                       left: "Nie pracuje już w firmie",
                     }[c.employmentStatus]
                   }
-                  {c.employmentCheckedAt ? <span className="muted"> · sprawdzono {formatWarsaw(c.employmentCheckedAt, "d.MM.yyyy")}</span> : null}
-                  {c.sourcePublishedAt ? <span className="muted"> · źródło z {c.sourcePublishedAt}</span> : null}
+                  {c.employmentCheckedAt ? (
+                    <span className="muted">
+                      {" "}
+                      · sprawdzono {formatWarsaw(c.employmentCheckedAt, "d.MM.yyyy")}
+                    </span>
+                  ) : null}
+                  {c.sourcePublishedAt ? (
+                    <span className="muted"> · źródło z {c.sourcePublishedAt}</span>
+                  ) : null}
                 </dd>
                 <dt>Odkryto</dt>
                 <dd>
-                  {formatWarsaw(c.discoveredAt, "d LLL yyyy")} <span className="muted">· {methodLabel(c.discoveryMethod)}</span>
+                  {formatWarsaw(c.discoveredAt, "d LLL yyyy")}{" "}
+                  <span className="muted">· {methodLabel(c.discoveryMethod)}</span>
                 </dd>
               </dl>
               <p className="xsmall muted" style={{ marginTop: 8 }}>
-                Kategoria to ocena na podstawie opublikowanego stanowiska, nie potwierdzenie uprawnień zakupowych.
+                Kategoria to ocena na podstawie opublikowanego stanowiska, nie potwierdzenie uprawnień
+                zakupowych.
               </p>
               {c.conflicts ? (
                 <div style={{ marginTop: 10 }}>
@@ -242,7 +299,8 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
                           </ExternalLink>
                         ) : null}
                         {e.provider ? ` · ${e.provider}${e.providerRef ? ` (${e.providerRef})` : ""}` : ""}
-                        {e.sourcePublishedAt ? ` · opublikowano ${e.sourcePublishedAt}` : ""} · widziane {formatWarsaw(e.observedAt, "d.MM.yyyy")}
+                        {e.sourcePublishedAt ? ` · opublikowano ${e.sourcePublishedAt}` : ""} · widziane{" "}
+                        {formatWarsaw(e.observedAt, "d.MM.yyyy")}
                         {e.note ? ` · ${e.note}` : ""}
                       </div>
                     </div>
@@ -255,8 +313,14 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
               <div className="section-title">
                 E-mail i weryfikacja
                 {c.email ? (
-                  <button type="button" className="btn btn-quiet btn-sm" onClick={verify} disabled={busy === "verify"}>
-                    {busy === "verify" ? <span className="spinner" /> : <RefreshCw size={13} />} Sprawdź ponownie
+                  <button
+                    type="button"
+                    className="btn btn-quiet btn-sm"
+                    onClick={verify}
+                    disabled={busy === "verify"}
+                  >
+                    {busy === "verify" ? <span className="spinner" /> : <RefreshCw size={13} />} Sprawdź
+                    ponownie
                   </button>
                 ) : null}
               </div>
@@ -285,10 +349,14 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
                   </dd>
                 </dl>
               ) : (
-                <p className="secondary small">Brak adresu e-mail. {c.kind === "person" ? "Osoba znaleziona, adres niedostępny w źródłach." : ""}</p>
+                <p className="secondary small">
+                  Brak adresu e-mail.{" "}
+                  {c.kind === "person" ? "Osoba znaleziona, adres niedostępny w źródłach." : ""}
+                </p>
               )}
               <p className="xsmall muted" style={{ marginTop: 8 }}>
-                Poprawny technicznie adres nie potwierdza zatrudnienia, tożsamości, trafienia do głównej skrzynki ani zgody na korespondencję.
+                Poprawny technicznie adres nie potwierdza zatrudnienia, tożsamości, trafienia do głównej
+                skrzynki ani zgody na korespondencję.
               </p>
               {d.verifications.length ? (
                 <details className="disclosure" style={{ marginTop: 10 }}>
@@ -296,7 +364,8 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
                   <div className="disclosure-body small">
                     {d.verifications.map((v) => (
                       <div key={v.id}>
-                        {formatWarsaw(v.checkedAt, "d.MM.yyyy HH:mm")} · {v.provider}: <strong>{v.providerStatus ?? v.status}</strong>
+                        {formatWarsaw(v.checkedAt, "d.MM.yyyy HH:mm")} · {v.provider}:{" "}
+                        <strong>{v.providerStatus ?? v.status}</strong>
                         {v.score != null ? ` (wynik ${v.score})` : ""}
                         <details>
                           <summary className="xsmall muted">Oryginalny wynik dostawcy</summary>
@@ -333,7 +402,9 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
                       {c.eligibilityEvidenceUrl ? (
                         <>
                           {" "}
-                          <ExternalLink href={c.eligibilityEvidenceUrl}>{hostOf(c.eligibilityEvidenceUrl)}</ExternalLink>
+                          <ExternalLink href={c.eligibilityEvidenceUrl}>
+                            {hostOf(c.eligibilityEvidenceUrl)}
+                          </ExternalLink>
                         </>
                       ) : null}
                     </dd>
@@ -341,7 +412,8 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
                 ) : null}
               </dl>
               <p className="xsmall muted" style={{ marginTop: 8 }}>
-                Publiczny adres ani pozytywna weryfikacja nie oznaczają zgody na informację handlową. Aplikacja zapisuje Twoją ocenę i dowód — nie rozstrzyga o zgodności z prawem.
+                Publiczny adres ani pozytywna weryfikacja nie oznaczają zgody na informację handlową.
+                Aplikacja zapisuje Twoją ocenę i dowód — nie rozstrzyga o zgodności z prawem.
               </p>
             </section>
 
@@ -366,25 +438,31 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
                     {co.employeesPoland ? (
                       <span>
                         ok. {co.employeesPoland.value.toLocaleString("pl-PL")} w Polsce
-                        {co.employeesPoland.asOf ? ` (${co.employeesPoland.asOf})` : ""} · <ExternalLink href={co.employeesPoland.sourceUrl}>źródło</ExternalLink>
+                        {co.employeesPoland.asOf ? ` (${co.employeesPoland.asOf})` : ""} ·{" "}
+                        <ExternalLink href={co.employeesPoland.sourceUrl}>źródło</ExternalLink>
                       </span>
                     ) : (
                       <span className="muted">Liczba pracowników w Polsce: brak danych</span>
                     )}
                     {co.employeesGlobal ? (
                       <div>
-                        {co.employeesGlobal.value.toLocaleString("pl-PL")} globalnie{co.employeesGlobal.asOf ? ` (${co.employeesGlobal.asOf})` : ""} ·{" "}
+                        {co.employeesGlobal.value.toLocaleString("pl-PL")} globalnie
+                        {co.employeesGlobal.asOf ? ` (${co.employeesGlobal.asOf})` : ""} ·{" "}
                         <ExternalLink href={co.employeesGlobal.sourceUrl}>źródło</ExternalLink>
                       </div>
                     ) : null}
-                    <div className="xsmall muted">Przedział: {SIZE_LABEL[co.sizeBand as keyof typeof SIZE_LABEL] ?? co.sizeBand}</div>
+                    <div className="xsmall muted">
+                      Przedział: {SIZE_LABEL[co.sizeBand as keyof typeof SIZE_LABEL] ?? co.sizeBand}
+                    </div>
                   </dd>
                   {co.polishPresenceSummary ? (
                     <>
                       <dt>W Polsce</dt>
                       <dd>
                         {co.polishPresenceSummary}{" "}
-                        {co.polishPresenceUrl ? <ExternalLink href={co.polishPresenceUrl}>dowód</ExternalLink> : null}
+                        {co.polishPresenceUrl ? (
+                          <ExternalLink href={co.polishPresenceUrl}>dowód</ExternalLink>
+                        ) : null}
                       </dd>
                     </>
                   ) : null}
@@ -435,25 +513,46 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
               ) : (
                 <ul className="timeline">
                   {[
-                    ...d.messages.map((m) => ({ at: m.sentAt ?? m.scheduledFor ?? m.createdAt, kind: "out" as const, m })),
+                    ...d.messages.map((m) => ({
+                      at: m.sentAt ?? m.scheduledFor ?? m.createdAt,
+                      kind: "out" as const,
+                      m,
+                    })),
                     ...d.inbound.map((i) => ({ at: i.receivedAt, kind: "in" as const, i })),
                   ]
                     .sort((a, b) => b.at.localeCompare(a.at))
                     .map((e) =>
                       e.kind === "out" ? (
                         <li key={e.m.id}>
-                          <Dot tone={e.m.status === "sent" ? "accent" : e.m.status === "failed" || e.m.status === "uncertain" ? "bad" : "hollow"} />
+                          <Dot
+                            tone={
+                              e.m.status === "sent"
+                                ? "accent"
+                                : e.m.status === "failed" || e.m.status === "uncertain"
+                                  ? "bad"
+                                  : "hollow"
+                            }
+                          />
                           <div>
                             <Link href={`/wiadomosci/${e.m.id}`}>{e.m.subject || "(bez tematu)"}</Link>
                             <div className="xsmall muted">
-                              {messageStatusLabel(e.m.status)} · {formatWarsaw(e.at, "d LLL yyyy, HH:mm")} · {e.m.language.toUpperCase()}
+                              {messageStatusLabel(e.m.status)} · {formatWarsaw(e.at, "d LLL yyyy, HH:mm")} ·{" "}
+                              {e.m.language.toUpperCase()}
                               {e.m.attachments.length ? ` · załączniki: ${e.m.attachments.length}` : ""}
                             </div>
                           </div>
                         </li>
                       ) : (
                         <li key={e.i.id}>
-                          <Dot tone={e.i.classification === "human_reply" ? "ok" : e.i.classification === "bounce" ? "bad" : "neutral"} />
+                          <Dot
+                            tone={
+                              e.i.classification === "human_reply"
+                                ? "ok"
+                                : e.i.classification === "bounce"
+                                  ? "bad"
+                                  : "neutral"
+                            }
+                          />
                           <div>
                             <span>{inboundLabel(e.i.classification)}</span>
                             <div className="xsmall muted">{formatWarsaw(e.at, "d LLL yyyy, HH:mm")}</div>
@@ -472,7 +571,9 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
                   {d.programSuggestions.slice(0, 2).map((p) => (
                     <div key={p.id} className="row-between small">
                       <span>{p.name}</span>
-                      <span className="muted xsmall">{p.why.length ? `dopasowanie: ${p.why.join(", ")}` : "brak wyraźnego dopasowania"}</span>
+                      <span className="muted xsmall">
+                        {p.why.length ? `dopasowanie: ${p.why.join(", ")}` : "brak wyraźnego dopasowania"}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -542,12 +643,22 @@ export function ContactPanel({ id, onClose, onChanged }: { id: string; onClose: 
             <Mail size={15} /> Przygotuj email
           </Link>
           {c.reviewStatus !== "accepted" ? (
-            <button type="button" className="btn" disabled={busy !== null} onClick={() => patch({ reviewStatus: "accepted" }, "Zaakceptowano")}>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy !== null}
+              onClick={() => patch({ reviewStatus: "accepted" }, "Zaakceptowano")}
+            >
               <Check size={14} /> Akceptuj
             </button>
           ) : null}
           {c.reviewStatus !== "rejected" ? (
-            <button type="button" className="btn btn-quiet" disabled={busy !== null} onClick={() => patch({ reviewStatus: "rejected" }, "Odrzucono — nie wróci w odkrywaniu")}>
+            <button
+              type="button"
+              className="btn btn-quiet"
+              disabled={busy !== null}
+              onClick={() => patch({ reviewStatus: "rejected" }, "Odrzucono — nie wróci w odkrywaniu")}
+            >
               Odrzuć
             </button>
           ) : null}
@@ -594,7 +705,13 @@ function EligibilityDialog({
   async function save() {
     try {
       await apiFetch(`/api/contacts/${contactId}/eligibility`, {
-        body: { basis, evidence: evidence || null, evidenceUrl: url || null, scope: scope || null, date: needs ? date : null },
+        body: {
+          basis,
+          evidence: evidence || null,
+          evidenceUrl: url || null,
+          scope: scope || null,
+          date: needs ? date : null,
+        },
       });
       toast("Zapisano podstawę kontaktu");
       onSaved();
@@ -644,7 +761,12 @@ function EligibilityDialog({
         <>
           <label className="field">
             <span className="field-label">Dowód (opis lub cytat)</span>
-            <textarea className="textarea" rows={3} value={evidence} onChange={(e) => setEvidence(e.target.value)} />
+            <textarea
+              className="textarea"
+              rows={3}
+              value={evidence}
+              onChange={(e) => setEvidence(e.target.value)}
+            />
           </label>
           <div className="field-row">
             <label className="field">
@@ -658,7 +780,12 @@ function EligibilityDialog({
           </div>
           <label className="field">
             <span className="field-label">Zakres</span>
-            <input className="input" value={scope} onChange={(e) => setScope(e.target.value)} placeholder="np. oferty szkoleń menedżerskich, e-mail" />
+            <input
+              className="input"
+              value={scope}
+              onChange={(e) => setScope(e.target.value)}
+              placeholder="np. oferty szkoleń menedżerskich, e-mail"
+            />
           </label>
         </>
       ) : null}
@@ -680,7 +807,15 @@ function methodLabel(m: string): string {
 }
 
 function evidenceKind(k: string): string {
-  return { source_page: "Strona źródłowa", provider: "Dostawca", search_result: "Wynik wyszukiwania", user: "Użytkownik", import: "Import" }[k] ?? k;
+  return (
+    {
+      source_page: "Strona źródłowa",
+      provider: "Dostawca",
+      search_result: "Wynik wyszukiwania",
+      user: "Użytkownik",
+      import: "Import",
+    }[k] ?? k
+  );
 }
 
 function messageStatusLabel(s: string): string {
@@ -699,5 +834,12 @@ function messageStatusLabel(s: string): string {
 }
 
 function inboundLabel(k: string): string {
-  return { human_reply: "Odpowiedź", auto_reply: "Autoodpowiedź", bounce: "Zwrot (bounce)", unknown: "Wiadomość w wątku" }[k] ?? k;
+  return (
+    {
+      human_reply: "Odpowiedź",
+      auto_reply: "Autoodpowiedź",
+      bounce: "Zwrot (bounce)",
+      unknown: "Wiadomość w wątku",
+    }[k] ?? k
+  );
 }

@@ -9,8 +9,17 @@ import { getSettings } from "../settings.ts";
 import { coverage } from "./companies.ts";
 
 export async function discoveryStatus() {
-  const [sched, disc, fresh] = await Promise.all([getSettings("scheduler"), getSettings("discovery"), getSettings("freshness")]);
-  const runs = await db().select().from(jobRuns).where(eq(jobRuns.kind, "discovery")).orderBy(desc(jobRuns.createdAt)).limit(25);
+  const [sched, disc, fresh] = await Promise.all([
+    getSettings("scheduler"),
+    getSettings("discovery"),
+    getSettings("freshness"),
+  ]);
+  const runs = await db()
+    .select()
+    .from(jobRuns)
+    .where(eq(jobRuns.kind, "discovery"))
+    .orderBy(desc(jobRuns.createdAt))
+    .limit(25);
   const active = runs.find((r) => r.status === "queued" || r.status === "running") ?? null;
   let activeProgress: { done: number; total: number; failed: number } | null = null;
   if (active) {
@@ -24,20 +33,30 @@ export async function discoveryStatus() {
       .where(eq(jobTasks.runId, active.id));
     activeProgress = p ?? null;
   }
-  const lastOk = runs.find((r) => ["succeeded", "partial", "budget_exhausted"].includes(r.status) && r.finishedAt);
+  const lastOk = runs.find(
+    (r) => ["succeeded", "partial", "budget_exhausted"].includes(r.status) && r.finishedAt,
+  );
   const [tick] = await db().select().from(settings).where(eq(settings.key, "tick_state")).limit(1);
   const tickState = (tick?.value ?? null) as { lastTickAt?: string } | null;
   const issues = await db()
     .select()
     .from(appEvents)
-    .where(and(isNull(appEvents.resolvedAt), sql`${appEvents.level} in ('warning','error')`, sql`${appEvents.category} in ('discovery','provider','scheduler','ai')`))
+    .where(
+      and(
+        isNull(appEvents.resolvedAt),
+        sql`${appEvents.level} in ('warning','error')`,
+        sql`${appEvents.category} in ('discovery','provider','scheduler','ai')`,
+      ),
+    )
     .orderBy(desc(appEvents.createdAt))
     .limit(20);
   return {
     integrations: integrations(),
     scheduler: {
       ...sched,
-      nextRunAt: sched.enabled ? nextScheduledInstant(new Date(), sched.localTime, sched.timezone).toISOString() : null,
+      nextRunAt: sched.enabled
+        ? nextScheduledInstant(new Date(), sched.localTime, sched.timezone).toISOString()
+        : null,
       lastTickAt: tickState?.lastTickAt ?? null,
     },
     discovery: disc,
@@ -59,7 +78,14 @@ export async function discoveryStatus() {
     lastSuccessfulRunAt: lastOk?.finishedAt?.toISOString() ?? null,
     spend: await spendSummary(),
     coverage: await coverage(),
-    issues: issues.map((i) => ({ id: i.id, level: i.level, category: i.category, message: i.message, createdAt: i.createdAt.toISOString(), runId: i.runId })),
+    issues: issues.map((i) => ({
+      id: i.id,
+      level: i.level,
+      category: i.category,
+      message: i.message,
+      createdAt: i.createdAt.toISOString(),
+      runId: i.runId,
+    })),
   };
 }
 

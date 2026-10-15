@@ -15,7 +15,11 @@ function getFetch(): Promise<FetchFn> {
       ? import("undici")
           .then((u) => {
             const agent = new u.EnvHttpProxyAgent();
-            return ((url: string, init: RequestInit) => u.fetch(url, { ...(init as object), dispatcher: agent } as never) as unknown as Promise<Response>) as FetchFn;
+            return ((url: string, init: RequestInit) =>
+              u.fetch(url, {
+                ...(init as object),
+                dispatcher: agent,
+              } as never) as unknown as Promise<Response>) as FetchFn;
           })
           .catch(() => globalThis.fetch.bind(globalThis))
       : Promise.resolve(globalThis.fetch.bind(globalThis));
@@ -23,7 +27,10 @@ function getFetch(): Promise<FetchFn> {
   return fetchPromise;
 }
 
-export async function httpFetch(url: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<Response> {
+export async function httpFetch(
+  url: string,
+  init: RequestInit & { timeoutMs?: number } = {},
+): Promise<Response> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), init.timeoutMs ?? 20_000);
   try {
@@ -35,7 +42,11 @@ export async function httpFetch(url: string, init: RequestInit & { timeoutMs?: n
   }
 }
 
-export async function providerJson<T>(provider: string, url: string, init: RequestInit & { timeoutMs?: number } = {}): Promise<{ status: number; data: T }> {
+export async function providerJson<T>(
+  provider: string,
+  url: string,
+  init: RequestInit & { timeoutMs?: number } = {},
+): Promise<{ status: number; data: T }> {
   let res: Response;
   try {
     res = await httpFetch(url, init);
@@ -54,6 +65,7 @@ export async function providerJson<T>(provider: string, url: string, init: Reque
     data = { nonJson: text.slice(0, 300) };
   }
   if (res.status >= 500) throw new ProviderError(provider, `HTTP ${res.status}`, true, res.status);
-  if (res.status === 401 || res.status === 403) throw new ProviderError(provider, `HTTP ${res.status}: unauthorized`, false, res.status);
+  if (res.status === 401 || res.status === 403)
+    throw new ProviderError(provider, `HTTP ${res.status}: unauthorized`, false, res.status);
   return { status: res.status, data: data as T };
 }

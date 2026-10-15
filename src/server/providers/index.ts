@@ -4,7 +4,9 @@ import { HunterClient } from "./hunter.ts";
 import { TavilySearch } from "./tavily.ts";
 import type { ContactSource, EmailVerifier, WebSearch } from "./types.ts";
 
-export function contactSource(opts: { domainSearchLimit?: number; foundOnly?: boolean } = {}): ContactSource | null {
+export function contactSource(
+  opts: { domainSearchLimit?: number; foundOnly?: boolean } = {},
+): ContactSource | null {
   const k = env().HUNTER_API_KEY;
   return k ? new HunterClient(k, opts) : null;
 }

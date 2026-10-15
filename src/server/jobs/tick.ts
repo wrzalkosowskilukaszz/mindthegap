@@ -3,8 +3,9 @@
  * `POST /api/cron/tick` or `pnpm worker tick`. Each duty has its own lease, so overlapping ticks never run
  * the same work twice. Everything is bounded by the tick's time budget; unfinished work resumes next tick.
  */
-import { hostname } from "node:os";
+
 import { randomUUID } from "node:crypto";
+import { hostname } from "node:os";
 import { and, eq, lte, sql } from "drizzle-orm";
 import { decideScheduledRun, localDate } from "@/lib/time";
 import { db } from "../db/client.ts";
@@ -12,9 +13,9 @@ import { contacts, jobRuns, settings } from "../db/schema.ts";
 import { logEvent } from "../events.ts";
 import { sendDueMessages } from "../gmail/dispatch.ts";
 import { syncRepliesIfDue } from "../gmail/sync.ts";
-import { getSettings } from "../settings.ts";
 import { refreshDerived } from "../services/contacts.ts";
 import { applyRetention } from "../services/privacy.ts";
+import { getSettings } from "../settings.ts";
 import { acquireLease, releaseLease } from "./lease.ts";
 import { createScheduledRun, processRun, resumableRuns, type SliceResult } from "./runs.ts";
 
@@ -39,7 +40,12 @@ export async function recordTick(report: Partial<TickReport>) {
     .onConflictDoUpdate({ target: settings.key, set: { value, updatedAt: new Date() } });
 }
 
-export async function runTick(opts: { budgetMs: number; trigger: string; holder?: string; discovery?: boolean }): Promise<TickReport> {
+export async function runTick(opts: {
+  budgetMs: number;
+  trigger: string;
+  holder?: string;
+  discovery?: boolean;
+}): Promise<TickReport> {
   const holder = opts.holder ?? `${hostname()}:${process.pid}:${randomUUID().slice(0, 8)}`;
   const start = Date.now();
   const deadline = start + opts.budgetMs;
@@ -62,7 +68,9 @@ export async function runTick(opts: { budgetMs: number; trigger: string; holder?
     try {
       report.sends = await sendDueMessages({ deadline: Math.min(deadline, Date.now() + 120_000) });
     } catch (e) {
-      await logEvent("error", "gmail", "Wysyłka zaplanowanych wiadomości nie powiodła się", { message: errMsg(e) });
+      await logEvent("error", "gmail", "Wysyłka zaplanowanych wiadomości nie powiodła się", {
+        message: errMsg(e),
+      });
     } finally {
       await releaseLease("send", holder);
     }
@@ -104,7 +112,13 @@ export async function runTick(opts: { budgetMs: number; trigger: string; holder?
     const ran = await db()
       .select({ d: jobRuns.localDate })
       .from(jobRuns)
-      .where(and(eq(jobRuns.kind, "discovery"), sql`${jobRuns.trigger} in ('schedule','catch_up')`, eq(jobRuns.localDate, today)));
+      .where(
+        and(
+          eq(jobRuns.kind, "discovery"),
+          sql`${jobRuns.trigger} in ('schedule','catch_up')`,
+          eq(jobRuns.localDate, today),
+        ),
+      );
     const decision = decideScheduledRun({
       now: new Date(),
       enabled: sched.enabled,
@@ -118,10 +132,19 @@ export async function runTick(opts: { budgetMs: number; trigger: string; holder?
       const run = await createScheduledRun(decision.localDate, decision.trigger);
       report.createdRun = run?.id ?? null;
       if (run && decision.trigger === "catch_up") {
-        await logEvent("info", "scheduler", `Przebieg z ${decision.localDate} uruchomiony z opóźnieniem (polityka nadrabiania).`, {}, run.id);
+        await logEvent(
+          "info",
+          "scheduler",
+          `Przebieg z ${decision.localDate} uruchomiony z opóźnieniem (polityka nadrabiania).`,
+          {},
+          run.id,
+        );
       }
     }
-    if (Date.now() < deadline - 15_000 && (await acquireLease("discovery-worker", holder, opts.budgetMs + 60_000))) {
+    if (
+      Date.now() < deadline - 15_000 &&
+      (await acquireLease("discovery-worker", holder, opts.budgetMs + 60_000))
+    ) {
       try {
         for (const run of await resumableRuns()) {
           if (Date.now() >= deadline - 15_000) break;

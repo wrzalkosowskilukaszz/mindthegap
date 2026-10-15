@@ -4,12 +4,14 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { closeDb } from "../src/server/db/client.ts";
 import { CompanyRecord } from "../src/lib/research/company-record.ts";
+import { closeDb } from "../src/server/db/client.ts";
 import { linkParents, upsertCompanyFromRecord } from "../src/server/services/companies.ts";
 
 const file = process.argv[2] ?? path.resolve(import.meta.dirname, "../research/companies/universe.jsonl");
-const lines = readFileSync(file, "utf8").split("\n").filter((l) => l.trim());
+const lines = readFileSync(file, "utf8")
+  .split("\n")
+  .filter((l) => l.trim());
 let created = 0;
 let updated = 0;
 let invalid = 0;

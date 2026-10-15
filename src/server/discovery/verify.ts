@@ -8,19 +8,30 @@ import { contactEvidence, contacts, contactVerifications } from "../db/schema.ts
 import { logEvent } from "../events.ts";
 import { withBudget } from "../jobs/budget.ts";
 import { emailVerifier } from "../providers/index.ts";
-import { getSettings } from "../settings.ts";
 import { recordContactEvent, refreshDerived } from "../services/contacts.ts";
+import { getSettings } from "../settings.ts";
 import { containsVerbatim } from "./extract.ts";
 import { PoliteFetcher } from "./fetcher.ts";
 
 export type VerifyOutcome = { status: string; message: string; provider: string; credits: number };
 
-export async function verifyEmail(contactId: string, ctx: { runId?: string | null; taskId?: string | null } = {}): Promise<VerifyOutcome> {
+export async function verifyEmail(
+  contactId: string,
+  ctx: { runId?: string | null; taskId?: string | null } = {},
+): Promise<VerifyOutcome> {
   const [c] = await db().select().from(contacts).where(eq(contacts.id, contactId)).limit(1);
-  if (!c?.emailNormalized) return { status: "skipped", message: "Brak adresu do weryfikacji.", provider: "-", credits: 0 };
+  if (!c?.emailNormalized)
+    return { status: "skipped", message: "Brak adresu do weryfikacji.", provider: "-", credits: 0 };
   const verifier = emailVerifier();
   const result = await withBudget(
-    { provider: verifier.name, operation: "email-verifier", credits: verifier.paid ? verifier.creditsPerCall : 0, runId: ctx.runId, taskId: ctx.taskId, detail: contactId },
+    {
+      provider: verifier.name,
+      operation: "email-verifier",
+      credits: verifier.paid ? verifier.creditsPerCall : 0,
+      runId: ctx.runId,
+      taskId: ctx.taskId,
+      detail: contactId,
+    },
     async () => {
       const r = await verifier.verify(c.emailNormalized!);
       return { value: r, credits: r.credits };
@@ -38,7 +49,12 @@ export async function verifyEmail(contactId: string, ctx: { runId?: string | nul
       raw: result.raw as Record<string, unknown>,
     });
   if (result.pending) {
-    return { status: "pending", message: "Dostawca wciąż weryfikuje adres — sprawdź ponownie za kilka minut.", provider: result.provider, credits: 0 };
+    return {
+      status: "pending",
+      message: "Dostawca wciąż weryfikuje adres — sprawdź ponownie za kilka minut.",
+      provider: result.provider,
+      credits: 0,
+    };
   }
   const set: Partial<typeof contacts.$inferInsert> = { updatedAt: new Date() };
   if (verifier.paid) {
@@ -51,7 +67,11 @@ export async function verifyEmail(contactId: string, ctx: { runId?: string | nul
     set.emailProviderResult = { provider: result.provider, raw: result.raw, at: new Date().toISOString() };
   }
   await db().update(contacts).set(set).where(eq(contacts.id, contactId));
-  await recordContactEvent(contactId, "email_verified", { provider: result.provider, status: result.status, providerStatus: result.providerStatus });
+  await recordContactEvent(contactId, "email_verified", {
+    provider: result.provider,
+    status: result.status,
+    providerStatus: result.providerStatus,
+  });
   await refreshDerived([contactId]);
   const message = verifier.paid
     ? `Wynik weryfikacji (${result.provider}): ${result.providerStatus}.`
@@ -61,12 +81,18 @@ export async function verifyEmail(contactId: string, ctx: { runId?: string | nul
   return { status: result.status, message, provider: result.provider, credits: result.credits };
 }
 
-export type EmploymentOutcome = { status: "confirmed" | "missing" | "unavailable" | "no_source"; url?: string };
+export type EmploymentOutcome = {
+  status: "confirmed" | "missing" | "unavailable" | "no_source";
+  url?: string;
+};
 
 /** Re-fetch the source page that named this person; confirm they are still listed there. */
-export async function recheckEmployment(contactId: string, fetcher?: PoliteFetcher): Promise<EmploymentOutcome> {
+export async function recheckEmployment(
+  contactId: string,
+  fetcher?: PoliteFetcher,
+): Promise<EmploymentOutcome> {
   const [c] = await db().select().from(contacts).where(eq(contacts.id, contactId)).limit(1);
-  if (!c || c.kind !== "person" || !c.fullName) return { status: "no_source" };
+  if (c?.kind !== "person" || !c.fullName) return { status: "no_source" };
   const ev = await db()
     .select()
     .from(contactEvidence)
@@ -83,15 +109,24 @@ export async function recheckEmployment(contactId: string, fetcher?: PoliteFetch
     if (!r.ok) continue;
     reachable = true;
     if (containsVerbatim(r.body.replace(/<[^>]+>/g, " "), c.fullName)) {
-      await db().update(contacts).set({ employmentStatus: "confirmed_recent", employmentCheckedAt: new Date(), updatedAt: new Date() }).where(eq(contacts.id, contactId));
-      await db().update(contactEvidence).set({ observedAt: new Date() }).where(and(eq(contactEvidence.contactId, contactId), eq(contactEvidence.url, url)));
+      await db()
+        .update(contacts)
+        .set({ employmentStatus: "confirmed_recent", employmentCheckedAt: new Date(), updatedAt: new Date() })
+        .where(eq(contacts.id, contactId));
+      await db()
+        .update(contactEvidence)
+        .set({ observedAt: new Date() })
+        .where(and(eq(contactEvidence.contactId, contactId), eq(contactEvidence.url, url)));
       await recordContactEvent(contactId, "employment_confirmed", { url });
       await refreshDerived([contactId]);
       return { status: "confirmed", url };
     }
   }
   if (reachable) {
-    await db().update(contacts).set({ employmentStatus: "possibly_left", employmentCheckedAt: new Date(), updatedAt: new Date() }).where(eq(contacts.id, contactId));
+    await db()
+      .update(contacts)
+      .set({ employmentStatus: "possibly_left", employmentCheckedAt: new Date(), updatedAt: new Date() })
+      .where(eq(contacts.id, contactId));
     await recordContactEvent(contactId, "employment_missing_from_source", { urls });
     await refreshDerived([contactId]);
     return { status: "missing" };
@@ -108,11 +143,15 @@ export async function verifyContactNow(contactId: string): Promise<{ message: st
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     parts.push(`Weryfikacja adresu nie powiodła się: ${msg}`);
-    await logEvent("warning", "provider", "Ręczna weryfikacja nie powiodła się", { contactId, message: msg.slice(0, 200) });
+    await logEvent("warning", "provider", "Ręczna weryfikacja nie powiodła się", {
+      contactId,
+      message: msg.slice(0, 200),
+    });
   }
   const emp = await recheckEmployment(contactId).catch(() => ({ status: "unavailable" as const }));
   if (emp.status === "confirmed") parts.push("Osoba nadal widnieje na stronie źródłowej.");
   if (emp.status === "missing") parts.push("Osoby nie ma już na stronie źródłowej — możliwa zmiana pracy.");
-  if (emp.status === "unavailable") parts.push("Strona źródłowa jest niedostępna — zatrudnienia nie sprawdzono.");
+  if (emp.status === "unavailable")
+    parts.push("Strona źródłowa jest niedostępna — zatrudnienia nie sprawdzono.");
   return { message: parts.join(" ") };
 }

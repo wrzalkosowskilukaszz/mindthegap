@@ -26,19 +26,32 @@ SELECT ?item ?itemLabel ?website ?employees ?date (SAMPLE(?industryLabel) AS ?in
 GROUP BY ?item ?itemLabel ?website ?employees ?date
 LIMIT 3000`;
 
-type Binding = { item: { value: string }; itemLabel: { value: string }; website: { value: string }; employees: { value: string }; date?: { value: string }; industry?: { value: string } };
+type Binding = {
+  item: { value: string };
+  itemLabel: { value: string };
+  website: { value: string };
+  employees: { value: string };
+  date?: { value: string };
+  industry?: { value: string };
+};
 
 const SECTOR_RULES: [RegExp, Sector][] = [
   [/bank|insur|financ|invest|payment|credit|leasing|asset/i, "financial_services"],
   [/telecom|media|broadcast|television|publishing|radio/i, "telecom_media"],
   [/software|information technology|internet|video game|computer|electronics|semiconductor/i, "technology"],
   [/pharma|health|hospital|medical|biotech|diagnost/i, "pharma_healthcare"],
-  [/retail|food|beverage|consumer|cosmetic|clothing|fashion|brew|dairy|confection|tobacco|restaurant/i, "retail_consumer"],
+  [
+    /retail|food|beverage|consumer|cosmetic|clothing|fashion|brew|dairy|confection|tobacco|restaurant/i,
+    "retail_consumer",
+  ],
   [/energy|electric|oil|gas|petroleum|coal|mining|utility|power/i, "energy_utilities"],
   [/logistic|transport|rail|airline|shipping|courier|port|postal/i, "logistics_transport"],
   [/consult|audit|legal|accounting|professional/i, "professional_services"],
   [/outsourc|business service|shared service/i, "business_services"],
-  [/manufactur|automotive|chemical|steel|metal|machinery|construction|engineering|aerospace|defen[cs]e|furniture|paper|glass/i, "manufacturing_industrial"],
+  [
+    /manufactur|automotive|chemical|steel|metal|machinery|construction|engineering|aerospace|defen[cs]e|furniture|paper|glass/i,
+    "manufacturing_industrial",
+  ],
 ];
 
 export function sectorFromIndustry(s: string | null | undefined): Sector {
@@ -47,12 +60,24 @@ export function sectorFromIndustry(s: string | null | undefined): Sector {
   return "other";
 }
 
-export type DiscoveredCompany = { name: string; domain: string; website: string; employees: number; asOf: string | null; wikidata: string; industry: string | null; sector: Sector };
+export type DiscoveredCompany = {
+  name: string;
+  domain: string;
+  website: string;
+  employees: number;
+  asOf: string | null;
+  wikidata: string;
+  industry: string | null;
+  sector: Sector;
+};
 
 export async function fetchWikidataCandidates(minEmployees: number): Promise<DiscoveredCompany[]> {
   const url = `https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(SPARQL(minEmployees))}`;
   const res = await httpFetch(url, {
-    headers: { Accept: "application/sparql-results+json", "User-Agent": "MindTheGapOutreachStudio/1.0 (https://leadersmindthegap.com/)" },
+    headers: {
+      Accept: "application/sparql-results+json",
+      "User-Agent": "MindTheGapOutreachStudio/1.0 (https://leadersmindthegap.com/)",
+    },
     timeoutMs: 90_000,
   });
   if (!res.ok) throw new Error(`Wikidata HTTP ${res.status}`);
@@ -113,7 +138,11 @@ export async function discoverCompanies(opts: {
     let status = 0;
     let finalUrl = c.website;
     try {
-      const r = await httpFetch(c.website, { redirect: "follow", timeoutMs: 15_000, headers: { "User-Agent": "Mozilla/5.0 (compatible; MindTheGapOutreachBot/1.0)" } });
+      const r = await httpFetch(c.website, {
+        redirect: "follow",
+        timeoutMs: 15_000,
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; MindTheGapOutreachBot/1.0)" },
+      });
       status = r.status;
       finalUrl = r.url || c.website;
       await r.body?.cancel().catch(() => {});
@@ -130,7 +159,8 @@ export async function discoverCompanies(opts: {
         domain: c.domain,
         sector: c.sector,
         subsector: c.industry,
-        polishPresenceSummary: "Wikidata: organizacja z siedzibą lub krajem w Polsce (do potwierdzenia na stronie firmy).",
+        polishPresenceSummary:
+          "Wikidata: organizacja z siedzibą lub krajem w Polsce (do potwierdzenia na stronie firmy).",
         polishPresenceUrl: c.wikidata,
         employeesGlobal: { value: c.employees, asOf: c.asOf, sourceUrl: c.wikidata },
         sizeBand: sizeBandFor(c.employees),
@@ -145,7 +175,13 @@ export async function discoverCompanies(opts: {
     if (!row) continue;
     await db()
       .insert(companySources)
-      .values({ companyId: row.id, url: c.wikidata, title: `Wikidata: ${c.name}`, usedFor: ["existence", "website", "size", "polish_presence"], accessedAt: new Date().toISOString().slice(0, 10) })
+      .values({
+        companyId: row.id,
+        url: c.wikidata,
+        title: `Wikidata: ${c.name}`,
+        usedFor: ["existence", "website", "size", "polish_presence"],
+        accessedAt: new Date().toISOString().slice(0, 10),
+      })
       .onConflictDoNothing();
     added.push(row.id);
   }

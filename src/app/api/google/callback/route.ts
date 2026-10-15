@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { env } from "@/server/env";
-import { api, searchParams } from "@/server/http";
 import { handleCallback } from "@/server/gmail/oauth";
+import { api, searchParams } from "@/server/http";
 
 export const GET = api(async (req) => {
   const sp = searchParams(req);

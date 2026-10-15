@@ -1,5 +1,5 @@
-import { api, HttpError } from "@/server/http";
 import { sendMessage } from "@/server/gmail/dispatch";
+import { api, HttpError } from "@/server/http";
 
 export const maxDuration = 120;
 

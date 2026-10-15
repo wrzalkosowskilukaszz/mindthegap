@@ -41,17 +41,28 @@ export const DiscoverySettings = z.object({
   roleIncludeKeywords: z.array(z.string()).default([]),
   roleExcludeKeywords: z
     .array(z.string())
-    .default(["rekrut", "recruit", "talent acquisition", "sourcing", "payroll", "płac", "kadr i płac", "employer branding"]),
+    .default([
+      "rekrut",
+      "recruit",
+      "talent acquisition",
+      "sourcing",
+      "payroll",
+      "płac",
+      "kadr i płac",
+      "employer branding",
+    ]),
   excludedDomains: z.array(z.string()).default([]),
   maxNewCompaniesPerRun: z.number().int().min(0).max(200).default(10),
-  maxCompaniesResearchedPerRun: z.number().int().min(0).max(300).default(25),
+  maxCompaniesResearchedPerRun: z.number().int().min(0).max(500).default(25),
   maxNewContactsPerRun: z.number().int().min(0).max(500).default(30),
-  maxContactsPerCompany: z.number().int().min(1).max(10).default(3),
+  maxContactsPerCompany: z.number().int().min(1).max(10).default(4),
   maxEnrichmentsPerRun: z.number().int().min(0).max(200).default(10),
   maxRechecksPerRun: z.number().int().min(0).max(500).default(20),
   maxPagesPerCompany: z.number().int().min(1).max(30).default(10),
   minDelayMsPerHost: z.number().int().min(500).max(30000).default(2500),
   runTimeBudgetSeconds: z.number().int().min(30).max(3600).default(900),
+  /** Companies researched in parallel (each on its own host; per-host delays still apply). */
+  concurrency: z.number().int().min(1).max(8).default(4),
   dailySpendLimitUsd: z.number().min(0).default(1),
   monthlySpendLimitUsd: z.number().min(0).default(20),
   /** Hunter Free plan = 50 credits/month; Tavily free = 1,000. Raise after upgrading a plan. */

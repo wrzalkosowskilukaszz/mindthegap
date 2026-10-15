@@ -20,7 +20,8 @@ export function Dot({ tone }: { tone: "ok" | "warn" | "bad" | "accent" | "neutra
 }
 
 export function EmailStatusLabel({ status, at }: { status: EmailStatus; at?: string | null }) {
-  const tone = status === "valid" ? "ok" : status === "invalid" ? "bad" : status === "not_checked" ? "hollow" : "warn";
+  const tone =
+    status === "valid" ? "ok" : status === "invalid" ? "bad" : status === "not_checked" ? "hollow" : "warn";
   return (
     <span className="status">
       <Dot tone={tone} />
@@ -43,7 +44,15 @@ export function QualityLabel({ quality }: { quality: string }) {
 
 export function OutreachLabel({ status, at }: { status: OutreachStatus; at?: string | null }) {
   const tone =
-    status === "replied" ? "ok" : status === "follow_up_due" ? "warn" : status === "failed" || status === "do_not_contact" ? "bad" : status === "sent" || status === "scheduled" ? "accent" : "hollow";
+    status === "replied"
+      ? "ok"
+      : status === "follow_up_due"
+        ? "warn"
+        : status === "failed" || status === "do_not_contact"
+          ? "bad"
+          : status === "sent" || status === "scheduled"
+            ? "accent"
+            : "hollow";
   return (
     <span className="status">
       <Dot tone={tone} />
@@ -53,10 +62,19 @@ export function OutreachLabel({ status, at }: { status: OutreachStatus; at?: str
   );
 }
 
-export function Callout({ tone = "warn", children }: { tone?: "warn" | "info" | "bad"; children: ReactNode }) {
+export function Callout({
+  tone = "warn",
+  children,
+}: {
+  tone?: "warn" | "info" | "bad";
+  children: ReactNode;
+}) {
   const Icon = tone === "info" ? Info : AlertTriangle;
   return (
-    <div className={`callout ${tone === "info" ? "callout-info" : tone === "bad" ? "callout-bad" : ""}`} role={tone === "bad" ? "alert" : undefined}>
+    <div
+      className={`callout ${tone === "info" ? "callout-info" : tone === "bad" ? "callout-bad" : ""}`}
+      role={tone === "bad" ? "alert" : undefined}
+    >
       <Icon size={15} strokeWidth={1.8} aria-hidden="true" />
       <div className="stack" style={{ gap: 4 }}>
         {children}
@@ -65,7 +83,17 @@ export function Callout({ tone = "warn", children }: { tone?: "warn" | "info" | 
   );
 }
 
-export function Empty({ icon, title, children, actions }: { icon?: ReactNode; title: string; children?: ReactNode; actions?: ReactNode }) {
+export function Empty({
+  icon,
+  title,
+  children,
+  actions,
+}: {
+  icon?: ReactNode;
+  title: string;
+  children?: ReactNode;
+  actions?: ReactNode;
+}) {
   return (
     <div className="empty">
       {icon}
@@ -79,10 +107,10 @@ export function Empty({ icon, title, children, actions }: { icon?: ReactNode; ti
 export function SkeletonRows({ rows = 8, cols = 6 }: { rows?: number; cols?: number }) {
   return (
     <>
-      {Array.from({ length: rows }, (_, r) => (
-        <tr key={r} aria-hidden="true" style={{ cursor: "default" }}>
-          {Array.from({ length: cols }, (_, c) => (
-            <td key={c}>
+      {Array.from({ length: rows }, (_, r) => `sk-${r}`).map((rowKey, r) => (
+        <tr key={rowKey} style={{ cursor: "default" }}>
+          {Array.from({ length: cols }, (_, c) => `${rowKey}-${c}`).map((cellKey, c) => (
+            <td key={cellKey}>
               <span className="skeleton" style={{ width: `${40 + ((r * 7 + c * 13) % 45)}%` }} />
             </td>
           ))}
@@ -117,7 +145,12 @@ export function Dialog({
     if (!open && d.open) d.close();
   }, [open]);
   return (
-    <dialog ref={ref} className={`dialog ${wide ? "dialog-wide" : ""}`} onClose={onClose} aria-labelledby="dialog-title">
+    <dialog
+      ref={ref}
+      className={`dialog ${wide ? "dialog-wide" : ""}`}
+      onClose={onClose}
+      aria-labelledby="dialog-title"
+    >
       {open ? (
         <>
           <div className="dialog-header row-between" style={{ alignItems: "flex-start" }}>
@@ -125,7 +158,12 @@ export function Dialog({
               <h3 id="dialog-title">{title}</h3>
               {description ? <p>{description}</p> : null}
             </div>
-            <button type="button" className="btn btn-quiet btn-icon btn-sm" onClick={onClose} aria-label="Zamknij">
+            <button
+              type="button"
+              className="btn btn-quiet btn-icon btn-sm"
+              onClick={onClose}
+              aria-label="Zamknij"
+            >
               <X size={16} />
             </button>
           </div>

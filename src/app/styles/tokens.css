@@ -5,7 +5,8 @@
  */
 :root {
   /* Typography */
-  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-sans:
+    "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
   --text-xs: 11.5px;
   --text-sm: 12.5px;

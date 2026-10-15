@@ -4,14 +4,47 @@ import { z } from "zod";
 const list = <T extends z.ZodTypeAny>(item: T) =>
   z.preprocess((v) => (typeof v === "string" ? (v === "" ? [] : v.split(",")) : v), z.array(item)).optional();
 
-export const ROLE_CATEGORIES = ["decision_maker", "organizer_influencer", "departmental_inbox", "general_routing", "uncertain"] as const;
+export const ROLE_CATEGORIES = [
+  "decision_maker",
+  "organizer_influencer",
+  "departmental_inbox",
+  "general_routing",
+  "uncertain",
+] as const;
+export const ROLE_FUNCTIONS = [
+  "hr",
+  "learning",
+  "procurement",
+  "business_leadership",
+  "transformation",
+  "people_culture",
+  "other",
+] as const;
 export const CONTACT_KINDS = ["person", "department_inbox", "general_inbox"] as const;
 export const QUALITIES = ["ready", "caution", "needs_research", "blocked"] as const;
 export const EMAIL_STATUSES = ["not_checked", "valid", "invalid", "catch_all", "unknown", "expired"] as const;
-export const OUTREACH = ["not_contacted", "draft_ready", "scheduled", "sent", "replied", "follow_up_due", "failed", "do_not_contact"] as const;
+export const OUTREACH = [
+  "not_contacted",
+  "draft_ready",
+  "scheduled",
+  "sent",
+  "replied",
+  "follow_up_due",
+  "failed",
+  "do_not_contact",
+] as const;
 export const REVIEW = ["new", "accepted", "rejected"] as const;
 export const SIZE_BANDS = ["200-999", "1000-4999", "5000+", "unknown", "<200"] as const;
-export const SORTS = ["company", "name", "role", "verification", "last_contact", "reply", "discovered", "quality"] as const;
+export const SORTS = [
+  "company",
+  "name",
+  "role",
+  "verification",
+  "last_contact",
+  "reply",
+  "discovered",
+  "quality",
+] as const;
 
 export const ContactQuery = z.object({
   view: z.string().optional(),
@@ -20,6 +53,7 @@ export const ContactQuery = z.object({
   sector: list(z.string()),
   size: list(z.enum(SIZE_BANDS)),
   role: list(z.enum(ROLE_CATEGORIES)),
+  dept: list(z.enum(ROLE_FUNCTIONS)),
   kind: list(z.enum(CONTACT_KINDS)),
   quality: list(z.enum(QUALITIES)),
   email: list(z.enum(EMAIL_STATUSES)),
@@ -42,17 +76,62 @@ export const BUILTIN_VIEWS: { id: string; name: string; query: Partial<ContactQu
   {
     id: "priority",
     name: "Priorytetowe",
-    query: { fallback: "exclude", review: ["new", "accepted"], role: ["decision_maker", "organizer_influencer", "departmental_inbox"], sort: "quality" },
+    query: {
+      fallback: "exclude",
+      review: ["new", "accepted"],
+      role: ["decision_maker", "organizer_influencer", "departmental_inbox"],
+      sort: "quality",
+    },
     hint: "Osoby i skrzynki związane z rozwojem, bez kontaktów ogólnych i odrzuconych.",
   },
-  { id: "latest-run", name: "Nowe z ostatniego przebiegu", query: { latestRun: true, review: ["new"], fallback: "include" }, hint: "Do przeglądu: dodane w ostatnim przebiegu odkrywania." },
-  { id: "review", name: "Do przeglądu", query: { review: ["new"], fallback: "exclude" }, hint: "Nowe kontakty, których jeszcze nie oceniono." },
-  { id: "awaiting", name: "Czekają na odpowiedź", query: { outreach: ["sent", "follow_up_due"], fallback: "include" }, hint: "Wysłane, bez odpowiedzi." },
-  { id: "replied", name: "Odpowiedzieli", query: { outreach: ["replied"], fallback: "include" }, hint: "Kontakty z odpowiedzią." },
-  { id: "needs-research", name: "Do uzupełnienia", query: { quality: ["needs_research"], fallback: "exclude", review: ["new", "accepted"] }, hint: "Brak adresu lub adres przewidziany i niezweryfikowany." },
-  { id: "fallback", name: "Kontakty ogólne", query: { fallback: "only" }, hint: "Adresy typu info@, rekrutacja — tylko jako ostateczność." },
-  { id: "dnc", name: "Nie kontaktować", query: { outreach: ["do_not_contact"], fallback: "include", review: ["new", "accepted", "rejected"] }, hint: "Wykluczone i oznaczone." },
-  { id: "all", name: "Wszystkie", query: { fallback: "include", review: ["new", "accepted"] }, hint: "Wszystkie poza odrzuconymi." },
+  {
+    id: "latest-run",
+    name: "Nowe z ostatniego przebiegu",
+    query: { latestRun: true, review: ["new"], fallback: "include" },
+    hint: "Do przeglądu: dodane w ostatnim przebiegu odkrywania.",
+  },
+  {
+    id: "review",
+    name: "Do przeglądu",
+    query: { review: ["new"], fallback: "exclude" },
+    hint: "Nowe kontakty, których jeszcze nie oceniono.",
+  },
+  {
+    id: "awaiting",
+    name: "Czekają na odpowiedź",
+    query: { outreach: ["sent", "follow_up_due"], fallback: "include" },
+    hint: "Wysłane, bez odpowiedzi.",
+  },
+  {
+    id: "replied",
+    name: "Odpowiedzieli",
+    query: { outreach: ["replied"], fallback: "include" },
+    hint: "Kontakty z odpowiedzią.",
+  },
+  {
+    id: "needs-research",
+    name: "Do uzupełnienia",
+    query: { quality: ["needs_research"], fallback: "exclude", review: ["new", "accepted"] },
+    hint: "Brak adresu lub adres przewidziany i niezweryfikowany.",
+  },
+  {
+    id: "fallback",
+    name: "Kontakty ogólne",
+    query: { fallback: "only" },
+    hint: "Adresy typu info@, rekrutacja — tylko jako ostateczność.",
+  },
+  {
+    id: "dnc",
+    name: "Nie kontaktować",
+    query: { outreach: ["do_not_contact"], fallback: "include", review: ["new", "accepted", "rejected"] },
+    hint: "Wykluczone i oznaczone.",
+  },
+  {
+    id: "all",
+    name: "Wszystkie",
+    query: { fallback: "include", review: ["new", "accepted"] },
+    hint: "Wszystkie poza odrzuconymi.",
+  },
 ];
 
 export const DEFAULT_VIEW = "priority";

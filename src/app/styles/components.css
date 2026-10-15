@@ -57,7 +57,9 @@
   color: var(--text-secondary);
   font-weight: var(--weight-medium);
   font-size: var(--text-md);
-  transition: background var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
 }
 
 .nav-item:hover {
@@ -69,7 +71,9 @@
 .nav-item[aria-current="page"] {
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 0 0 1px var(--separator), var(--shadow-control);
+  box-shadow:
+    0 0 0 1px var(--separator),
+    var(--shadow-control);
 }
 
 .nav-item svg {
@@ -205,6 +209,7 @@
   }
 
   .hide-mobile {
+    /* biome-ignore lint/complexity/noImportantStyles: a utility must win over component display rules */
     display: none !important;
   }
 }
@@ -225,7 +230,9 @@
   font-size: var(--text-md);
   white-space: nowrap;
   box-shadow: var(--shadow-control);
-  transition: background var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease),
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
     color var(--duration-fast) var(--ease);
 }
 
@@ -312,7 +319,9 @@
   border-radius: var(--radius-md);
   background: var(--surface);
   font-size: var(--text-md);
-  transition: border-color var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
+  transition:
+    border-color var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
 }
 
 .textarea {
@@ -429,6 +438,8 @@ kbd,
 /* ============================== Segmented control ============================== */
 .segmented {
   display: inline-flex;
+  margin: 0;
+  min-width: 0;
   padding: 2px;
   background: var(--surface-sunken);
   border: 1px solid var(--separator);
@@ -451,7 +462,9 @@ kbd,
 .segmented button[aria-selected="true"] {
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 0 0 1px var(--separator), 0 1px 2px rgba(28, 25, 23, 0.06);
+  box-shadow:
+    0 0 0 1px var(--separator),
+    0 1px 2px rgba(28, 25, 23, 0.06);
 }
 
 /* ============================== Status ============================== */
@@ -1608,4 +1621,10 @@ dialog.dialog::backdrop {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.select-inline {
+  width: auto;
+  height: 28px;
+  font-size: var(--text-sm);
 }

@@ -5,6 +5,10 @@ export const GET = api<{ id: string }>(async (_req, { params }) => {
   const data = await exportContact(params.id);
   if (!data) throw notFound();
   return new Response(JSON.stringify(data, null, 2), {
-    headers: { "content-type": "application/json", "content-disposition": `attachment; filename="kontakt-${params.id}.json"`, "cache-control": "no-store" },
+    headers: {
+      "content-type": "application/json",
+      "content-disposition": `attachment; filename="kontakt-${params.id}.json"`,
+      "cache-control": "no-store",
+    },
   });
 });

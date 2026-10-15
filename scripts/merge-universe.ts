@@ -10,7 +10,9 @@ import { CompanyRecord } from "../src/lib/research/company-record.ts";
 
 const dir = path.resolve(import.meta.dirname, "../research/companies");
 const staging = path.join(dir, "staging");
-const files = readdirSync(staging).filter((f) => f.endsWith(".jsonl")).sort();
+const files = readdirSync(staging)
+  .filter((f) => f.endsWith(".jsonl"))
+  .sort();
 
 type Rec = CompanyRecord & { _file: string };
 const accepted: Rec[] = [];
@@ -23,13 +25,18 @@ const byBrand = new Map<string, Rec>();
 
 function brandKey(r: CompanyRecord): string {
   return foldDiacritics(r.brand ?? r.name)
-    .replace(/\b(s\.?a\.?|sp\.? z o\.?o\.?|spolka akcyjna|polska|poland|group|grupa|ltd|gmbh|inc|plc|n\.v\.|ag|se)\b/g, "")
+    .replace(
+      /\b(s\.?a\.?|sp\.? z o\.?o\.?|spolka akcyjna|polska|poland|group|grupa|ltd|gmbh|inc|plc|n\.v\.|ag|se)\b/g,
+      "",
+    )
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
 
 function score(r: CompanyRecord): number {
-  return (r.employees_poland ? 4 : 0) + (r.employees_global ? 2 : 0) + r.sources.length + r.priority_signals.length;
+  return (
+    (r.employees_poland ? 4 : 0) + (r.employees_global ? 2 : 0) + r.sources.length + r.priority_signals.length
+  );
 }
 
 for (const f of files) {
@@ -45,18 +52,27 @@ for (const f of files) {
     }
     const parsed = CompanyRecord.safeParse(json);
     if (!parsed.success) {
-      invalid.push({ file: f, line: i + 1, issues: parsed.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; ") });
+      invalid.push({
+        file: f,
+        line: i + 1,
+        issues: parsed.error.issues.map((x) => `${x.path.join(".")}: ${x.message}`).join("; "),
+      });
       return;
     }
     const r: Rec = { ...parsed.data, domain: parsed.data.domain.toLowerCase(), _file: f };
     const clash = byDomain.get(r.domain) ?? bySlug.get(r.id);
     // Same brand in two slices is only a duplicate when it is not a deliberately separate entity.
     const brandClash = byBrand.get(brandKey(r));
-    const other = clash ?? (brandClash && !r.relationship_note && !brandClash.relationship_note ? brandClash : undefined);
+    const other =
+      clash ?? (brandClash && !r.relationship_note && !brandClash.relationship_note ? brandClash : undefined);
     if (other) {
       const keep = score(r) > score(other) ? r : other;
       const drop = keep === r ? other : r;
-      dupes.push({ kept: `${keep.id} (${keep._file})`, dropped: `${drop.id} (${drop._file})`, why: clash ? "same domain/slug" : "same brand" });
+      dupes.push({
+        kept: `${keep.id} (${keep._file})`,
+        dropped: `${drop.id} (${drop._file})`,
+        why: clash ? "same domain/slug" : "same brand",
+      });
       if (keep === r) {
         const idx = accepted.indexOf(other);
         accepted[idx] = r;

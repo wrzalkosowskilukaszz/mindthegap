@@ -3,7 +3,10 @@ import { api, parseBody, searchParams } from "@/server/http";
 import { createDraft, listMessages } from "@/server/services/messages";
 
 export const GET = api(async (req) => {
-  const box = z.enum(["drafts", "scheduled", "sent", "replies", "problems"]).catch("drafts").parse(searchParams(req).get("box") ?? "drafts");
+  const box = z
+    .enum(["drafts", "scheduled", "sent", "replies", "problems"])
+    .catch("drafts")
+    .parse(searchParams(req).get("box") ?? "drafts");
   return listMessages(box);
 });
 

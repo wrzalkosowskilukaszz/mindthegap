@@ -17,12 +17,22 @@ export const POST = api(async (req) => {
   if (b.action === "accept" || b.action === "reject") {
     await db()
       .update(contacts)
-      .set({ reviewStatus: b.action === "accept" ? "accepted" : "rejected", reviewedAt: now, rejectedReason: b.action === "reject" ? (b.reason ?? null) : null, updatedAt: now })
+      .set({
+        reviewStatus: b.action === "accept" ? "accepted" : "rejected",
+        reviewedAt: now,
+        rejectedReason: b.action === "reject" ? (b.reason ?? null) : null,
+        updatedAt: now,
+      })
       .where(inArray(contacts.id, b.ids));
   } else {
     await db()
       .update(contacts)
-      .set({ eligibilityBasis: "do_not_contact", eligibilityRecordedAt: now, eligibilityDate: now.toISOString().slice(0, 10), updatedAt: now })
+      .set({
+        eligibilityBasis: "do_not_contact",
+        eligibilityRecordedAt: now,
+        eligibilityDate: now.toISOString().slice(0, 10),
+        updatedAt: now,
+      })
       .where(inArray(contacts.id, b.ids));
   }
   for (const id of b.ids) await recordContactEvent(id, `bulk_${b.action}`, {});

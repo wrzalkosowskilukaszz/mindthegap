@@ -1,0 +1,2 @@
+CREATE TYPE "public"."role_function" AS ENUM('hr', 'learning', 'procurement', 'business_leadership', 'transformation', 'people_culture', 'other');--> statement-breakpoint
+ALTER TABLE "contacts" ADD COLUMN "role_function" "role_function" DEFAULT 'other' NOT NULL;

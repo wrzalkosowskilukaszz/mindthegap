@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ContactPanel } from "@/components/contact-panel";
 import { useToast } from "@/components/toast";
-import { Callout, Empty, EmailStatusLabel, OutreachLabel, SkeletonRows, useDismiss } from "@/components/ui";
+import { Callout, EmailStatusLabel, Empty, OutreachLabel, SkeletonRows, useDismiss } from "@/components/ui";
 import { ApiError, apiFetch } from "@/lib/api-client";
 import {
   BUILTIN_VIEWS,
@@ -20,20 +20,44 @@ import {
   QUALITIES,
   queryToSearch,
   ROLE_CATEGORIES,
+  ROLE_FUNCTIONS,
   ROLE_LABEL,
   SECTOR_LABEL,
   SIZE_BANDS,
   SIZE_LABEL,
 } from "@/lib/contact-query";
 import { EMAIL_STATUS_LABEL, OUTREACH_LABEL, QUALITY_LABEL } from "@/lib/contact-rules";
+import { FUNCTION_LABEL } from "@/lib/roles";
 import type { ContactListRow } from "@/server/services/contact-list";
 import { AddContactDialog, ImportDialog } from "./contact-dialogs";
 
-type ListResponse = { rows: ContactListRow[]; total: number; offset: number; limit: number; counts: Record<string, number> | null };
+type ListResponse = {
+  rows: ContactListRow[];
+  total: number;
+  offset: number;
+  limit: number;
+  counts: Record<string, number> | null;
+};
 type CustomView = { id: string; name: string; query: Partial<ContactQuery> };
 
 const PAGE = 100;
-const FILTER_KEYS = ["q", "sector", "size", "role", "kind", "quality", "email", "outreach", "review", "verifiedOlderThan", "fallback", "companyId", "sort", "dir"] as const;
+const FILTER_KEYS = [
+  "q",
+  "sector",
+  "size",
+  "role",
+  "dept",
+  "kind",
+  "quality",
+  "email",
+  "outreach",
+  "review",
+  "verifiedOlderThan",
+  "fallback",
+  "companyId",
+  "sort",
+  "dir",
+] as const;
 
 const SORT_OPTIONS: { value: NonNullable<ContactQuery["sort"]>; label: string }[] = [
   { value: "quality", label: "Jakość danych" },
@@ -50,18 +74,24 @@ function parseSearch(sp: URLSearchParams): Partial<ContactQuery> & { view?: stri
   const out: Record<string, unknown> = {};
   for (const [k, v] of sp.entries()) {
     if (k === "c") continue;
-    if (["sector", "size", "role", "kind", "quality", "email", "outreach", "review"].includes(k)) out[k] = v ? v.split(",") : [];
+    if (["sector", "size", "role", "dept", "kind", "quality", "email", "outreach", "review"].includes(k))
+      out[k] = v ? v.split(",") : [];
     else out[k] = v;
   }
   return out as Partial<ContactQuery>;
 }
 
-export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" | "info"; text: string; href: string } | null }) {
+export function ContactsView({
+  attention,
+}: {
+  attention: { tone: "warn" | "bad" | "info"; text: string; href: string } | null;
+}) {
   const router = useRouter();
   const sp = useSearchParams();
   const toast = useToast();
   const urlQuery = useMemo(() => parseSearch(new URLSearchParams(sp.toString())), [sp]);
-  const view = (urlQuery.view as string | undefined) ?? (Object.keys(urlQuery).length === 0 ? DEFAULT_VIEW : undefined);
+  const view =
+    (urlQuery.view as string | undefined) ?? (Object.keys(urlQuery).length === 0 ? DEFAULT_VIEW : undefined);
   const [rows, setRows] = useState<ContactListRow[]>([]);
   const [total, setTotal] = useState(0);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -104,7 +134,9 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
       else setLoadingMore(true);
       setError(null);
       try {
-        const res = await apiFetch<ListResponse>(`/api/contacts?${queryString}&offset=${offset}&limit=${PAGE}${offset === 0 ? "&counts=1" : ""}`);
+        const res = await apiFetch<ListResponse>(
+          `/api/contacts?${queryString}&offset=${offset}&limit=${PAGE}${offset === 0 ? "&counts=1" : ""}`,
+        );
         if (id !== reqId.current) return;
         setRows((prev) => (offset === 0 ? res.rows : [...prev, ...res.rows]));
         setTotal(res.total);
@@ -189,11 +221,12 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs only when the keyboard cursor moves
   useEffect(() => {
     const row = tableRef.current?.querySelector<HTMLTableRowElement>(`tr[data-index="${active}"]`);
     row?.scrollIntoView({ block: "nearest" });
     if (panelId && rows[active] && document.activeElement?.closest("tbody")) openPanel(rows[active]!.id);
-  }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active]);
 
   function toggle(id: string) {
     setSelected((s) => {
@@ -219,7 +252,9 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
     const name = window.prompt("Nazwa widoku");
     if (!name) return;
     try {
-      const v = await apiFetch<CustomView>("/api/views", { body: { name, query: { ...urlQuery, view: undefined } } });
+      const v = await apiFetch<CustomView>("/api/views", {
+        body: { name, query: { ...urlQuery, view: undefined } },
+      });
       setCustomViews((c) => [...c, v]);
       toast("Zapisano widok");
     } catch (e) {
@@ -227,7 +262,14 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
     }
   }
 
-  const activeFilters = FILTER_KEYS.filter((k) => k !== "q" && k !== "sort" && k !== "dir" && urlQuery[k] !== undefined && !(Array.isArray(urlQuery[k]) && (urlQuery[k] as unknown[]).length === 0));
+  const activeFilters = FILTER_KEYS.filter(
+    (k) =>
+      k !== "q" &&
+      k !== "sort" &&
+      k !== "dir" &&
+      urlQuery[k] !== undefined &&
+      !(Array.isArray(urlQuery[k]) && (urlQuery[k] as unknown[]).length === 0),
+  );
   const viewMeta = BUILTIN_VIEWS.find((v) => v.id === view);
   const sort = urlQuery.sort ?? viewMeta?.query.sort ?? "company";
   const dir = urlQuery.dir ?? "asc";
@@ -237,7 +279,10 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
     const isSorted = sort === key;
     return (
       <th aria-sort={isSorted ? (dir === "asc" ? "ascending" : "descending") : undefined}>
-        <button type="button" onClick={() => setQuery({ sort: key, dir: isSorted && dir === "asc" ? "desc" : "asc" })}>
+        <button
+          type="button"
+          onClick={() => setQuery({ sort: key, dir: isSorted && dir === "asc" ? "desc" : "asc" })}
+        >
           {label}
           {isSorted ? dir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} /> : null}
         </button>
@@ -259,13 +304,24 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
 
       <div className="views" role="toolbar" aria-label="Widoki">
         {BUILTIN_VIEWS.map((v) => (
-          <button key={v.id} type="button" aria-pressed={view === v.id} title={v.hint} onClick={() => router.replace(`/kontakty?view=${v.id}`, { scroll: false })}>
+          <button
+            key={v.id}
+            type="button"
+            aria-pressed={view === v.id}
+            title={v.hint}
+            onClick={() => router.replace(`/kontakty?view=${v.id}`, { scroll: false })}
+          >
             {v.name}
             {counts[v.id] !== undefined ? <span className="views-count">{counts[v.id]}</span> : null}
           </button>
         ))}
         {customViews.map((v) => (
-          <button key={v.id} type="button" aria-pressed={false} onClick={() => router.replace(`/kontakty?${queryToSearch(v.query)}`, { scroll: false })}>
+          <button
+            key={v.id}
+            type="button"
+            aria-pressed={false}
+            onClick={() => router.replace(`/kontakty?${queryToSearch(v.query)}`, { scroll: false })}
+          >
             {v.name}
           </button>
         ))}
@@ -291,12 +347,24 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
               }
             }}
           />
-          <kbd aria-hidden="true">/</kbd>
+          <kbd>/</kbd>
         </div>
-        <FiltersButton open={filtersOpen} setOpen={setFiltersOpen} query={urlQuery} setQuery={(p) => setQuery(p)} activeCount={activeFilters.length} />
+        <FiltersButton
+          open={filtersOpen}
+          setOpen={setFiltersOpen}
+          query={urlQuery}
+          setQuery={(p) => setQuery(p)}
+          activeCount={activeFilters.length}
+        />
         <label className="row small secondary">
           <span className="hide-mobile">Sortuj</span>
-          <select className="select" style={{ width: 170 }} value={sort} onChange={(e) => setQuery({ sort: e.target.value as ContactQuery["sort"] })} aria-label="Sortowanie">
+          <select
+            className="select"
+            style={{ width: 170 }}
+            value={sort}
+            onChange={(e) => setQuery({ sort: e.target.value as ContactQuery["sort"] })}
+            aria-label="Sortowanie"
+          >
             {SORT_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -315,21 +383,34 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
           {activeFilters.map((k) => (
             <span key={k} className="chip">
               {chipLabel(k, urlQuery[k])}
-              <button type="button" aria-label="Usuń filtr" onClick={() => setQuery({ [k]: undefined } as Partial<ContactQuery>)}>
+              <button
+                type="button"
+                aria-label="Usuń filtr"
+                onClick={() => setQuery({ [k]: undefined } as Partial<ContactQuery>)}
+              >
                 <X size={12} />
               </button>
             </span>
           ))}
-          <button type="button" className="link-button small" onClick={() => router.replace(view ? `/kontakty?view=${view}` : "/kontakty", { scroll: false })}>
+          <button
+            type="button"
+            className="link-button small"
+            onClick={() => router.replace(view ? `/kontakty?view=${view}` : "/kontakty", { scroll: false })}
+          >
             Wyczyść filtry
           </button>
         </div>
       ) : null}
 
-      <div className="table-wrap" style={{ maxHeight: "calc(100vh - 290px)", minHeight: 320 }} onScroll={(e) => {
-        const el = e.currentTarget;
-        if (!loadingMore && rows.length < total && el.scrollTop + el.clientHeight > el.scrollHeight - 400) void load(rows.length);
-      }}>
+      <div
+        className="table-wrap"
+        style={{ maxHeight: "calc(100vh - 290px)", minHeight: 320 }}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          if (!loadingMore && rows.length < total && el.scrollTop + el.clientHeight > el.scrollHeight - 400)
+            void load(rows.length);
+        }}
+      >
         <table className="data-table" aria-label="Kontakty" aria-rowcount={total}>
           <thead>
             <tr>
@@ -344,7 +425,7 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
               </th>
               {headerSort("name", "Osoba lub dział")}
               {headerSort("company", "Firma")}
-              {headerSort("role", "Rola")}
+              {headerSort("role", "Dział / rola")}
               <th>E-mail</th>
               {headerSort("verification", "Weryfikacja")}
               {headerSort("last_contact", "Ostatni kontakt")}
@@ -357,7 +438,14 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
             ) : error ? (
               <tr style={{ cursor: "default" }}>
                 <td colSpan={8}>
-                  <Empty title="Nie udało się wczytać kontaktów" actions={<button type="button" className="btn" onClick={() => load(0)}>Spróbuj ponownie</button>}>
+                  <Empty
+                    title="Nie udało się wczytać kontaktów"
+                    actions={
+                      <button type="button" className="btn" onClick={() => load(0)}>
+                        Spróbuj ponownie
+                      </button>
+                    }
+                  >
                     {error}
                   </Empty>
                 </td>
@@ -365,7 +453,11 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
             ) : rows.length === 0 ? (
               <tr style={{ cursor: "default" }}>
                 <td colSpan={8} style={{ whiteSpace: "normal" }}>
-                  <EmptyContacts view={view} filtered={activeFilters.length > 0 || Boolean(urlQuery.q)} onImport={() => setDialog("import")} />
+                  <EmptyContacts
+                    view={view}
+                    filtered={activeFilters.length > 0 || Boolean(urlQuery.q)}
+                    onImport={() => setDialog("import")}
+                  />
                 </td>
               </tr>
             ) : (
@@ -382,14 +474,30 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
                   }}
                   onFocus={() => setActive(i)}
                 >
-                  <td className="col-check" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" className="checkbox" aria-label={`Zaznacz ${r.fullName ?? r.departmentLabel ?? r.email}`} checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
+                  <td
+                    className="col-check"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      className="checkbox"
+                      aria-label={`Zaznacz ${r.fullName ?? r.departmentLabel ?? r.email}`}
+                      checked={selected.has(r.id)}
+                      onChange={() => toggle(r.id)}
+                    />
                   </td>
                   <td>
                     <div className="cell-stack">
                       <span className="cell-primary ellipsis">
-                        {r.fullName ?? r.departmentLabel ?? (r.kind === "general_inbox" ? "Adres ogólny" : "Skrzynka działu")}
-                        {r.reviewStatus === "new" ? <span className="tag tag-accent" style={{ marginLeft: 8 }}>Nowy</span> : null}
+                        {r.fullName ??
+                          r.departmentLabel ??
+                          (r.kind === "general_inbox" ? "Adres ogólny" : "Skrzynka działu")}
+                        {r.reviewStatus === "new" ? (
+                          <span className="tag tag-accent" style={{ marginLeft: 8 }}>
+                            Nowy
+                          </span>
+                        ) : null}
                       </span>
                       <span className="cell-sub">{r.title ?? KIND_LABEL[r.kind]}</span>
                     </div>
@@ -400,19 +508,36 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
                       <span className="cell-sub">{SECTOR_LABEL[r.companySector] ?? r.companySector}</span>
                     </div>
                   </td>
-                  <td className="small secondary">{ROLE_LABEL[r.roleCategory]}</td>
+                  <td>
+                    <div className="cell-stack">
+                      <span className="small ellipsis">
+                        {r.roleFunction !== "other" ? FUNCTION_LABEL[r.roleFunction] : "Dział nieustalony"}
+                      </span>
+                      <span className="cell-sub">{ROLE_LABEL[r.roleCategory]}</span>
+                    </div>
+                  </td>
                   <td>
                     {r.email ? (
                       <div className="cell-stack">
                         <span className="ellipsis">{r.email}</span>
-                        {r.emailOrigin === "provider_pattern" ? <span className="cell-sub">Przewidziany ze wzorca</span> : null}
+                        {r.emailOrigin === "provider_pattern" ? (
+                          <span className="cell-sub">Przewidziany ze wzorca</span>
+                        ) : null}
                       </div>
                     ) : (
                       <span className="muted small">Brak adresu</span>
                     )}
                   </td>
-                  <td>{r.email ? <EmailStatusLabel status={r.emailStatus} at={r.emailCheckedAt} /> : <span className="muted small">—</span>}</td>
-                  <td className="small secondary tabular">{r.lastContactedAt ? new Date(r.lastContactedAt).toLocaleDateString("pl-PL") : "—"}</td>
+                  <td>
+                    {r.email ? (
+                      <EmailStatusLabel status={r.emailStatus} at={r.emailCheckedAt} />
+                    ) : (
+                      <span className="muted small">—</span>
+                    )}
+                  </td>
+                  <td className="small secondary tabular">
+                    {r.lastContactedAt ? new Date(r.lastContactedAt).toLocaleDateString("pl-PL") : "—"}
+                  </td>
                   <td>
                     <OutreachLabel status={r.outreachStatus} />
                   </td>
@@ -429,14 +554,19 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
           {viewMeta ? <span className="hide-mobile"> · {viewMeta.hint}</span> : null}
         </span>
         <span className="hide-mobile">
-          <kbd>↑</kbd> <kbd>↓</kbd> wybór · <kbd>↵</kbd> otwórz · <kbd>x</kbd> zaznacz · <kbd>e</kbd> email · <kbd>/</kbd> szukaj
+          <kbd>↑</kbd> <kbd>↓</kbd> wybór · <kbd>↵</kbd> otwórz · <kbd>x</kbd> zaznacz · <kbd>e</kbd> email ·{" "}
+          <kbd>/</kbd> szukaj
         </span>
       </div>
 
       {selected.size > 0 ? (
         <div className="bulkbar" role="toolbar" aria-label="Działania na zaznaczonych">
           <span className="tabular">Zaznaczono {selected.size}</span>
-          <button type="button" className="btn btn-sm" onClick={() => router.push(`/wiadomosci/nowa?contacts=${[...selected].join(",")}`)}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => router.push(`/wiadomosci/nowa?contacts=${[...selected].join(",")}`)}
+          >
             Przygotuj szkice
           </button>
           <button type="button" className="btn btn-sm" onClick={() => bulk("accept")}>
@@ -451,28 +581,48 @@ export function ContactsView({ attention }: { attention: { tone: "warn" | "bad" 
           <a className="btn btn-sm" href={`/api/contacts/export?${queryString}`}>
             Eksportuj widok
           </a>
-          <button type="button" className="btn btn-sm btn-icon" aria-label="Wyczyść zaznaczenie" onClick={() => setSelected(new Set())}>
+          <button
+            type="button"
+            className="btn btn-sm btn-icon"
+            aria-label="Wyczyść zaznaczenie"
+            onClick={() => setSelected(new Set())}
+          >
             <X size={14} />
           </button>
         </div>
       ) : null}
 
       {panelId ? (
-        <ContactPanel
-          id={panelId}
-          onClose={() => openPanel(null)}
-          onChanged={() => void load(0)}
-        />
+        <ContactPanel id={panelId} onClose={() => openPanel(null)} onChanged={() => void load(0)} />
       ) : null}
 
       <ImportDialog open={dialog === "import"} onClose={() => setDialog(null)} onDone={() => load(0)} />
-      <AddContactDialog open={dialog === "add"} onClose={() => setDialog(null)} onDone={(id) => { void load(0); openPanel(id); }} />
-      <HeaderActions onImport={() => setDialog("import")} onAdd={() => setDialog("add")} exportHref={`/api/contacts/export?${queryString}`} />
+      <AddContactDialog
+        open={dialog === "add"}
+        onClose={() => setDialog(null)}
+        onDone={(id) => {
+          void load(0);
+          openPanel(id);
+        }}
+      />
+      <HeaderActions
+        onImport={() => setDialog("import")}
+        onAdd={() => setDialog("add")}
+        exportHref={`/api/contacts/export?${queryString}`}
+      />
     </>
   );
 }
 
-function HeaderActions({ onImport, onAdd, exportHref }: { onImport: () => void; onAdd: () => void; exportHref: string }) {
+function HeaderActions({
+  onImport,
+  onAdd,
+  exportHref,
+}: {
+  onImport: () => void;
+  onAdd: () => void;
+  exportHref: string;
+}) {
   const [host, setHost] = useState<HTMLElement | null>(null);
   useEffect(() => setHost(document.getElementById("contacts-actions")), []);
   if (!host) return null;
@@ -507,6 +657,8 @@ function chipLabel(k: string, v: unknown): string {
       return `Wielkość: ${map((x) => SIZE_LABEL[x as keyof typeof SIZE_LABEL] ?? x)}`;
     case "role":
       return `Rola: ${map((x) => ROLE_LABEL[x as keyof typeof ROLE_LABEL] ?? x)}`;
+    case "dept":
+      return `Dział: ${map((x) => FUNCTION_LABEL[x as keyof typeof FUNCTION_LABEL] ?? x)}`;
     case "kind":
       return `Rodzaj: ${map((x) => KIND_LABEL[x as keyof typeof KIND_LABEL] ?? x)}`;
     case "quality":
@@ -520,7 +672,11 @@ function chipLabel(k: string, v: unknown): string {
     case "verifiedOlderThan":
       return `Weryfikacja starsza niż ${arr[0]} dni`;
     case "fallback":
-      return arr[0] === "only" ? "Tylko kontakty ogólne" : arr[0] === "include" ? "Z kontaktami ogólnymi" : "Bez kontaktów ogólnych";
+      return arr[0] === "only"
+        ? "Tylko kontakty ogólne"
+        : arr[0] === "include"
+          ? "Z kontaktami ogólnymi"
+          : "Bez kontaktów ogólnych";
     case "companyId":
       return "Jedna firma";
     default:
@@ -528,17 +684,34 @@ function chipLabel(k: string, v: unknown): string {
   }
 }
 
-function EmptyContacts({ view, filtered, onImport }: { view?: string; filtered: boolean; onImport: () => void }) {
+function EmptyContacts({
+  view,
+  filtered,
+  onImport,
+}: {
+  view?: string;
+  filtered: boolean;
+  onImport: () => void;
+}) {
   if (filtered) {
     return (
       <Empty icon={<Filter size={22} />} title="Brak wyników dla tych filtrów">
-        Zmień lub wyczyść filtry. Kontakty ogólne (info@, rekrutacja) są domyślnie ukryte w widokach priorytetowych.
+        Zmień lub wyczyść filtry. Kontakty ogólne (info@, rekrutacja) są domyślnie ukryte w widokach
+        priorytetowych.
       </Empty>
     );
   }
   if (view === "latest-run") {
     return (
-      <Empty icon={<Users size={22} />} title="Ostatni przebieg nie dodał nowych kontaktów" actions={<Link className="btn" href="/kontakty/odkrywanie">Zobacz przebiegi</Link>}>
+      <Empty
+        icon={<Users size={22} />}
+        title="Ostatni przebieg nie dodał nowych kontaktów"
+        actions={
+          <Link className="btn" href="/kontakty/odkrywanie">
+            Zobacz przebiegi
+          </Link>
+        }
+      >
         Odkrywanie zwraca mniej kontaktów, gdy jakość źródeł jest niewystarczająca. To zamierzone.
       </Empty>
     );
@@ -558,7 +731,8 @@ function EmptyContacts({ view, filtered, onImport }: { view?: string; filtered: 
         </>
       }
     >
-      Kontakty pojawiają się po przebiegu odkrywania (codziennie o ustalonej porze) albo po imporcie. Nowe trafiają najpierw do przeglądu — nic nie jest wysyłane automatycznie.
+      Kontakty pojawiają się po przebiegu odkrywania (codziennie o ustalonej porze) albo po imporcie. Nowe
+      trafiają najpierw do przeglądu — nic nie jest wysyłane automatycznie.
     </Empty>
   );
 }
@@ -577,7 +751,13 @@ function FiltersButton({
   activeCount: number;
 }) {
   const ref = useDismiss(open, () => setOpen(false));
-  const groups: { key: keyof ContactQuery; label: string; options: readonly string[]; labels: Record<string, string> }[] = [
+  const groups: {
+    key: keyof ContactQuery;
+    label: string;
+    options: readonly string[];
+    labels: Record<string, string>;
+  }[] = [
+    { key: "dept", label: "Dział", options: ROLE_FUNCTIONS, labels: FUNCTION_LABEL },
     { key: "role", label: "Kategoria roli", options: ROLE_CATEGORIES, labels: ROLE_LABEL },
     { key: "kind", label: "Rodzaj", options: CONTACT_KINDS, labels: KIND_LABEL },
     { key: "quality", label: "Jakość danych", options: QUALITIES, labels: QUALITY_LABEL },
@@ -585,15 +765,26 @@ function FiltersButton({
     { key: "outreach", label: "Korespondencja", options: OUTREACH, labels: OUTREACH_LABEL },
     { key: "sector", label: "Sektor", options: Object.keys(SECTOR_LABEL), labels: SECTOR_LABEL },
     { key: "size", label: "Wielkość firmy", options: SIZE_BANDS, labels: SIZE_LABEL },
-    { key: "review", label: "Przegląd", options: ["new", "accepted", "rejected"], labels: { new: "Nowe", accepted: "Zaakceptowane", rejected: "Odrzucone" } },
+    {
+      key: "review",
+      label: "Przegląd",
+      options: ["new", "accepted", "rejected"],
+      labels: { new: "Nowe", accepted: "Zaakceptowane", rejected: "Odrzucone" },
+    },
   ];
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button type="button" className="btn" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <Filter size={15} /> Filtry{activeCount ? <span className="tag tag-accent">{activeCount}</span> : null}
+        <Filter size={15} /> Filtry
+        {activeCount ? <span className="tag tag-accent">{activeCount}</span> : null}
       </button>
       {open ? (
-        <div className="popover" style={{ top: 38, left: 0, width: 560, maxWidth: "calc(100vw - 32px)", padding: 16 }} role="dialog" aria-label="Filtry">
+        <div
+          className="popover"
+          style={{ top: 38, left: 0, width: 560, maxWidth: "calc(100vw - 32px)", padding: 16 }}
+          role="dialog"
+          aria-label="Filtry"
+        >
           <div className="grid-2" style={{ gap: 16 }}>
             {groups.map((g) => {
               const current = (query[g.key] as string[] | undefined) ?? [];
@@ -635,7 +826,14 @@ function FiltersButton({
                   />
                   Weryfikacja starsza niż 90 dni lub brak
                 </label>
-                <select className="select" value={query.fallback ?? ""} onChange={(e) => setQuery({ fallback: (e.target.value || undefined) as ContactQuery["fallback"] })} aria-label="Kontakty ogólne">
+                <select
+                  className="select"
+                  value={query.fallback ?? ""}
+                  onChange={(e) =>
+                    setQuery({ fallback: (e.target.value || undefined) as ContactQuery["fallback"] })
+                  }
+                  aria-label="Kontakty ogólne"
+                >
                   <option value="">Kontakty ogólne: wg widoku</option>
                   <option value="exclude">Ukryj kontakty ogólne</option>
                   <option value="include">Pokaż też kontakty ogólne</option>

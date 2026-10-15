@@ -31,10 +31,16 @@ async function rememberAndDelete(ids: string[], reason: string, source: string):
   const rows = await db().select().from(contacts).where(inArray(contacts.id, ids));
   for (const c of rows) {
     if (c.emailNormalized) {
-      await db().insert(suppressions).values({ kind: "email_sha256", value: emailFingerprint(c.emailNormalized), reason, source }).onConflictDoNothing();
+      await db()
+        .insert(suppressions)
+        .values({ kind: "email_sha256", value: emailFingerprint(c.emailNormalized), reason, source })
+        .onConflictDoNothing();
     }
     if (c.nameKey) {
-      await db().insert(suppressions).values({ kind: "person_sha256", value: personFingerprint(c.companyId, c.nameKey), reason, source }).onConflictDoNothing();
+      await db()
+        .insert(suppressions)
+        .values({ kind: "person_sha256", value: personFingerprint(c.companyId, c.nameKey), reason, source })
+        .onConflictDoNothing();
     }
   }
   await db().delete(contacts).where(inArray(contacts.id, ids));
@@ -64,11 +70,24 @@ export async function applyRetention(): Promise<{ deleted: number }> {
   const rejected = await db()
     .select({ id: contacts.id })
     .from(contacts)
-    .where(and(eq(contacts.reviewStatus, "rejected"), lt(contacts.updatedAt, sql`now() - make_interval(months => ${p.retentionMonthsRejected})`)))
+    .where(
+      and(
+        eq(contacts.reviewStatus, "rejected"),
+        lt(contacts.updatedAt, sql`now() - make_interval(months => ${p.retentionMonthsRejected})`),
+      ),
+    )
     .limit(500);
   const deleted =
-    (await rememberAndDelete(notContacted.map((r) => r.id), "Retencja: brak kontaktu", "retention")) +
-    (await rememberAndDelete(rejected.map((r) => r.id), "Retencja: odrzucony", "retention"));
+    (await rememberAndDelete(
+      notContacted.map((r) => r.id),
+      "Retencja: brak kontaktu",
+      "retention",
+    )) +
+    (await rememberAndDelete(
+      rejected.map((r) => r.id),
+      "Retencja: odrzucony",
+      "retention",
+    ));
   return { deleted };
 }
 
@@ -76,13 +95,19 @@ export async function applyRetention(): Promise<{ deleted: number }> {
 export async function exportContact(contactId: string) {
   const [c] = await db().select().from(contacts).where(eq(contacts.id, contactId)).limit(1);
   if (!c) return null;
-  const [co] = await db().select({ name: companies.name, domain: companies.domain }).from(companies).where(eq(companies.id, c.companyId));
+  const [co] = await db()
+    .select({ name: companies.name, domain: companies.domain })
+    .from(companies)
+    .where(eq(companies.id, c.companyId));
   return {
     exportedAt: new Date().toISOString(),
     contact: c,
     company: co,
     evidence: await db().select().from(contactEvidence).where(eq(contactEvidence.contactId, contactId)),
-    verifications: await db().select().from(contactVerifications).where(eq(contactVerifications.contactId, contactId)),
+    verifications: await db()
+      .select()
+      .from(contactVerifications)
+      .where(eq(contactVerifications.contactId, contactId)),
     events: await db().select().from(contactEvents).where(eq(contactEvents.contactId, contactId)),
     notes: await db().select().from(notes).where(eq(notes.contactId, contactId)),
     reminders: await db().select().from(reminders).where(eq(reminders.contactId, contactId)),

@@ -10,9 +10,9 @@
  *   when searches failed.
  */
 import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { aiConfigured } from "../ai/client.ts";
 import { db } from "../db/client.ts";
 import { companies, contacts, jobRuns, jobTasks, type RunStats } from "../db/schema.ts";
-import { aiConfigured } from "../ai/client.ts";
 import { discoverCompanies } from "../discovery/company-discovery.ts";
 import { enrichCompany, enrichPerson } from "../discovery/enrich.ts";
 import { PoliteFetcher } from "../discovery/fetcher.ts";
@@ -21,13 +21,20 @@ import { recheckEmployment, verifyEmail } from "../discovery/verify.ts";
 import { logEvent } from "../events.ts";
 import { contactSource } from "../providers/index.ts";
 import { ProviderError, RateLimitedError } from "../providers/types.ts";
+import { backfillRoleFunctions, refreshAllDerived } from "../services/contacts.ts";
 import { getSettings } from "../settings.ts";
-import { refreshAllDerived } from "../services/contacts.ts";
 import { BudgetExceededError } from "./budget.ts";
 
 export type RunRow = typeof jobRuns.$inferSelect;
 export type TaskRow = typeof jobTasks.$inferSelect;
-type TaskKind = "find_companies" | "research_company" | "enrich_company" | "enrich_person" | "verify_email" | "recheck_employment" | "maintenance";
+type TaskKind =
+  | "find_companies"
+  | "research_company"
+  | "enrich_company"
+  | "enrich_person"
+  | "verify_email"
+  | "recheck_employment"
+  | "maintenance";
 
 const TASK_LEASE_MS = 6 * 60_000;
 const TASK_PRIORITY: Record<TaskKind, number> = {
@@ -55,7 +62,10 @@ export async function activeRun(kind = "discovery"): Promise<RunRow | null> {
 }
 
 /** Idempotent for scheduled runs: the unique (kind, local_date) index allows one per local day. */
-export async function createScheduledRun(localDate: string, trigger: "schedule" | "catch_up"): Promise<RunRow | null> {
+export async function createScheduledRun(
+  localDate: string,
+  trigger: "schedule" | "catch_up",
+): Promise<RunRow | null> {
   const [r] = await db()
     .insert(jobRuns)
     .values({ kind: "discovery", trigger, localDate, status: "queued" })
@@ -68,20 +78,36 @@ export async function createScheduledRun(localDate: string, trigger: "schedule" 
 export async function createManualRun(): Promise<{ run: RunRow; reused: boolean }> {
   const existing = await activeRun();
   if (existing) return { run: existing, reused: true };
-  const [r] = await db().insert(jobRuns).values({ kind: "discovery", trigger: "manual", status: "queued" }).returning();
+  const [r] = await db()
+    .insert(jobRuns)
+    .values({ kind: "discovery", trigger: "manual", status: "queued" })
+    .returning();
   return { run: r!, reused: false };
 }
 
 export async function cancelRun(runId: string): Promise<void> {
-  await db().update(jobTasks).set({ status: "skipped", error: "Anulowano" }).where(and(eq(jobTasks.runId, runId), eq(jobTasks.status, "pending")));
-  await db().update(jobRuns).set({ status: "cancelled", finishedAt: new Date() }).where(and(eq(jobRuns.id, runId), inArray(jobRuns.status, ["queued", "running"])));
+  await db()
+    .update(jobTasks)
+    .set({ status: "skipped", error: "Anulowano" })
+    .where(and(eq(jobTasks.runId, runId), eq(jobTasks.status, "pending")));
+  await db()
+    .update(jobRuns)
+    .set({ status: "cancelled", finishedAt: new Date() })
+    .where(and(eq(jobRuns.id, runId), inArray(jobRuns.status, ["queued", "running"])));
 }
 
 // ---------------------------------------------------------------------------
 // Planning
 // ---------------------------------------------------------------------------
 
-async function addTask(runId: string, kind: TaskKind, key: string, targetId: string | null, payload: Record<string, unknown> = {}, maxAttempts = 3) {
+async function addTask(
+  runId: string,
+  kind: TaskKind,
+  key: string,
+  targetId: string | null,
+  payload: Record<string, unknown> = {},
+  maxAttempts = 3,
+) {
   await db()
     .insert(jobTasks)
     .values({ runId, kind, key, targetId, payload, maxAttempts })
@@ -98,7 +124,8 @@ export async function planRun(run: RunRow): Promise<Record<string, unknown>> {
   await addTask(run.id, "maintenance", "maintenance", null, {}, 2);
 
   // 1. New companies beyond the initial universe.
-  if (s.maxNewCompaniesPerRun > 0) await addTask(run.id, "find_companies", "find_companies", null, { max: s.maxNewCompaniesPerRun }, 2);
+  if (s.maxNewCompaniesPerRun > 0)
+    await addTask(run.id, "find_companies", "find_companies", null, { max: s.maxNewCompaniesPerRun }, 2);
 
   // 2. Companies without suitable contacts: never researched first (initial universe, then discovered),
   //    then those whose revisit date has come. Excluded companies are never selected.
@@ -119,7 +146,13 @@ export async function planRun(run: RunRow): Promise<Record<string, unknown>> {
         sql`${companies.domain} not in ${s.excludedDomains.length ? s.excludedDomains : ["-"]}`,
         sizeOk,
         regionOk,
-        or(eq(companies.researchStatus, "queued"), and(eq(companies.researchStatus, "needs_more_work"), or(isNull(companies.nextResearchAt), lte(companies.nextResearchAt, now)))),
+        or(
+          eq(companies.researchStatus, "queued"),
+          and(
+            eq(companies.researchStatus, "needs_more_work"),
+            or(isNull(companies.nextResearchAt), lte(companies.nextResearchAt, now)),
+          ),
+        ),
       ),
     )
     .orderBy(
@@ -160,7 +193,12 @@ export async function planRun(run: RunRow): Promise<Record<string, unknown>> {
         .where(
           and(
             eq(companies.excluded, false),
-            inArray(companies.researchOutcome, ["no_suitable_contact", "general_contact_only", "department_found_no_named_contact", "needs_provider_enrichment"]),
+            inArray(companies.researchOutcome, [
+              "no_suitable_contact",
+              "general_contact_only",
+              "department_found_no_named_contact",
+              "needs_provider_enrichment",
+            ]),
             sql`not exists (select 1 from provider_usage u where u.detail = ${companies.domain} and u.operation = 'domain-search' and u.created_at > now() - make_interval(days => ${fr.revisitNoContactDays}))`,
           ),
         )
@@ -201,7 +239,10 @@ export async function planRun(run: RunRow): Promise<Record<string, unknown>> {
         eq(contacts.kind, "person"),
         inArray(contacts.reviewStatus, ["new", "accepted"]),
         sql`${contacts.employmentStatus} <> 'left'`,
-        or(isNull(contacts.employmentCheckedAt), sql`${contacts.employmentCheckedAt} < now() - make_interval(days => ${fr.employmentRecheckDays})`),
+        or(
+          isNull(contacts.employmentCheckedAt),
+          sql`${contacts.employmentCheckedAt} < now() - make_interval(days => ${fr.employmentRecheckDays})`,
+        ),
         sql`exists (select 1 from contact_evidence e where e.contact_id = ${contacts.id} and e.kind = 'source_page')`,
       ),
     )
@@ -238,7 +279,11 @@ async function claimTask(runId: string, budgetStopped: boolean): Promise<TaskRow
         and (next_attempt_at is null or next_attempt_at <= now())
         and attempts < max_attempts
         ${budgetStopped ? sql`and kind not in ${paidKinds}` : sql``}
-      order by case kind ${sql.raw(Object.entries(TASK_PRIORITY).map(([k, v]) => `when '${k}' then ${v}`).join(" "))} else 9 end, created_at
+      order by case kind ${sql.raw(
+        Object.entries(TASK_PRIORITY)
+          .map(([k, v]) => `when '${k}' then ${v}`)
+          .join(" "),
+      )} else 9 end, created_at
       limit 1
       for update skip locked
     )
@@ -248,7 +293,11 @@ async function claimTask(runId: string, budgetStopped: boolean): Promise<TaskRow
   return row ?? null;
 }
 
-async function finishTask(id: string, status: "done" | "failed" | "skipped" | "pending", fields: { result?: Record<string, unknown>; error?: string | null; nextAttemptAt?: Date | null }) {
+async function finishTask(
+  id: string,
+  status: "done" | "failed" | "skipped" | "pending",
+  fields: { result?: Record<string, unknown>; error?: string | null; nextAttemptAt?: Date | null },
+) {
   await db()
     .update(jobTasks)
     .set({
@@ -268,8 +317,9 @@ async function execute(task: TaskRow, ctx: Ctx): Promise<Record<string, unknown>
   const s = await getSettings("discovery");
   switch (task.kind as TaskKind) {
     case "maintenance": {
+      const functionsFilled = await backfillRoleFunctions();
       const n = await refreshAllDerived();
-      return { contactsRefreshed: n };
+      return { contactsRefreshed: n, functionsFilled };
     }
     case "find_companies": {
       const r = await discoverCompanies({
@@ -279,13 +329,21 @@ async function execute(task: TaskRow, ctx: Ctx): Promise<Record<string, unknown>
         excludedDomains: s.excludedDomains,
       });
       // Newly found companies are researched in the same run when the run still has room.
-      const existing = await db().select({ n: sql<number>`count(*)::int` }).from(jobTasks).where(and(eq(jobTasks.runId, ctx.run.id), eq(jobTasks.kind, "research_company")));
+      const existing = await db()
+        .select({ n: sql<number>`count(*)::int` })
+        .from(jobTasks)
+        .where(and(eq(jobTasks.runId, ctx.run.id), eq(jobTasks.kind, "research_company")));
       let room = Math.max(0, s.maxCompaniesResearchedPerRun - (existing[0]?.n ?? 0));
       for (const id of r.added) {
         if (room-- <= 0) break;
         await addTask(ctx.run.id, "research_company", `research:${id}`, id);
       }
-      return { companiesDiscovered: r.added.length, considered: r.considered, alreadyKnown: r.skippedKnown, source: r.source };
+      return {
+        companiesDiscovered: r.added.length,
+        considered: r.considered,
+        alreadyKnown: r.skippedKnown,
+        source: r.source,
+      };
     }
     case "research_company": {
       const r = await researchCompany(task.targetId!, {
@@ -297,18 +355,29 @@ async function execute(task: TaskRow, ctx: Ctx): Promise<Record<string, unknown>
       });
       // Free DNS sanity check of newly found addresses (paid verification is a separate, budgeted task).
       for (const id of r.newContactIds) {
-        const [c] = await db().select({ e: contacts.emailNormalized }).from(contacts).where(eq(contacts.id, id)).limit(1);
+        const [c] = await db()
+          .select({ e: contacts.emailNormalized })
+          .from(contacts)
+          .where(eq(contacts.id, id))
+          .limit(1);
         if (c?.e) await addTask(ctx.run.id, "verify_email", `verify:${id}`, id);
       }
-      if (r.unavailable) throw new SourceUnavailable(r.note ?? "strona niedostępna", r as unknown as Record<string, unknown>);
+      if (r.unavailable)
+        throw new SourceUnavailable(r.note ?? "strona niedostępna", r as unknown as Record<string, unknown>);
       return r as unknown as Record<string, unknown>;
     }
     case "enrich_company": {
-      const r = await enrichCompany(task.targetId!, { runId: ctx.run.id, taskId: task.id, maxContacts: s.maxContactsPerCompany });
+      const r = await enrichCompany(task.targetId!, {
+        runId: ctx.run.id,
+        taskId: task.id,
+        maxContacts: s.maxContactsPerCompany,
+      });
       return r as unknown as Record<string, unknown>;
     }
     case "enrich_person": {
-      await db().execute(sql`insert into contact_events (contact_id, type, data) values (${task.targetId}, 'enrich_attempted', '{}'::jsonb)`);
+      await db().execute(
+        sql`insert into contact_events (contact_id, type, data) values (${task.targetId}, 'enrich_attempted', '{}'::jsonb)`,
+      );
       const r = await enrichPerson(task.targetId!, { runId: ctx.run.id, taskId: task.id });
       return r as unknown as Record<string, unknown>;
     }
@@ -333,25 +402,44 @@ class SourceUnavailable extends Error {
   }
 }
 
-export type SliceResult = { runId: string; processed: number; remaining: number; finished: boolean; status: RunRow["status"] };
+export type SliceResult = {
+  runId: string;
+  processed: number;
+  remaining: number;
+  finished: boolean;
+  status: RunRow["status"];
+};
 
 /** Process tasks of one run until the deadline. Safe to call concurrently (task leases) and repeatedly. */
 export async function processRun(runId: string, deadline: number, holder: string): Promise<SliceResult> {
   let [run] = await db().select().from(jobRuns).where(eq(jobRuns.id, runId)).limit(1);
   if (!run) throw new Error("run not found");
   if (run.status === "queued") {
-    await db().update(jobRuns).set({ status: "running", startedAt: new Date(), leaseOwner: holder, heartbeatAt: new Date() }).where(eq(jobRuns.id, runId));
+    await db()
+      .update(jobRuns)
+      .set({ status: "running", startedAt: new Date(), leaseOwner: holder, heartbeatAt: new Date() })
+      .where(eq(jobRuns.id, runId));
     try {
       await planRun(run);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      await db().update(jobRuns).set({ status: "failed", error: `Planowanie nie powiodło się: ${msg}`, finishedAt: new Date() }).where(eq(jobRuns.id, runId));
-      await logEvent("error", "discovery", "Planowanie przebiegu nie powiodło się", { message: msg.slice(0, 300) }, runId);
+      await db()
+        .update(jobRuns)
+        .set({ status: "failed", error: `Planowanie nie powiodło się: ${msg}`, finishedAt: new Date() })
+        .where(eq(jobRuns.id, runId));
+      await logEvent(
+        "error",
+        "discovery",
+        "Planowanie przebiegu nie powiodło się",
+        { message: msg.slice(0, 300) },
+        runId,
+      );
       return { runId, processed: 0, remaining: 0, finished: true, status: "failed" };
     }
     [run] = await db().select().from(jobRuns).where(eq(jobRuns.id, runId)).limit(1);
   }
-  if (!run || run.status !== "running") return { runId, processed: 0, remaining: 0, finished: true, status: run?.status ?? "failed" };
+  if (run?.status !== "running")
+    return { runId, processed: 0, remaining: 0, finished: true, status: run?.status ?? "failed" };
 
   // Tasks that crashed on their last allowed attempt are closed as failed (otherwise the run could never finish).
   await db().execute(sql`
@@ -364,53 +452,88 @@ export async function processRun(runId: string, deadline: number, holder: string
   const ctx: Ctx = { run, fetcher: new PoliteFetcher({ minDelayMs: s.minDelayMsPerHost, runId }), deadline };
   let processed = 0;
   let budgetStopped = Boolean((run.plan as { budgetStopped?: boolean }).budgetStopped);
-  while (Date.now() < deadline - 5_000) {
-    const task = await claimTask(runId, budgetStopped);
-    if (!task) break;
-    processed++;
-    try {
-      const result = await execute(task, ctx);
-      await finishTask(task.id, "done", { result });
-    } catch (e) {
-      if (e instanceof BudgetExceededError) {
-        budgetStopped = true;
-        await finishTask(task.id, "skipped", { error: `Limit wydatków: ${e.message}` });
-        await db()
-          .update(jobRuns)
-          .set({ plan: sql`${jobRuns.plan} || ${JSON.stringify({ budgetStopped: true, budgetMessage: e.message })}::jsonb` })
-          .where(eq(jobRuns.id, runId));
-        await logEvent("warning", "discovery", `Płatne operacje zatrzymane: ${e.message}`, {}, runId);
-        continue;
+  // A few tasks run concurrently (different companies = different hosts; per-host politeness is kept
+  // by the shared fetcher). Each worker claims its own task under a lease.
+  const workers = Math.max(1, Math.min(8, s.concurrency));
+  const worker = async () => {
+    while (Date.now() < deadline - 5_000) {
+      const task = await claimTask(runId, budgetStopped);
+      if (!task) return;
+      processed++;
+      try {
+        const result = await execute(task, ctx);
+        await finishTask(task.id, "done", { result });
+      } catch (e) {
+        if (e instanceof BudgetExceededError) {
+          if (!budgetStopped) {
+            budgetStopped = true;
+            await db()
+              .update(jobRuns)
+              .set({
+                plan: sql`${jobRuns.plan} || ${JSON.stringify({ budgetStopped: true, budgetMessage: e.message })}::jsonb`,
+              })
+              .where(eq(jobRuns.id, runId));
+            await logEvent("warning", "discovery", `Płatne operacje zatrzymane: ${e.message}`, {}, runId);
+          }
+          await finishTask(task.id, "skipped", { error: `Limit wydatków: ${e.message}` });
+          continue;
+        }
+        if (e instanceof SourceUnavailable) {
+          await finishTask(task.id, "done", { result: { ...e.result, unavailable: true } });
+          continue;
+        }
+        const retryable =
+          e instanceof RateLimitedError ||
+          (e instanceof ProviderError && e.retryable) ||
+          !(e instanceof ProviderError);
+        const msg = e instanceof Error ? e.message : String(e);
+        if (retryable && task.attempts < task.maxAttempts) {
+          const wait =
+            e instanceof RateLimitedError
+              ? e.retryAfterMs
+              : Math.min(30 * 60_000, 2 ** task.attempts * 60_000);
+          await finishTask(task.id, "pending", { error: msg, nextAttemptAt: new Date(Date.now() + wait) });
+        } else {
+          await finishTask(task.id, "failed", { error: msg.slice(0, 500) });
+          await logEvent(
+            "warning",
+            "discovery",
+            `Zadanie ${task.kind} nie powiodło się`,
+            { key: task.key, message: msg.slice(0, 300) },
+            runId,
+          );
+        }
       }
-      if (e instanceof SourceUnavailable) {
-        await finishTask(task.id, "done", { result: { ...e.result, unavailable: true } });
-        continue;
-      }
-      const retryable = e instanceof RateLimitedError || (e instanceof ProviderError && e.retryable) || !(e instanceof ProviderError);
-      const msg = e instanceof Error ? e.message : String(e);
-      if (retryable && task.attempts < task.maxAttempts) {
-        const wait = e instanceof RateLimitedError ? e.retryAfterMs : Math.min(30 * 60_000, 2 ** task.attempts * 60_000);
-        await finishTask(task.id, "pending", { error: msg, nextAttemptAt: new Date(Date.now() + wait) });
-      } else {
-        await finishTask(task.id, "failed", { error: msg.slice(0, 500) });
-        await logEvent("warning", "discovery", `Zadanie ${task.kind} nie powiodło się`, { key: task.key, message: msg.slice(0, 300) }, runId);
-      }
+      await db().update(jobRuns).set({ heartbeatAt: new Date() }).where(eq(jobRuns.id, runId));
     }
-    await db().update(jobRuns).set({ heartbeatAt: new Date() }).where(eq(jobRuns.id, runId));
-  }
+  };
+  await Promise.all(Array.from({ length: workers }, () => worker()));
   return finalizeIfDone(runId, processed);
 }
 
 async function finalizeIfDone(runId: string, processed: number): Promise<SliceResult> {
   const rows = await db()
-    .select({ kind: jobTasks.kind, status: jobTasks.status, result: jobTasks.result, error: jobTasks.error, attempts: jobTasks.attempts, max: jobTasks.maxAttempts })
+    .select({
+      kind: jobTasks.kind,
+      status: jobTasks.status,
+      result: jobTasks.result,
+      error: jobTasks.error,
+      attempts: jobTasks.attempts,
+      max: jobTasks.maxAttempts,
+    })
     .from(jobTasks)
     .where(eq(jobTasks.runId, runId));
   const [run] = await db().select().from(jobRuns).where(eq(jobRuns.id, runId)).limit(1);
   const budgetStopped = Boolean((run?.plan as { budgetStopped?: boolean } | undefined)?.budgetStopped);
-  const open = rows.filter((r) => (r.status === "pending" || r.status === "running") && !(budgetStopped && (r.kind === "enrich_company" || r.kind === "enrich_person")));
+  const open = rows.filter(
+    (r) =>
+      (r.status === "pending" || r.status === "running") &&
+      !(budgetStopped && (r.kind === "enrich_company" || r.kind === "enrich_person")),
+  );
   const stats = computeStats(rows);
-  const cost = await db().execute<{ c: number }>(sql`select coalesce(sum(cost_micros),0)::bigint as c from provider_usage where run_id = ${runId} and status in ('committed','reserved')`);
+  const cost = await db().execute<{ c: number }>(
+    sql`select coalesce(sum(cost_micros),0)::bigint as c from provider_usage where run_id = ${runId} and status in ('committed','reserved')`,
+  );
   const costMicros = Number((cost as unknown as { c: number }[])[0]?.c ?? 0);
   if (open.length > 0) {
     await db().update(jobRuns).set({ stats, costMicros }).where(eq(jobRuns.id, runId));
@@ -426,7 +549,9 @@ async function finalizeIfDone(runId: string, processed: number): Promise<SliceRe
   const failed = rows.filter((r) => r.status === "failed").length;
   const done = rows.filter((r) => r.status === "done").length;
   const research = rows.filter((r) => r.kind === "research_company");
-  const researchUnavailable = research.filter((r) => (r.result as { unavailable?: boolean } | null)?.unavailable).length;
+  const researchUnavailable = research.filter(
+    (r) => (r.result as { unavailable?: boolean } | null)?.unavailable,
+  ).length;
   let status: RunRow["status"];
   let error: string | null = null;
   if (done === 0 && failed > 0) {
@@ -438,13 +563,31 @@ async function finalizeIfDone(runId: string, processed: number): Promise<SliceRe
   } else if (budgetStopped) status = "budget_exhausted";
   else if (failed > 0) status = "partial";
   else status = "succeeded";
-  await db().update(jobRuns).set({ status, stats, costMicros, error, finishedAt: new Date(), leaseOwner: null }).where(eq(jobRuns.id, runId));
-  if (status === "failed") await logEvent("error", "discovery", error ?? "Przebieg nie powiódł się", {}, runId);
+  await db()
+    .update(jobRuns)
+    .set({ status, stats, costMicros, error, finishedAt: new Date(), leaseOwner: null })
+    .where(eq(jobRuns.id, runId));
+  if (status === "failed")
+    await logEvent("error", "discovery", error ?? "Przebieg nie powiódł się", {}, runId);
   return { runId, processed, remaining: 0, finished: true, status };
 }
 
-function computeStats(rows: { kind: string; status: string; result: Record<string, unknown> | null }[]): RunStats {
-  const s: RunStats = { companiesDiscovered: 0, companiesResearched: 0, contactsNew: 0, contactsUpdated: 0, contactsRechecked: 0, emailsVerified: 0, pagesFetched: 0, tasksDone: 0, tasksFailed: 0, tasksSkipped: 0, unresolvedCompanies: 0 };
+function computeStats(
+  rows: { kind: string; status: string; result: Record<string, unknown> | null }[],
+): RunStats {
+  const s: RunStats = {
+    companiesDiscovered: 0,
+    companiesResearched: 0,
+    contactsNew: 0,
+    contactsUpdated: 0,
+    contactsRechecked: 0,
+    emailsVerified: 0,
+    pagesFetched: 0,
+    tasksDone: 0,
+    tasksFailed: 0,
+    tasksSkipped: 0,
+    unresolvedCompanies: 0,
+  };
   for (const r of rows) {
     if (r.status === "done") s.tasksDone!++;
     if (r.status === "failed") s.tasksFailed!++;

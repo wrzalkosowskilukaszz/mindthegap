@@ -1,5 +1,12 @@
 /** Small crypto helpers: password hashing (scrypt), token encryption (AES-256-GCM), hashing. */
-import { createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+} from "node:crypto";
 import { env } from "./env.ts";
 
 export function sha256Hex(data: string | Buffer): string {

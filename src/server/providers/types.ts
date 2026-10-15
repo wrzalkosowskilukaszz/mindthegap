@@ -13,7 +13,10 @@ export class ProviderError extends Error {
 }
 
 export class RateLimitedError extends ProviderError {
-  constructor(provider: string, public retryAfterMs: number) {
+  constructor(
+    provider: string,
+    public retryAfterMs: number,
+  ) {
     super(provider, "rate limited", true, 429);
   }
 }
@@ -37,7 +40,12 @@ export interface EmailVerifier {
   verify(email: string): Promise<VerificationResult>;
 }
 
-export type ProviderSource = { uri: string; extractedOn?: string | null; lastSeenOn?: string | null; stillOnPage?: boolean | null };
+export type ProviderSource = {
+  uri: string;
+  extractedOn?: string | null;
+  lastSeenOn?: string | null;
+  stillOnPage?: boolean | null;
+};
 
 export type ProviderContact = {
   email: string | null;
@@ -58,8 +66,15 @@ export interface ContactSource {
   readonly name: string;
   readonly creditsPerDomainSearch: number;
   readonly creditsPerFinder: number;
-  domainSearch(domain: string, opts: { departments?: string[]; seniority?: string[]; limit?: number }): Promise<{ contacts: ProviderContact[]; pattern: string | null; credits: number; raw: unknown }>;
-  emailFinder(domain: string, firstName: string, lastName: string): Promise<{ contact: ProviderContact | null; credits: number }>;
+  domainSearch(
+    domain: string,
+    opts: { departments?: string[]; seniority?: string[]; limit?: number },
+  ): Promise<{ contacts: ProviderContact[]; pattern: string | null; credits: number; raw: unknown }>;
+  emailFinder(
+    domain: string,
+    firstName: string,
+    lastName: string,
+  ): Promise<{ contact: ProviderContact | null; credits: number }>;
 }
 
 export type SearchResult = { url: string; title: string; snippet: string; age?: string | null };

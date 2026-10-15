@@ -5,7 +5,14 @@ import { documents } from "@/server/db/schema";
 import { api, parseBody } from "@/server/http";
 
 export const PATCH = api<{ id: string }>(async (req, { params }) => {
-  const b = await parseBody(req, z.object({ title: z.string().trim().min(1).max(200).optional(), usage: z.enum(["internal", "quotable", "attachment"]).optional(), programId: z.string().uuid().nullable().optional() }));
+  const b = await parseBody(
+    req,
+    z.object({
+      title: z.string().trim().min(1).max(200).optional(),
+      usage: z.enum(["internal", "quotable", "attachment"]).optional(),
+      programId: z.string().uuid().nullable().optional(),
+    }),
+  );
   // Changing how a document may be used requires a fresh approval.
   const set: Partial<typeof documents.$inferInsert> = { ...b, updatedAt: new Date() };
   if (b.usage) set.approvedAt = null;

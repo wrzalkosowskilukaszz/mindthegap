@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  devIndicators: false,
   serverExternalPackages: ["postgres", "unpdf", "mammoth", "jszip", "nodemailer", "cheerio"],
   experimental: {
     serverActions: { bodySizeLimit: "4mb" },

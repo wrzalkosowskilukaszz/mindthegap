@@ -13,7 +13,9 @@ export async function logEvent(
   runId?: string | null,
 ): Promise<void> {
   try {
-    await db().insert(appEvents).values({ level, category, message, context, runId: runId ?? null });
+    await db()
+      .insert(appEvents)
+      .values({ level, category, message, context, runId: runId ?? null });
   } catch (e) {
     console.error("[events] failed to log", message, e instanceof Error ? e.message : e);
   }

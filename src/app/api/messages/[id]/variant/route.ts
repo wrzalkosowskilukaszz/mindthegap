@@ -7,6 +7,11 @@ export const POST = api<{ id: string }>(async (req, { params }) => {
   const m = await getMessage(params.id);
   const v = m.generation.variants?.find((x) => x.kind === kind);
   if (!v) throw badRequest("Brak tego wariantu — wygeneruj szkic.");
-  await saveGenerated(params.id, { subject: m.subject, body: v.body, origin: "variant", label: kind === "shorter" ? "Wariant krótszy" : "Wariant wyrazisty" });
+  await saveGenerated(params.id, {
+    subject: m.subject,
+    body: v.body,
+    origin: "variant",
+    label: kind === "shorter" ? "Wariant krótszy" : "Wariant wyrazisty",
+  });
   return { ok: true };
 });

@@ -27,7 +27,11 @@ let exitCode = 0;
 try {
   switch (cmd) {
     case "tick": {
-      const r = await runTick({ budgetMs: Number(flag("seconds", "900")) * 1000, trigger: "cli", discovery: !rest.includes("--no-discovery") });
+      const r = await runTick({
+        budgetMs: Number(flag("seconds", "900")) * 1000,
+        trigger: "cli",
+        discovery: !rest.includes("--no-discovery"),
+      });
       console.log(JSON.stringify(r, null, 2));
       if (r.slices.some((s) => s.status === "failed")) exitCode = 2;
       break;
@@ -42,22 +46,48 @@ try {
     case "research": {
       const key = rest[0];
       if (!key) throw new Error("usage: research <domain-or-slug>");
-      const [co] = await db().select().from(companies).where(or(eq(companies.domain, key), eq(companies.slug, key))).limit(1);
+      const [co] = await db()
+        .select()
+        .from(companies)
+        .where(or(eq(companies.domain, key), eq(companies.slug, key)))
+        .limit(1);
       if (!co) throw new Error(`company not found: ${key}`);
       const s = await getSettings("discovery");
-      const r = await researchCompany(co.id, { fetcher: new PoliteFetcher({ minDelayMs: s.minDelayMsPerHost }), deadline: Date.now() + 5 * 60_000, maxPages: s.maxPagesPerCompany, maxContacts: s.maxContactsPerCompany });
+      const r = await researchCompany(co.id, {
+        fetcher: new PoliteFetcher({ minDelayMs: s.minDelayMsPerHost }),
+        deadline: Date.now() + 5 * 60_000,
+        maxPages: s.maxPagesPerCompany,
+        maxContacts: s.maxContactsPerCompany,
+      });
       console.log(JSON.stringify(r, null, 2));
       break;
     }
     case "discover-companies": {
       const s = await getSettings("discovery");
-      const r = await discoverCompanies({ max: Number(flag("max", "10")), minEmployees: s.minEmployees, sectors: s.sectors, excludedDomains: s.excludedDomains });
+      const r = await discoverCompanies({
+        max: Number(flag("max", "10")),
+        minEmployees: s.minEmployees,
+        sectors: s.sectors,
+        excludedDomains: s.excludedDomains,
+      });
       console.log(JSON.stringify(r, null, 2));
       break;
     }
     case "status": {
       const s = await discoveryStatus();
-      console.log(JSON.stringify({ scheduler: s.scheduler, active: s.active, lastSuccessfulRunAt: s.lastSuccessfulRunAt, spend: s.spend, coverage: s.coverage }, null, 2));
+      console.log(
+        JSON.stringify(
+          {
+            scheduler: s.scheduler,
+            active: s.active,
+            lastSuccessfulRunAt: s.lastSuccessfulRunAt,
+            spend: s.spend,
+            coverage: s.coverage,
+          },
+          null,
+          2,
+        ),
+      );
       break;
     }
     default:

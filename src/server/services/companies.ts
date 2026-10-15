@@ -8,7 +8,12 @@ export type CompanyRow = typeof companies.$inferSelect;
 
 function figure(f: CompanyRecord["employees_global"]) {
   if (!f) return null;
-  return { value: f.value, asOf: f.as_of != null ? String(f.as_of) : null, sourceUrl: f.source_url, approx: f.approx };
+  return {
+    value: f.value,
+    asOf: f.as_of != null ? String(f.as_of) : null,
+    sourceUrl: f.source_url,
+    approx: f.approx,
+  };
 }
 
 /** Upsert by slug/domain. Research fields from the record win; operational fields are kept. */
@@ -41,7 +46,11 @@ export async function upsertCompanyFromRecord(
     researchedBy: r.researched_by,
     universeResearchedAt: r.researched_at.slice(0, 10),
     websiteCheck: r.website_check
-      ? { status: r.website_check.status, finalUrl: r.website_check.final_url, checkedAt: r.website_check.checked_at }
+      ? {
+          status: r.website_check.status,
+          finalUrl: r.website_check.final_url,
+          checkedAt: r.website_check.checked_at,
+        }
       : null,
   };
   const [existing] = await db()
@@ -69,7 +78,13 @@ export async function upsertCompanyFromRecord(
   for (const s of r.sources) {
     await db()
       .insert(companySources)
-      .values({ companyId: id, url: s.url, title: s.title ?? null, usedFor: s.used_for, accessedAt: r.researched_at.slice(0, 10) })
+      .values({
+        companyId: id,
+        url: s.url,
+        title: s.title ?? null,
+        usedFor: s.used_for,
+        accessedAt: r.researched_at.slice(0, 10),
+      })
       .onConflictDoUpdate({
         target: [companySources.companyId, companySources.url],
         set: { title: s.title ?? null, usedFor: s.used_for },
@@ -155,7 +170,9 @@ export async function coverage(): Promise<Coverage> {
     c.byOutcome[key] = (c.byOutcome[key] ?? 0) + 1;
     sectors.set(r.sector, s);
   }
-  c.bySector = [...sectors.entries()].map(([sector, v]) => ({ sector, ...v })).sort((a, b) => b.total - a.total);
+  c.bySector = [...sectors.entries()]
+    .map(([sector, v]) => ({ sector, ...v }))
+    .sort((a, b) => b.total - a.total);
   return c;
 }
 
@@ -174,11 +191,26 @@ export async function deriveCompanyOutcome(companyId: string): Promise<CompanyRo
     .where(eq(contacts.companyId, companyId));
   const live = rows.filter((r) => r.review !== "rejected");
   const relevantPerson = live.some(
-    (r) => r.kind === "person" && (r.role === "decision_maker" || r.role === "organizer_influencer") && r.email && r.emailStatus !== "invalid",
+    (r) =>
+      r.kind === "person" &&
+      (r.role === "decision_maker" || r.role === "organizer_influencer") &&
+      r.email &&
+      r.emailStatus !== "invalid",
   );
-  const devInbox = live.some((r) => r.kind === "department_inbox" && r.role === "departmental_inbox" && r.email && r.emailStatus !== "invalid");
+  const devInbox = live.some(
+    (r) =>
+      r.kind === "department_inbox" &&
+      r.role === "departmental_inbox" &&
+      r.email &&
+      r.emailStatus !== "invalid",
+  );
   if (relevantPerson || devInbox) return "relevant_contact_found";
-  if (live.some((r) => r.kind === "person" && (r.role === "decision_maker" || r.role === "organizer_influencer") && !r.email)) {
+  if (
+    live.some(
+      (r) =>
+        r.kind === "person" && (r.role === "decision_maker" || r.role === "organizer_influencer") && !r.email,
+    )
+  ) {
     return "person_found_email_unavailable";
   }
   if (live.some((r) => r.kind === "department_inbox")) return "department_found_no_named_contact";

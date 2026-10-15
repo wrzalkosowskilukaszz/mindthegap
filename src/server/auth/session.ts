@@ -5,7 +5,7 @@
 import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { sha256Hex, randomToken, verifyPassword } from "../crypto.ts";
+import { randomToken, sha256Hex, verifyPassword } from "../crypto.ts";
 import { db } from "../db/client.ts";
 import { loginAttempts, sessions } from "../db/schema.ts";
 import { env } from "../env.ts";
@@ -33,7 +33,9 @@ export async function login(password: string): Promise<LoginResult> {
   const [row] = await db()
     .select({ n: sql<number>`count(*)::int` })
     .from(loginAttempts)
-    .where(and(eq(loginAttempts.ipHash, ip), eq(loginAttempts.success, false), gt(loginAttempts.createdAt, since)));
+    .where(
+      and(eq(loginAttempts.ipHash, ip), eq(loginAttempts.success, false), gt(loginAttempts.createdAt, since)),
+    );
   if ((row?.n ?? 0) >= MAX_FAILED_PER_15_MIN) return { ok: false, error: "rate_limited" };
 
   const ok = verifyPassword(password, stored);
@@ -59,14 +61,19 @@ export async function login(password: string): Promise<LoginResult> {
   });
   // housekeeping
   await db().delete(sessions).where(lt(sessions.expiresAt, new Date()));
-  await db().delete(loginAttempts).where(lt(loginAttempts.createdAt, new Date(Date.now() - 7 * 86_400_000)));
+  await db()
+    .delete(loginAttempts)
+    .where(lt(loginAttempts.createdAt, new Date(Date.now() - 7 * 86_400_000)));
   return { ok: true };
 }
 
 export async function logout(): Promise<void> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
-  if (token) await db().delete(sessions).where(eq(sessions.id, sha256Hex(token)));
+  if (token)
+    await db()
+      .delete(sessions)
+      .where(eq(sessions.id, sha256Hex(token)));
   jar.delete(SESSION_COOKIE);
 }
 

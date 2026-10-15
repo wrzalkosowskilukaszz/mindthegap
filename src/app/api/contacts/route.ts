@@ -1,14 +1,18 @@
 import { z } from "zod";
 import { ContactQuery } from "@/lib/contact-query";
-import { assessRole } from "@/lib/roles";
-import { badRequest, api, parseBody, searchParams } from "@/server/http";
+import { classifyMailbox } from "@/lib/normalize";
+import { assessRole, functionFor } from "@/lib/roles";
+import { api, badRequest, parseBody, searchParams } from "@/server/http";
 import { listContacts, viewCounts } from "@/server/services/contact-list";
 import { upsertContact } from "@/server/services/contacts";
 
 export const GET = api(async (req) => {
   const sp = searchParams(req);
   const q = ContactQuery.parse(Object.fromEntries(sp.entries()));
-  const [list, counts] = await Promise.all([listContacts(q), sp.get("counts") === "1" ? viewCounts() : Promise.resolve(null)]);
+  const [list, counts] = await Promise.all([
+    listContacts(q),
+    sp.get("counts") === "1" ? viewCounts() : Promise.resolve(null),
+  ]);
   return { ...list, counts };
 });
 
@@ -35,8 +39,14 @@ export const POST = api(async (req) => {
     departmentLabel: b.departmentLabel,
     email: b.email,
     emailOrigin: b.email ? "user_entered" : "none",
-    roleCategory: b.kind === "general_inbox" ? "general_routing" : b.kind === "department_inbox" ? "departmental_inbox" : role.category,
+    roleCategory:
+      b.kind === "general_inbox"
+        ? "general_routing"
+        : b.kind === "department_inbox"
+          ? "departmental_inbox"
+          : role.category,
     roleRationale: role.label,
+    roleFunction: functionFor(b.title, b.departmentLabel, b.email ? classifyMailbox(b.email) : null),
     discoveryMethod: "manual",
     evidence: [
       {
@@ -47,6 +57,9 @@ export const POST = api(async (req) => {
       },
     ],
   });
-  if (out.action === "skipped") throw badRequest(`Nie dodano: ${out.reason === "suppressed" ? "adres lub firma na liście wykluczeń" : out.reason === "rejected" ? "kontakt był wcześniej odrzucony" : out.reason}`);
+  if (out.action === "skipped")
+    throw badRequest(
+      `Nie dodano: ${out.reason === "suppressed" ? "adres lub firma na liście wykluczeń" : out.reason === "rejected" ? "kontakt był wcześniej odrzucony" : out.reason}`,
+    );
   return out;
 });

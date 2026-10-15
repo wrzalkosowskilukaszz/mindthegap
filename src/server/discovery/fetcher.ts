@@ -5,8 +5,9 @@
  * - Per-host minimum delay (and robots Crawl-delay, capped), manual redirects re-checked against robots.
  * - Only HTML (and sitemap XML), size-capped; never follows logins, forms, CAPTCHAs or paywalls.
  */
-import robotsParser from "robots-parser";
+
 import { eq } from "drizzle-orm";
+import robotsParser from "robots-parser";
 import { db } from "../db/client.ts";
 import { fetchLog, hostState } from "../db/schema.ts";
 import { env } from "../env.ts";
@@ -14,7 +15,19 @@ import { httpFetch } from "../providers/http.ts";
 
 export type FetchOutcome =
   | { ok: true; url: string; status: number; body: string; contentType: string }
-  | { ok: false; url: string; reason: "robots_disallowed" | "http_error" | "network_error" | "skipped_type" | "too_large" | "redirect_loop"; status?: number; detail?: string };
+  | {
+      ok: false;
+      url: string;
+      reason:
+        | "robots_disallowed"
+        | "http_error"
+        | "network_error"
+        | "skipped_type"
+        | "too_large"
+        | "redirect_loop";
+      status?: number;
+      detail?: string;
+    };
 
 const UA_TOKEN = "MindTheGapOutreachBot";
 const ROBOTS_TTL_MS = 24 * 3_600_000;
@@ -31,7 +44,9 @@ export class PoliteFetcher {
     this.userAgent = `Mozilla/5.0 (compatible; ${UA_TOKEN}/1.0; +${env().CRAWLER_CONTACT_URL}) research of public business contact pages`;
   }
 
-  private async robotsFor(origin: string): Promise<ReturnType<typeof robotsParser> | "disallow_all" | "allow_all"> {
+  private async robotsFor(
+    origin: string,
+  ): Promise<ReturnType<typeof robotsParser> | "disallow_all" | "allow_all"> {
     const cached = this.robotsCache.get(origin);
     if (cached) return cached;
     const host = new URL(origin).host;
@@ -44,7 +59,11 @@ export class PoliteFetcher {
     } else {
       await this.wait(host);
       try {
-        const res = await httpFetch(`${origin}/robots.txt`, { headers: { "User-Agent": this.userAgent }, timeoutMs: 12_000, redirect: "follow" });
+        const res = await httpFetch(`${origin}/robots.txt`, {
+          headers: { "User-Agent": this.userAgent },
+          timeoutMs: 12_000,
+          redirect: "follow",
+        });
         status = res.status;
         txt = res.ok ? (await res.text()).slice(0, 200_000) : null;
       } catch {
@@ -53,8 +72,17 @@ export class PoliteFetcher {
       this.lastHit.set(host, Date.now());
       await db()
         .insert(hostState)
-        .values({ host, robotsTxt: txt, robotsStatus: status, robotsFetchedAt: new Date(), lastFetchAt: new Date() })
-        .onConflictDoUpdate({ target: hostState.host, set: { robotsTxt: txt, robotsStatus: status, robotsFetchedAt: new Date(), lastFetchAt: new Date() } });
+        .values({
+          host,
+          robotsTxt: txt,
+          robotsStatus: status,
+          robotsFetchedAt: new Date(),
+          lastFetchAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: hostState.host,
+          set: { robotsTxt: txt, robotsStatus: status, robotsFetchedAt: new Date(), lastFetchAt: new Date() },
+        });
     }
     let r: ReturnType<typeof robotsParser> | "disallow_all" | "allow_all";
     if (status === null || status === 0 || status >= 500) r = "disallow_all";
@@ -110,14 +138,22 @@ export class PoliteFetcher {
           timeoutMs: this.opts.timeoutMs ?? 15_000,
           headers: {
             "User-Agent": this.userAgent,
-            Accept: kind === "xml" ? "application/xml,text/xml;q=0.9,*/*;q=0.1" : "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
+            Accept:
+              kind === "xml"
+                ? "application/xml,text/xml;q=0.9,*/*;q=0.1"
+                : "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
             "Accept-Language": "pl,en;q=0.8",
           },
         });
       } catch (e) {
         this.lastHit.set(u.host, Date.now());
         await this.log(current, null, "network_error");
-        return { ok: false, url: current, reason: "network_error", detail: e instanceof Error ? e.message : String(e) };
+        return {
+          ok: false,
+          url: current,
+          reason: "network_error",
+          detail: e instanceof Error ? e.message : String(e),
+        };
       }
       this.lastHit.set(u.host, Date.now());
       if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
@@ -151,7 +187,14 @@ export class PoliteFetcher {
     try {
       await db()
         .insert(fetchLog)
-        .values({ url: url.slice(0, 2000), host: new URL(url).host, status, outcome, bytes: bytes ?? null, runId: this.opts.runId ?? null });
+        .values({
+          url: url.slice(0, 2000),
+          host: new URL(url).host,
+          status,
+          outcome,
+          bytes: bytes ?? null,
+          runId: this.opts.runId ?? null,
+        });
     } catch {
       /* logging must never break a crawl */
     }

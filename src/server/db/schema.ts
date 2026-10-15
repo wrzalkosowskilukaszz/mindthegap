@@ -55,7 +55,12 @@ export const sectorEnum = pgEnum("sector", [
   "other",
 ]);
 
-export const companyOriginEnum = pgEnum("company_origin", ["initial_universe", "discovery", "manual", "import"]);
+export const companyOriginEnum = pgEnum("company_origin", [
+  "initial_universe",
+  "discovery",
+  "manual",
+  "import",
+]);
 
 export const researchStatusEnum = pgEnum("research_status", [
   "queued",
@@ -84,6 +89,17 @@ export const roleCategoryEnum = pgEnum("role_category", [
   "departmental_inbox",
   "general_routing",
   "uncertain",
+]);
+
+/** Department / function a contact sits in (who organises, buys or budgets training). */
+export const roleFunctionEnum = pgEnum("role_function", [
+  "hr",
+  "learning",
+  "procurement",
+  "business_leadership",
+  "transformation",
+  "people_culture",
+  "other",
 ]);
 
 export const emailOriginEnum = pgEnum("email_origin", [
@@ -149,7 +165,13 @@ export const messageLanguageEnum = pgEnum("message_language", ["pl", "en"]);
 
 export const documentUsageEnum = pgEnum("document_usage", ["internal", "quotable", "attachment"]);
 
-export const extractionStatusEnum = pgEnum("extraction_status", ["pending", "ok", "partial", "unsupported", "failed"]);
+export const extractionStatusEnum = pgEnum("extraction_status", [
+  "pending",
+  "ok",
+  "partial",
+  "unsupported",
+  "failed",
+]);
 
 export const programStatusEnum = pgEnum("program_status", ["draft", "approved", "archived"]);
 
@@ -211,7 +233,11 @@ export const companies = pgTable(
     notes: text("notes"),
     researchedBy: text("researched_by"),
     universeResearchedAt: date("universe_researched_at"),
-    websiteCheck: jsonb("website_check").$type<{ status: number; finalUrl: string; checkedAt: string } | null>(),
+    websiteCheck: jsonb("website_check").$type<{
+      status: number;
+      finalUrl: string;
+      checkedAt: string;
+    } | null>(),
     isDemo: boolean("is_demo").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -262,6 +288,7 @@ export const contacts = pgTable(
     title: text("title"),
     roleCategory: roleCategoryEnum("role_category").notNull().default("uncertain"),
     roleRationale: text("role_rationale"),
+    roleFunction: roleFunctionEnum("role_function").notNull().default("other"),
     email: text("email"),
     emailNormalized: text("email_normalized"),
     emailOrigin: emailOriginEnum("email_origin").notNull().default("none"),
@@ -298,12 +325,8 @@ export const contacts = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
-    uniqueIndex("contacts_email_uq")
-      .on(t.emailNormalized)
-      .where(sql`${t.emailNormalized} is not null`),
-    uniqueIndex("contacts_person_uq")
-      .on(t.companyId, t.nameKey)
-      .where(sql`${t.nameKey} is not null`),
+    uniqueIndex("contacts_email_uq").on(t.emailNormalized).where(sql`${t.emailNormalized} is not null`),
+    uniqueIndex("contacts_person_uq").on(t.companyId, t.nameKey).where(sql`${t.nameKey} is not null`),
     index("contacts_company_idx").on(t.companyId),
     index("contacts_review_idx").on(t.reviewStatus, t.discoveredAt),
     index("contacts_outreach_idx").on(t.outreachStatus),
@@ -545,6 +568,8 @@ export const messages = pgTable(
     approval: jsonb("approval").$type<ApprovalSnapshot | null>(),
     scheduledFor: ts("scheduled_for"),
     sentAt: ts("sent_at"),
+    /** "gmail" = accepted by Gmail through the app; "manual" = the owner sent it from their own mail app. */
+    sentVia: text("sent_via"),
     rfcMessageId: text("rfc_message_id"),
     gmailMessageId: text("gmail_message_id"),
     gmailThreadId: text("gmail_thread_id"),
@@ -557,9 +582,7 @@ export const messages = pgTable(
     index("messages_status_idx").on(t.status, t.scheduledFor),
     index("messages_contact_idx").on(t.contactId, t.createdAt),
     index("messages_company_idx").on(t.companyId, t.sentAt),
-    uniqueIndex("messages_rfc_uq")
-      .on(t.rfcMessageId)
-      .where(sql`${t.rfcMessageId} is not null`),
+    uniqueIndex("messages_rfc_uq").on(t.rfcMessageId).where(sql`${t.rfcMessageId} is not null`),
   ],
 );
 
@@ -726,7 +749,10 @@ export const jobTasks = pgTable(
     startedAt: ts("started_at"),
     finishedAt: ts("finished_at"),
   },
-  (t) => [uniqueIndex("job_tasks_key_uq").on(t.runId, t.key), index("job_tasks_status_idx").on(t.runId, t.status)],
+  (t) => [
+    uniqueIndex("job_tasks_key_uq").on(t.runId, t.key),
+    index("job_tasks_status_idx").on(t.runId, t.status),
+  ],
 );
 
 export const leases = pgTable("leases", {

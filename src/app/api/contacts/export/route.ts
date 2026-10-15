@@ -1,6 +1,12 @@
 import { eq } from "drizzle-orm";
 import { ContactQuery } from "@/lib/contact-query";
-import { EMAIL_ORIGIN_LABEL, EMAIL_STATUS_LABEL, ELIGIBILITY_LABEL, OUTREACH_LABEL, QUALITY_LABEL } from "@/lib/contact-rules";
+import {
+  ELIGIBILITY_LABEL,
+  EMAIL_ORIGIN_LABEL,
+  EMAIL_STATUS_LABEL,
+  OUTREACH_LABEL,
+  QUALITY_LABEL,
+} from "@/lib/contact-rules";
 import { toCsv } from "@/lib/csv";
 import { db } from "@/server/db/client";
 import { companies, contacts } from "@/server/db/schema";
@@ -17,15 +23,44 @@ export const GET = api(async (req) => {
     .where(where)
     .limit(20000);
   const headers = [
-    "Firma", "Domena", "Sektor", "Osoba", "Dział", "Stanowisko", "Kategoria roli", "E-mail", "Pochodzenie adresu",
-    "Weryfikacja", "Data weryfikacji", "Jakość", "Uprawnienie do kontaktu", "Status korespondencji", "Ostatni kontakt",
-    "Odkryto", "Metoda", "ID kontaktu",
+    "Firma",
+    "Domena",
+    "Sektor",
+    "Osoba",
+    "Dział",
+    "Stanowisko",
+    "Kategoria roli",
+    "E-mail",
+    "Pochodzenie adresu",
+    "Weryfikacja",
+    "Data weryfikacji",
+    "Jakość",
+    "Uprawnienie do kontaktu",
+    "Status korespondencji",
+    "Ostatni kontakt",
+    "Odkryto",
+    "Metoda",
+    "ID kontaktu",
   ];
   const data = rows.map(({ c, co }) => [
-    co.name, co.domain, co.sector, c.fullName, c.departmentLabel, c.title, c.roleCategory, c.email,
-    EMAIL_ORIGIN_LABEL[c.emailOrigin], EMAIL_STATUS_LABEL[c.emailStatus], c.emailCheckedAt,
-    QUALITY_LABEL[c.quality as keyof typeof QUALITY_LABEL] ?? c.quality, ELIGIBILITY_LABEL[c.eligibilityBasis],
-    OUTREACH_LABEL[c.outreachStatus], c.lastContactedAt, c.discoveredAt, c.discoveryMethod, c.id,
+    co.name,
+    co.domain,
+    co.sector,
+    c.fullName,
+    c.departmentLabel,
+    c.title,
+    c.roleCategory,
+    c.email,
+    EMAIL_ORIGIN_LABEL[c.emailOrigin],
+    EMAIL_STATUS_LABEL[c.emailStatus],
+    c.emailCheckedAt,
+    QUALITY_LABEL[c.quality as keyof typeof QUALITY_LABEL] ?? c.quality,
+    ELIGIBILITY_LABEL[c.eligibilityBasis],
+    OUTREACH_LABEL[c.outreachStatus],
+    c.lastContactedAt,
+    c.discoveredAt,
+    c.discoveryMethod,
+    c.id,
   ]);
   const csv = toCsv(headers, data);
   return new Response(csv, {

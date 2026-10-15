@@ -21,6 +21,8 @@
     "research:import": "node --env-file-if-exists=.env.local --import tsx scripts/import-research.ts",
     "worker": "node --env-file-if-exists=.env.local --import tsx src/worker/cli.ts",
     "hash-password": "node --import tsx scripts/hash-password.ts",
+    "seed:brand": "node --env-file-if-exists=.env.local --import tsx scripts/seed-brand.ts",
+    "research:merge": "node --import tsx scripts/merge-universe.ts",
     "verify": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "dependencies": {

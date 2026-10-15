@@ -11,7 +11,9 @@ export default async function LoginPage() {
       <div className="login-card">
         <div className="brand" style={{ padding: 0 }}>
           <span className="brand-mark">
-            Mind<span className="brand-gap" aria-hidden="true" />the Gap
+            Mind
+            <span className="brand-gap" aria-hidden="true" />
+            the Gap
           </span>
         </div>
         <div>

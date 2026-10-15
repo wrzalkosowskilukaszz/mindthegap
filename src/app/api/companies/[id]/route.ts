@@ -22,7 +22,11 @@ export const PATCH = api<{ id: string }>(async (req, { params }) => {
   }
   if (b.researchNow) set.nextResearchAt = new Date(0);
   if (b.notes !== undefined) set.notes = b.notes;
-  const [row] = await db().update(companies).set(set).where(eq(companies.id, params.id)).returning({ id: companies.id });
+  const [row] = await db()
+    .update(companies)
+    .set(set)
+    .where(eq(companies.id, params.id))
+    .returning({ id: companies.id });
   if (!row) throw notFound();
   return { ok: true };
 });

@@ -26,31 +26,50 @@ export async function getContactDetail(id: string) {
   const [c] = await db().select().from(contacts).where(eq(contacts.id, id)).limit(1);
   if (!c) return null;
   const [company] = await db().select().from(companies).where(eq(companies.id, c.companyId)).limit(1);
-  const [sources, evidence, verifs, events, noteRows, reminderRows, msgRows, inbound, colleagues, progs] = await Promise.all([
-    db().select().from(companySources).where(eq(companySources.companyId, c.companyId)),
-    db().select().from(contactEvidence).where(eq(contactEvidence.contactId, id)).orderBy(desc(contactEvidence.observedAt)),
-    db().select().from(contactVerifications).where(eq(contactVerifications.contactId, id)).orderBy(desc(contactVerifications.checkedAt)),
-    db().select().from(contactEvents).where(eq(contactEvents.contactId, id)).orderBy(desc(contactEvents.createdAt)).limit(50),
-    db().select().from(notes).where(eq(notes.contactId, id)).orderBy(desc(notes.createdAt)),
-    db().select().from(reminders).where(eq(reminders.contactId, id)).orderBy(desc(reminders.dueAt)),
-    db().select().from(messages).where(eq(messages.contactId, id)).orderBy(desc(messages.createdAt)),
-    db().select().from(inboundMessages).where(eq(inboundMessages.contactId, id)).orderBy(desc(inboundMessages.receivedAt)),
-    db()
-      .select({
-        id: contacts.id,
-        fullName: contacts.fullName,
-        departmentLabel: contacts.departmentLabel,
-        email: contacts.email,
-        title: contacts.title,
-        roleCategory: contacts.roleCategory,
-        outreachStatus: contacts.outreachStatus,
-        lastContactedAt: contacts.lastContactedAt,
-        reviewStatus: contacts.reviewStatus,
-      })
-      .from(contacts)
-      .where(and(eq(contacts.companyId, c.companyId), ne(contacts.id, id))),
-    db().select().from(programs).where(eq(programs.status, "approved")),
-  ]);
+  const [sources, evidence, verifs, events, noteRows, reminderRows, msgRows, inbound, colleagues, progs] =
+    await Promise.all([
+      db().select().from(companySources).where(eq(companySources.companyId, c.companyId)),
+      db()
+        .select()
+        .from(contactEvidence)
+        .where(eq(contactEvidence.contactId, id))
+        .orderBy(desc(contactEvidence.observedAt)),
+      db()
+        .select()
+        .from(contactVerifications)
+        .where(eq(contactVerifications.contactId, id))
+        .orderBy(desc(contactVerifications.checkedAt)),
+      db()
+        .select()
+        .from(contactEvents)
+        .where(eq(contactEvents.contactId, id))
+        .orderBy(desc(contactEvents.createdAt))
+        .limit(50),
+      db().select().from(notes).where(eq(notes.contactId, id)).orderBy(desc(notes.createdAt)),
+      db().select().from(reminders).where(eq(reminders.contactId, id)).orderBy(desc(reminders.dueAt)),
+      db().select().from(messages).where(eq(messages.contactId, id)).orderBy(desc(messages.createdAt)),
+      db()
+        .select()
+        .from(inboundMessages)
+        .where(eq(inboundMessages.contactId, id))
+        .orderBy(desc(inboundMessages.receivedAt)),
+      db()
+        .select({
+          id: contacts.id,
+          fullName: contacts.fullName,
+          departmentLabel: contacts.departmentLabel,
+          email: contacts.email,
+          title: contacts.title,
+          roleCategory: contacts.roleCategory,
+          roleFunction: contacts.roleFunction,
+          outreachStatus: contacts.outreachStatus,
+          lastContactedAt: contacts.lastContactedAt,
+          reviewStatus: contacts.reviewStatus,
+        })
+        .from(contacts)
+        .where(and(eq(contacts.companyId, c.companyId), ne(contacts.id, id))),
+      db().select().from(programs).where(eq(programs.status, "approved")),
+    ]);
   const attachRows = msgRows.length
     ? await db()
         .select()
@@ -77,13 +96,26 @@ export async function getContactDetail(id: string) {
   const suggestions = progs
     .map((p) => {
       const hay = foldDiacritics(
-        [p.name, p.summary.audience?.value, p.summary.problem?.value, ...(p.summary.keyPoints ?? []).map((k) => k.value)].join(" "),
+        [
+          p.name,
+          p.summary.audience?.value,
+          p.summary.problem?.value,
+          ...(p.summary.keyPoints ?? []).map((k) => k.value),
+        ].join(" "),
       );
       let score = 0;
       const why: string[] = [];
       const pairs: [RegExp, RegExp, string][] = [
-        [/(leader|lider|manager|menedzer|kierown)/, /(leader|lider|manager|menedzer|przywodz)/, "rozwój menedżerów"],
-        [/(learning|l&d|szkolen|training|rozwoj|development|akademi)/, /(program|warsztat|workshop|rozwoj|development)/, "programy rozwojowe"],
+        [
+          /(leader|lider|manager|menedzer|kierown)/,
+          /(leader|lider|manager|menedzer|przywodz)/,
+          "rozwój menedżerów",
+        ],
+        [
+          /(learning|l&d|szkolen|training|rozwoj|development|akademi)/,
+          /(program|warsztat|workshop|rozwoj|development)/,
+          "programy rozwojowe",
+        ],
         [/(culture|kultur|people|hr|personal)/, /(cultur|kultur|zespol|team|organiz)/, "kultura i zespoły"],
       ];
       for (const [roleRe, progRe, label] of pairs) {
@@ -120,11 +152,20 @@ export async function getContactDetail(id: string) {
           sources: sources.map((s) => ({ url: s.url, title: s.title, usedFor: s.usedFor })),
         }
       : null,
-    evidence: evidence.map((e) => ({ ...e, observedAt: e.observedAt.toISOString(), createdAt: e.createdAt.toISOString() })),
+    evidence: evidence.map((e) => ({
+      ...e,
+      observedAt: e.observedAt.toISOString(),
+      createdAt: e.createdAt.toISOString(),
+    })),
     verifications: verifs.map((v) => ({ ...v, checkedAt: v.checkedAt.toISOString() })),
     events: events.map((e) => ({ ...e, createdAt: e.createdAt.toISOString() })),
     notes: noteRows.map((n) => ({ id: n.id, body: n.body, createdAt: n.createdAt.toISOString() })),
-    reminders: reminderRows.map((r) => ({ id: r.id, dueAt: r.dueAt.toISOString(), note: r.note, doneAt: iso(r.doneAt) })),
+    reminders: reminderRows.map((r) => ({
+      id: r.id,
+      dueAt: r.dueAt.toISOString(),
+      note: r.note,
+      doneAt: iso(r.doneAt),
+    })),
     messages: msgRows.map((m) => ({
       id: m.id,
       kind: m.kind,

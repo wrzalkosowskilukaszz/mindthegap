@@ -5,9 +5,24 @@ import { useToast } from "@/components/toast";
 import { Callout, Dialog } from "@/components/ui";
 import { ApiError, apiFetch } from "@/lib/api-client";
 
-type ImportReport = { rows: number; created: number; updated: number; unchanged: number; skipped: number; errors: string[] };
+type ImportReport = {
+  rows: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+  errors: string[];
+};
 
-export function ImportDialog({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
+export function ImportDialog({
+  open,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
@@ -18,7 +33,11 @@ export function ImportDialog({ open, onClose, onDone }: { open: boolean; onClose
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/contacts/import", { method: "POST", body: await file.text(), headers: { "content-type": "text/csv" } });
+      const res = await fetch("/api/contacts/import", {
+        method: "POST",
+        body: await file.text(),
+        headers: { "content-type": "text/csv" },
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Import nie powiódł się");
       setReport(data);
@@ -60,24 +79,35 @@ export function ImportDialog({ open, onClose, onDone }: { open: boolean; onClose
       {report ? (
         <div className="stack">
           <p>
-            Wierszy: {report.rows}. Nowych: <strong>{report.created}</strong>, zaktualizowanych: {report.updated}, bez zmian: {report.unchanged},
-            pominiętych: {report.skipped}.
+            Wierszy: {report.rows}. Nowych: <strong>{report.created}</strong>, zaktualizowanych:{" "}
+            {report.updated}, bez zmian: {report.unchanged}, pominiętych: {report.skipped}.
           </p>
           {report.errors.length ? (
             <details className="disclosure">
               <summary>Pominięte wiersze ({report.errors.length})</summary>
-              <div className="disclosure-body small">{report.errors.map((e) => <div key={e}>{e}</div>)}</div>
+              <div className="disclosure-body small">
+                {report.errors.map((e) => (
+                  <div key={e}>{e}</div>
+                ))}
+              </div>
             </details>
           ) : null}
           <p className="small secondary">
-            Zaimportowane adresy mają status „Niesprawdzony”. Lista wykluczeń i wcześniej odrzucone kontakty są respektowane.
+            Zaimportowane adresy mają status „Niesprawdzony”. Lista wykluczeń i wcześniej odrzucone kontakty
+            są respektowane.
           </p>
         </div>
       ) : (
         <>
-          <input type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} aria-label="Plik CSV" />
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            aria-label="Plik CSV"
+          />
           <Callout tone="info">
-            Import nie nadaje uprawnienia do wysyłki. Podstawę kontaktu (np. zgodę) zapisujesz osobno przy kontakcie.
+            Import nie nadaje uprawnienia do wysyłki. Podstawę kontaktu (np. zgodę) zapisujesz osobno przy
+            kontakcie.
           </Callout>
           {error ? <Callout tone="bad">{error}</Callout> : null}
         </>
@@ -88,13 +118,28 @@ export function ImportDialog({ open, onClose, onDone }: { open: boolean; onClose
 
 type CompanyOption = { id: string; name: string; brand: string | null; domain: string };
 
-export function AddContactDialog({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: (id: string) => void }) {
+export function AddContactDialog({
+  open,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onDone: (id: string) => void;
+}) {
   const toast = useToast();
   const [q, setQ] = useState("");
   const [options, setOptions] = useState<CompanyOption[]>([]);
   const [companyId, setCompanyId] = useState("");
   const [kind, setKind] = useState<"person" | "department_inbox" | "general_inbox">("person");
-  const [form, setForm] = useState({ fullName: "", title: "", departmentLabel: "", email: "", sourceUrl: "", note: "" });
+  const [form, setForm] = useState({
+    fullName: "",
+    title: "",
+    departmentLabel: "",
+    email: "",
+    sourceUrl: "",
+    note: "",
+  });
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -132,7 +177,8 @@ export function AddContactDialog({ open, onClose, onDone }: { open: boolean; onC
     }
   }
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
 
   return (
     <Dialog
@@ -153,8 +199,18 @@ export function AddContactDialog({ open, onClose, onDone }: { open: boolean; onC
     >
       <label className="field">
         <span className="field-label">Firma</span>
-        <input className="input" placeholder="Szukaj firmy…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className="select" value={companyId} onChange={(e) => setCompanyId(e.target.value)} aria-label="Wybierz firmę">
+        <input
+          className="input"
+          placeholder="Szukaj firmy…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <select
+          className="select"
+          value={companyId}
+          onChange={(e) => setCompanyId(e.target.value)}
+          aria-label="Wybierz firmę"
+        >
           <option value="">— wybierz —</option>
           {options.map((o) => (
             <option key={o.id} value={o.id}>
@@ -163,7 +219,7 @@ export function AddContactDialog({ open, onClose, onDone }: { open: boolean; onC
           ))}
         </select>
       </label>
-      <div className="segmented" role="group" aria-label="Rodzaj kontaktu">
+      <fieldset className="segmented" aria-label="Rodzaj kontaktu">
         {(
           [
             ["person", "Osoba"],
@@ -175,7 +231,7 @@ export function AddContactDialog({ open, onClose, onDone }: { open: boolean; onC
             {l}
           </button>
         ))}
-      </div>
+      </fieldset>
       <div className="field-row">
         {kind === "person" ? (
           <label className="field">
@@ -185,7 +241,12 @@ export function AddContactDialog({ open, onClose, onDone }: { open: boolean; onC
         ) : (
           <label className="field">
             <span className="field-label">Dział</span>
-            <input className="input" value={form.departmentLabel} onChange={set("departmentLabel")} placeholder="np. Dział Szkoleń" />
+            <input
+              className="input"
+              value={form.departmentLabel}
+              onChange={set("departmentLabel")}
+              placeholder="np. Dział Szkoleń"
+            />
           </label>
         )}
         <label className="field">

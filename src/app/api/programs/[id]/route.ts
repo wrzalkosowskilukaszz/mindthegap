@@ -5,7 +5,11 @@ import { programs } from "@/server/db/schema";
 import { api, badRequest, notFound, parseBody } from "@/server/http";
 import { isSendableAttachment } from "@/server/services/messages";
 
-const FieldSchema = z.object({ value: z.string().max(1000), quote: z.string().max(2000).nullable().optional(), quoteVerified: z.boolean().optional() });
+const FieldSchema = z.object({
+  value: z.string().max(1000),
+  quote: z.string().max(2000).nullable().optional(),
+  quoteVerified: z.boolean().optional(),
+});
 const Summary = z.object({
   audience: FieldSchema.optional(),
   problem: FieldSchema.optional(),
@@ -42,15 +46,23 @@ export const PATCH = api<{ id: string }>(async (req, { params }) => {
     set.approvedAt = b.status === "approved" ? new Date() : null;
   }
   if (b.defaultAttachmentVersionId !== undefined) {
-    if (b.defaultAttachmentVersionId && !(await isSendableAttachment(b.defaultAttachmentVersionId))) throw badRequest("Domyślnym załącznikiem może być tylko zatwierdzony plik typu „załącznik”.");
+    if (b.defaultAttachmentVersionId && !(await isSendableAttachment(b.defaultAttachmentVersionId)))
+      throw badRequest("Domyślnym załącznikiem może być tylko zatwierdzony plik typu „załącznik”.");
     set.defaultAttachmentVersionId = b.defaultAttachmentVersionId;
   }
-  const [p] = await db().update(programs).set(set).where(eq(programs.id, params.id)).returning({ id: programs.id });
+  const [p] = await db()
+    .update(programs)
+    .set(set)
+    .where(eq(programs.id, params.id))
+    .returning({ id: programs.id });
   if (!p) throw notFound();
   return { ok: true };
 });
 
 export const DELETE = api<{ id: string }>(async (_req, { params }) => {
-  await db().update(programs).set({ status: "archived", updatedAt: new Date() }).where(eq(programs.id, params.id));
+  await db()
+    .update(programs)
+    .set({ status: "archived", updatedAt: new Date() })
+    .where(eq(programs.id, params.id));
   return { ok: true };
 });

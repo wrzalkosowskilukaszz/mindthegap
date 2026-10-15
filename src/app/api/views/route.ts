@@ -6,7 +6,10 @@ import { savedViews } from "@/server/db/schema";
 import { api, parseBody } from "@/server/http";
 
 export const GET = api(async () => {
-  const rows = await db().select().from(savedViews).orderBy(asc(savedViews.position), asc(savedViews.createdAt));
+  const rows = await db()
+    .select()
+    .from(savedViews)
+    .orderBy(asc(savedViews.position), asc(savedViews.createdAt));
   return { views: rows.map((v) => ({ id: v.id, name: v.name, query: v.query })) };
 });
 

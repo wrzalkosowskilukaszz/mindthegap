@@ -17,7 +17,12 @@ export function localDate(at: Date, zone = DEFAULT_TZ): string {
  */
 export function scheduledInstantForDate(dateIso: string, hhmm: string, zone = DEFAULT_TZ): Date {
   const [h, m] = hhmm.split(":").map(Number);
-  const dt = DateTime.fromISO(dateIso, { zone }).set({ hour: h ?? 0, minute: m ?? 0, second: 0, millisecond: 0 });
+  const dt = DateTime.fromISO(dateIso, { zone }).set({
+    hour: h ?? 0,
+    minute: m ?? 0,
+    second: 0,
+    millisecond: 0,
+  });
   return dt.toJSDate();
 }
 

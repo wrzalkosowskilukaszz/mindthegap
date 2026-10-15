@@ -4,17 +4,10 @@
   "evidence_note": "Values summarise official pages unless marked third-party; see docs/research/PROVIDERS.md for evidence labels, quotes and caveats. 'tested' describes only unauthenticated requests or vendor-published test/demo keys.",
   "recommendation": {
     "contact_data_primary": "Hunter.io (pilot on Free, then Starter $49/month or $408/year)",
-    "contact_data_secondary_if_needed": [
-      "Prospeo (read its terms first)",
-      "Snov.io"
-    ],
+    "contact_data_secondary_if_needed": ["Prospeo (read its terms first)", "Snov.io"],
     "verification": "Hunter Email Verifier; optional MillionVerifier ($39 per 10,000 credits, never expire)",
     "discovery_search": "Tavily (free 1,000 credits/month; $0.008/credit beyond)",
-    "public_sources": [
-      "KRS open API",
-      "GUS REGON BIR",
-      "Wikidata SPARQL"
-    ],
+    "public_sources": ["KRS open API", "GUS REGON BIR", "Wikidata SPARQL"],
     "estimated_monthly_cost_usd_at_300_searches_500_verifications": "about 49 (plus optional 39 one-off)"
   },
   "providers": [
@@ -69,12 +62,7 @@
         "people_enrichment": "1 credit for email/demographics, +8 if mobile returned; 0 if nothing found"
       },
       "returns_sources": false,
-      "verification_statuses": [
-        "verified",
-        "unverified",
-        "likely to engage",
-        "unavailable"
-      ],
+      "verification_statuses": ["verified", "unverified", "likely to engage", "unavailable"],
       "role_filters": "person_titles[], person_seniorities[] (owner, founder, c_suite, partner, vp, head, director, manager, senior, entry, intern), person_locations[], organization_locations[], q_organization_domains_list[], contact_email_status[]. No department filter documented for the API search.",
       "found_vs_predicted": "Unclear (email_source field present but undocumented, null in example).",
       "poland_coverage_evidence": "None found.",
@@ -218,11 +206,7 @@
         "verify": "refunded on unknown"
       },
       "returns_sources": null,
-      "verification_statuses": [
-        "A",
-        "A-",
-        "unknown (verify endpoint)"
-      ],
+      "verification_statuses": ["A", "A-", "unknown (verify endpoint)"],
       "role_filters": "Person search exists; filters not reviewed.",
       "found_vs_predicted": "Unclear.",
       "poland_coverage_evidence": "None found.",
@@ -247,14 +231,7 @@
         "verification_only": "1 credit"
       },
       "returns_sources": false,
-      "verification_statuses": [
-        "nominative@pro",
-        "catch_all@pro",
-        "generic",
-        "random",
-        "invalid",
-        "perso"
-      ],
+      "verification_statuses": ["nominative@pro", "catch_all@pro", "generic", "random", "invalid", "perso"],
       "role_filters": "None: enriches contacts you submit (name + company / LinkedIn / email).",
       "found_vs_predicted": "Algorithmic finder without contact database (predicted then verified).",
       "poland_coverage_evidence": "None found; French identifiers (SIREN/SIRET) in schema suggest a French focus.",
@@ -280,9 +257,7 @@
         "enrich_mobile": "10 credits"
       },
       "returns_sources": false,
-      "verification_statuses": [
-        "VERIFIED (others not documented)"
-      ],
+      "verification_statuses": ["VERIFIED (others not documented)"],
       "role_filters": "person_department incl. 'Learning & Development', 'Talent Management', 'People Operations', 'HR Business Partner', 'Recruiting & Talent Acquisition'; person_seniority; person_job_title; person and company location.",
       "found_vs_predicted": "Unclear (verification_method e.g. BOUNCEBAN returned).",
       "poland_coverage_evidence": "None found.",
@@ -317,9 +292,7 @@
       "gdpr_posture": "Not reviewed.",
       "tested": "Nothing tested.",
       "recommended_role": "not recommended",
-      "source_urls": [
-        "https://www.zoominfo.com/pricing"
-      ]
+      "source_urls": ["https://www.zoominfo.com/pricing"]
     },
     {
       "name": "FullEnrich",
@@ -334,9 +307,7 @@
         "charged": "only when verified data found"
       },
       "returns_sources": false,
-      "verification_statuses": [
-        "SMTP + catch-all verification, confidence score (labels not documented)"
-      ],
+      "verification_statuses": ["SMTP + catch-all verification, confidence score (labels not documented)"],
       "role_filters": "Search API listed; filters not reviewed.",
       "found_vs_predicted": "No (waterfall over 25+ providers).",
       "poland_coverage_evidence": "None; find rate said to vary by geography.",
@@ -344,9 +315,7 @@
       "gdpr_posture": "Says it stores no contact information and selects GDPR/CCPA-compliant providers.",
       "tested": "Nothing tested.",
       "recommended_role": "not recommended",
-      "source_urls": [
-        "https://fullenrich.com/pricing"
-      ]
+      "source_urls": ["https://fullenrich.com/pricing"]
     },
     {
       "name": "Hunter Email Verifier",
@@ -358,23 +327,13 @@
         "verify": "0.5 credit; free for unknown"
       },
       "returns_sources": true,
-      "verification_statuses": [
-        "valid",
-        "invalid",
-        "accept_all",
-        "webmail",
-        "disposable",
-        "unknown"
-      ],
+      "verification_statuses": ["valid", "invalid", "accept_all", "webmail", "disposable", "unknown"],
       "role_filters": "n/a",
       "poland_coverage_evidence": "n/a",
       "terms_storage_rights": "As Hunter.io.",
       "tested": "email-verifier without key -> HTTP 401.",
       "recommended_role": "primary",
-      "source_urls": [
-        "https://hunter.io/pricing",
-        "https://hunter.io/api-documentation/v2"
-      ]
+      "source_urls": ["https://hunter.io/pricing", "https://hunter.io/api-documentation/v2"]
     },
     {
       "name": "MillionVerifier",
@@ -386,24 +345,13 @@
         "verify": "1 credit per email"
       },
       "returns_sources": false,
-      "verification_statuses": [
-        "ok",
-        "catch_all",
-        "unknown",
-        "invalid",
-        "disposable",
-        "unverified",
-        "error"
-      ],
+      "verification_statuses": ["ok", "catch_all", "unknown", "invalid", "disposable", "unverified", "error"],
       "role_filters": "n/a",
       "poland_coverage_evidence": "n/a",
       "terms_storage_rights": "Not reviewed.",
       "tested": "No key -> HTTP 200 result 'error' 'No apikey specified'. Documented demo keys returned ok/invalid/unknown/disposable/unverified/catch_all with livemode false.",
       "recommended_role": "secondary",
-      "source_urls": [
-        "https://www.millionverifier.com/",
-        "https://developer.millionverifier.com/"
-      ]
+      "source_urls": ["https://www.millionverifier.com/", "https://developer.millionverifier.com/"]
     },
     {
       "name": "ZeroBounce",
@@ -442,13 +390,7 @@
       "pricing_notes": "Official page unreadable; third-party: ~$0.008/email pay-as-you-go.",
       "credit_costs": {},
       "returns_sources": false,
-      "verification_statuses": [
-        "valid",
-        "invalid",
-        "disposable",
-        "catchall",
-        "unknown"
-      ],
+      "verification_statuses": ["valid", "invalid", "disposable", "catchall", "unknown"],
       "role_filters": "n/a",
       "poland_coverage_evidence": "n/a",
       "terms_storage_rights": "Not reviewed.",
@@ -520,9 +462,7 @@
       "terms_storage_rights": "Not reviewed (not available).",
       "tested": "GET customsearch/v1 without key -> HTTP 403 'unregistered callers'.",
       "recommended_role": "not recommended",
-      "source_urls": [
-        "https://developers.google.com/custom-search/v1/overview"
-      ]
+      "source_urls": ["https://developers.google.com/custom-search/v1/overview"]
     },
     {
       "name": "Serper",
@@ -540,10 +480,7 @@
       "terms_storage_rights": "Terms do not address storing outputs; UK law.",
       "tested": "POST /search without key -> HTTP 403 'Unauthorized. Sign up for a free account.'",
       "recommended_role": "not recommended",
-      "source_urls": [
-        "https://serper.dev/",
-        "https://serper.dev/terms"
-      ]
+      "source_urls": ["https://serper.dev/", "https://serper.dev/terms"]
     },
     {
       "name": "SerpAPI",
@@ -561,9 +498,7 @@
       "terms_storage_rights": "Not reviewed.",
       "tested": "Keyless query 'test' -> HTTP 200 with results; unique keyless query -> HTTP 401 'Invalid API key'.",
       "recommended_role": "not recommended",
-      "source_urls": [
-        "https://serpapi.com/pricing"
-      ]
+      "source_urls": ["https://serpapi.com/pricing"]
     },
     {
       "name": "Exa",
@@ -579,10 +514,7 @@
       "terms_storage_rights": "Section 4.2(a) restricts copying/reproducing information obtained through the Services except as expressly permitted.",
       "tested": "POST /search without key -> HTTP 402 X402_PAYMENT_REQUIRED.",
       "recommended_role": "not recommended",
-      "source_urls": [
-        "https://exa.ai/pricing",
-        "https://exa.ai/terms"
-      ]
+      "source_urls": ["https://exa.ai/pricing", "https://exa.ai/terms"]
     },
     {
       "name": "KRS open API (api-krs.ms.gov.pl)",

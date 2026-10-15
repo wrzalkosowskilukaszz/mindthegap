@@ -18,16 +18,23 @@ async function call<T>(path: string, init: RequestInit & { timeoutMs?: number } 
   const { token } = await accessToken();
   let res: Response;
   try {
-    res = await httpFetch(`${BASE}${path}`, { ...init, headers: { ...(init.headers ?? {}), Authorization: `Bearer ${token}` }, timeoutMs: init.timeoutMs ?? 30_000 });
+    res = await httpFetch(`${BASE}${path}`, {
+      ...init,
+      headers: { ...(init.headers ?? {}), Authorization: `Bearer ${token}` },
+      timeoutMs: init.timeoutMs ?? 30_000,
+    });
   } catch (e) {
     throw new GmailApiError(`network: ${e instanceof Error ? e.message : String(e)}`, 0, "network");
   }
   const text = await res.text();
-  const data = text ? (JSON.parse(text) as T & { error?: { message?: string; errors?: { reason?: string }[] } }) : ({} as T & { error?: { message?: string; errors?: { reason?: string }[] } });
+  const data = text
+    ? (JSON.parse(text) as T & { error?: { message?: string; errors?: { reason?: string }[] } })
+    : ({} as T & { error?: { message?: string; errors?: { reason?: string }[] } });
   if (res.ok) return data;
   const reason = data.error?.errors?.[0]?.reason ?? "";
   const msg = data.error?.message ?? `HTTP ${res.status}`;
-  if (res.status === 429 || /rateLimitExceeded|userRateLimitExceeded|quotaExceeded/.test(reason)) throw new GmailApiError(msg, res.status, "rate_limited");
+  if (res.status === 429 || /rateLimitExceeded|userRateLimitExceeded|quotaExceeded/.test(reason))
+    throw new GmailApiError(msg, res.status, "rate_limited");
   if (res.status === 401) throw new GmailAuthError(`Gmail: ${msg}`, true);
   if (res.status === 403) throw new GmailApiError(`Brak uprawnień Gmail: ${msg}`, 403, "auth");
   if (res.status >= 500) throw new GmailApiError(msg, res.status, "server");
@@ -47,11 +54,33 @@ export function sendRaw(raw: string, threadId?: string | null): Promise<SendResu
 }
 
 export type Header = { name: string; value: string };
-export type MetaMessage = { id: string; threadId: string; labelIds?: string[]; internalDate?: string; payload?: { headers?: Header[]; mimeType?: string } };
+export type MetaMessage = {
+  id: string;
+  threadId: string;
+  labelIds?: string[];
+  internalDate?: string;
+  payload?: { headers?: Header[]; mimeType?: string };
+};
 
-const META_HEADERS = ["From", "To", "Date", "Subject", "Message-ID", "In-Reply-To", "References", "Auto-Submitted", "Precedence", "X-Autoreply", "X-Autorespond", "Content-Type", "X-Failed-Recipients"];
+const META_HEADERS = [
+  "From",
+  "To",
+  "Date",
+  "Subject",
+  "Message-ID",
+  "In-Reply-To",
+  "References",
+  "Auto-Submitted",
+  "Precedence",
+  "X-Autoreply",
+  "X-Autorespond",
+  "Content-Type",
+  "X-Failed-Recipients",
+];
 
-export function getThreadMetadata(threadId: string): Promise<{ id: string; historyId?: string; messages?: MetaMessage[] }> {
+export function getThreadMetadata(
+  threadId: string,
+): Promise<{ id: string; historyId?: string; messages?: MetaMessage[] }> {
   const q = META_HEADERS.map((h) => `metadataHeaders=${encodeURIComponent(h)}`).join("&");
   return call(`/threads/${encodeURIComponent(threadId)}?format=metadata&${q}`);
 }
