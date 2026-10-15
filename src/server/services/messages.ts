@@ -5,6 +5,7 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { checkSendable } from "@/lib/contact-rules";
 import type { LintFinding } from "@/lib/email-lint";
+import { signatureFor } from "@/lib/signature";
 import { sha256Hex } from "../crypto.ts";
 import { db } from "../db/client.ts";
 import {
@@ -273,20 +274,36 @@ async function sourceDescription(contactId: string, lang: "pl" | "en"): Promise<
   return lang === "pl" ? "publiczna strona firmy" : "the company's public website";
 }
 
-/** The exact text that will be sent: body + signature (+ first-contact privacy notice). */
-export async function finalText(m: MessageRow): Promise<string> {
+export { signatureFor };
+
+/** What the app adds under the body when sending: the signature and, on a first email, the privacy note. */
+export async function messageTail(
+  m: MessageRow,
+): Promise<{ signature: string; signatureAuto: boolean; footer: string | null }> {
   const profile = await getSettings("profile");
   const privacy = await getSettings("privacy");
-  const sig = (m.language === "pl" ? profile.signaturePl : profile.signatureEn).trim();
-  let text = m.body.trim();
-  if (sig) text += `\n\n${sig}`;
+  const sig = signatureFor(profile, m.language as "pl" | "en");
+  let signature = sig.text;
+  // Older drafts ended with the sender's name; never print it twice.
+  const lastLine = m.body.trim().split("\n").pop()?.trim();
+  if (sig.auto && lastLine && lastLine === profile.senderName.trim())
+    signature = signature.split("\n").slice(1).join("\n");
+  let footer: string | null = null;
   if (privacy.includePrivacyFooter && m.kind === "initial") {
     const tpl = m.language === "pl" ? privacy.footerPl : privacy.footerEn;
-    const footer = tpl
+    footer = tpl
       .replace("{source}", await sourceDescription(m.contactId, m.language))
       .replace("{controller}", privacy.controllerName || profile.senderName || profile.businessName);
-    text += `\n\n—\n${footer}`;
   }
+  return { signature, signatureAuto: sig.auto, footer };
+}
+
+/** The exact text that will be sent: body + signature (+ first-contact privacy notice). */
+export async function finalText(m: MessageRow): Promise<string> {
+  const tail = await messageTail(m);
+  let text = m.body.trim();
+  if (tail.signature) text += `\n\n${tail.signature}`;
+  if (tail.footer) text += `\n\n—\n${tail.footer}`;
   return text;
 }
 

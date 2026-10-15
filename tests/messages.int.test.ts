@@ -14,7 +14,7 @@ const { companies, contacts, googleAccounts, messages, reminders } = await impor
 );
 const { encryptSecret } = await import("../src/server/crypto.ts");
 const { resetEnvCache } = await import("../src/server/env.ts");
-const { approve, createDraft, finalText, getMessage, updateDraft } = await import(
+const { approve, createDraft, finalText, getMessage, signatureFor, updateDraft } = await import(
   "../src/server/services/messages.ts"
 );
 const { markSentManually, sendMessage } = await import("../src/server/gmail/dispatch.ts");
@@ -117,6 +117,21 @@ describe.skipIf(!hasDb)("messages and sending", () => {
     const t = await finalText(m);
     expect(t).toContain("Julia\nMind the Gap");
     expect(t).toMatch(/publicznie dostępnego źródła/);
+  });
+
+  it("builds the signature from name, position and company when none is written", async () => {
+    const { ProfileSettings } = await import("../src/server/settings.ts");
+    const p = ProfileSettings.parse({
+      senderName: "Julia Krasniuk",
+      senderRole: "Trenerka",
+      businessName: "Mind the Gap",
+      website: "https://leadersmindthegap.com/",
+    });
+    expect(signatureFor(p, "pl")).toEqual({
+      text: "Julia Krasniuk\nTrenerka · Mind the Gap\nhttps://leadersmindthegap.com",
+      auto: true,
+    });
+    expect(signatureFor({ ...p, signatureEn: "Julia" }, "en")).toEqual({ text: "Julia", auto: false });
   });
 
   it("sends once through Gmail and records the thread", async () => {

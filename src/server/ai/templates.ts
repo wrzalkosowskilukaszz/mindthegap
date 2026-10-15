@@ -124,10 +124,10 @@ function greeting(t: TemplateInput): string {
   return "Dzień dobry,";
 }
 
+/** The closing line. Your name, position and company follow in the signature the app adds. */
 function closing(t: TemplateInput): string {
   if (t.hasSignature) return "";
-  const line = t.language === "pl" ? "Pozdrawiam serdecznie" : "Kind regards";
-  return t.senderName ? `${line}\n${t.senderName}` : line;
+  return t.language === "pl" ? "Pozdrawiam serdecznie" : "Kind regards";
 }
 
 function join(parts: (string | null | undefined | false)[]): string {

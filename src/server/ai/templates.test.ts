@@ -69,10 +69,8 @@ describe("template drafts (no AI)", () => {
     expect(bodies.size).toBeGreaterThan(1);
   });
 
-  it("adds a closing only when there is no signature", () => {
-    expect(templateDraft({ ...base, senderName: "Jan" }).body.endsWith("Pozdrawiam serdecznie\nJan")).toBe(
-      true,
-    );
+  it("adds a closing line only when there is no own signature; the name comes in the signature", () => {
+    expect(templateDraft({ ...base, senderName: "Jan" }).body.endsWith("Pozdrawiam serdecznie")).toBe(true);
     expect(templateDraft({ ...base, hasSignature: true }).body).not.toContain("Pozdrawiam");
   });
 

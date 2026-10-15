@@ -23,6 +23,7 @@ import {
   finalText,
   getMessage,
   type MessageRow,
+  messageTail,
   preSendCheck,
   saveGenerated,
 } from "./messages.ts";
@@ -109,6 +110,7 @@ export async function composerData(id: string) {
       body: r.body,
     })),
     finalText: m.body.trim() ? await finalText(m) : "",
+    tail: await messageTail(m),
     lint,
     check,
     ai: aiConfigured(),
@@ -121,9 +123,7 @@ export async function composerData(id: string) {
       m.status === "uncertain" && acct
         ? gmailSearchUrl(acct.email, `in:sent to:${m.toEmail ?? ""} subject:"${m.subject}"`)
         : null,
-    profileReady: Boolean(
-      profile.senderName && (m.language === "pl" ? profile.signaturePl : profile.signatureEn),
-    ),
+    profileReady: Boolean(profile.senderName.trim()),
   };
 }
 

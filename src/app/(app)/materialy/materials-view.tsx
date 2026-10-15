@@ -1,10 +1,11 @@
 "use client";
 
 import { BadgeCheck, Check, CircleAlert, FileText, Plus, Sparkles, Trash2, Upload } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
 import { Callout, Dialog, Dot, Empty } from "@/components/ui";
 import { ApiError, apiFetch } from "@/lib/api-client";
+import { signatureFor } from "@/lib/signature";
 import type { ProgramField, ProgramSummary } from "@/server/db/schema";
 import type { SettingsOf } from "@/server/settings";
 import { uploadVersion } from "./upload";
@@ -62,7 +63,6 @@ function sourceLabel(src: string): string {
 }
 
 export function MaterialsView() {
-  const toast = useToast();
   const [lib, setLib] = useState<Library | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"programs" | "documents" | "profile">("programs");
@@ -110,7 +110,7 @@ export function MaterialsView() {
           onUpload={(programId, documentId) => setUploadOpen({ programId, documentId })}
         />
       ) : null}
-      {tab === "profile" ? <Profile initial={lib.profile} onSaved={() => toast("Zapisano profil")} /> : null}
+      {tab === "profile" ? <Profile initial={lib.profile} onSaved={load} /> : null}
 
       <UploadDialog
         open={uploadOpen}
@@ -721,22 +721,63 @@ function UploadDialog({
 function Profile({ initial, onSaved }: { initial: SettingsOf<"profile">; onSaved: () => void }) {
   const toast = useToast();
   const [p, setP] = useState(initial);
-  const set = <K extends keyof typeof p>(k: K, v: (typeof p)[K]) => setP((x) => ({ ...x, [k]: v }));
-  async function save() {
+  const [state, setState] = useState<"saved" | "dirty" | "saving" | "error">("saved");
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latest = useRef(p);
+  latest.current = p;
+  const save = useCallback(async () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    setState("saving");
     try {
-      await apiFetch("/api/settings/profile", { method: "PUT", body: p });
+      await apiFetch("/api/settings/profile", { method: "PUT", body: latest.current });
+      setState("saved");
       onSaved();
     } catch (e) {
+      setState("error");
       toast(e instanceof ApiError ? e.message : "Nie zapisano", "error");
     }
-  }
+  }, [onSaved, toast]);
+  // Saves by itself a moment after you stop typing, so nothing is lost when you leave the tab.
+  const set = <K extends keyof typeof p>(k: K, v: (typeof p)[K]) => {
+    setP((x) => ({ ...x, [k]: v }));
+    setState("dirty");
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => void save(), 800);
+  };
+  useEffect(
+    () => () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+        void apiFetch("/api/settings/profile", { method: "PUT", body: latest.current }).then(
+          onSaved,
+          () => {},
+        );
+      }
+    },
+    [onSaved],
+  );
   return (
     <div className="stack-lg" id="profil">
       <section className="card card-pad stack">
-        <h3>Nadawca</h3>
+        <div className="row-between">
+          <h3>Ty</h3>
+          <span className="xsmall muted" aria-live="polite">
+            {state === "saving"
+              ? "Zapisywanie…"
+              : state === "dirty"
+                ? "Zapisze się za chwilę"
+                : state === "error"
+                  ? "Nie zapisano"
+                  : "Zapisano"}
+          </span>
+        </div>
+        <p className="small secondary">
+          Imię, stanowisko i firma tworzą podpis pod każdym mailem — nie musisz go pisać osobno.
+        </p>
         <div className="field-row">
           <label className="field">
-            <span className="field-label">Imię i nazwisko nadawcy</span>
+            <span className="field-label">Imię i nazwisko</span>
             <input
               className="input"
               value={p.senderName}
@@ -744,7 +785,7 @@ function Profile({ initial, onSaved }: { initial: SettingsOf<"profile">; onSaved
             />
           </label>
           <label className="field">
-            <span className="field-label">Rola</span>
+            <span className="field-label">Stanowisko</span>
             <input
               className="input"
               value={p.senderRole}
@@ -761,7 +802,7 @@ function Profile({ initial, onSaved }: { initial: SettingsOf<"profile">; onSaved
             />
           </label>
           <label className="field">
-            <span className="field-label">Strona (jedyny link dozwolony w mailach)</span>
+            <span className="field-label">Strona www (jedyny link w mailach)</span>
             <input className="input" value={p.website} onChange={(e) => set("website", e.target.value)} />
           </label>
         </div>
@@ -968,13 +1009,17 @@ function Profile({ initial, onSaved }: { initial: SettingsOf<"profile">; onSaved
       </section>
 
       <section className="card card-pad stack">
-        <h3>Podpis i wezwanie do działania</h3>
+        <h3>Własny podpis i zakończenie (opcjonalnie)</h3>
+        <p className="small secondary">
+          Zostaw puste, a podpis powstanie z imienia, stanowiska i firmy. Wpisz tu tylko, jeśli chcesz inny.
+        </p>
         <div className="grid-2">
           <label className="field">
             <span className="field-label">Podpis PL</span>
             <textarea
               className="textarea"
               rows={4}
+              placeholder={signatureFor({ ...p, signaturePl: "" }, "pl").text}
               value={p.signaturePl}
               onChange={(e) => set("signaturePl", e.target.value)}
             />
@@ -984,6 +1029,7 @@ function Profile({ initial, onSaved }: { initial: SettingsOf<"profile">; onSaved
             <textarea
               className="textarea"
               rows={4}
+              placeholder={signatureFor({ ...p, signatureEn: "" }, "en").text}
               value={p.signatureEn}
               onChange={(e) => set("signatureEn", e.target.value)}
             />
@@ -1006,10 +1052,11 @@ function Profile({ initial, onSaved }: { initial: SettingsOf<"profile">; onSaved
           </label>
         </div>
       </section>
-      <div>
-        <button type="button" className="btn btn-primary btn-lg" onClick={save}>
-          Zapisz profil
+      <div className="row">
+        <button type="button" className="btn btn-primary btn-lg" onClick={save} disabled={state === "saving"}>
+          Zapisz teraz
         </button>
+        <span className="small muted">Zmiany zapisują się też same.</span>
       </div>
     </div>
   );

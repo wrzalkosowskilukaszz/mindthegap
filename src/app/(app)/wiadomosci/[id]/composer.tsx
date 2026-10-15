@@ -11,6 +11,7 @@ import {
   History,
   Mail,
   Paperclip,
+  PenLine,
   RefreshCw,
   Send,
   Sparkles,
@@ -24,6 +25,7 @@ import { Callout, Dialog, Dot, EmailStatusLabel, hostOf } from "@/components/ui"
 import { ApiError, apiFetch } from "@/lib/api-client";
 import { ROLE_LABEL } from "@/lib/contact-query";
 import { ELIGIBILITY_LABEL } from "@/lib/contact-rules";
+import { type SignatureFields, signatureFor } from "@/lib/signature";
 import { formatWarsaw } from "@/lib/time";
 import type { ComposerData } from "@/server/services/composer";
 
@@ -65,6 +67,7 @@ export function Composer({ id }: { id: string }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [confirmRegen, setConfirmRegen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [signatureOpen, setSignatureOpen] = useState(false);
   const revision = useRef(0);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -473,6 +476,30 @@ export function Composer({ id }: { id: string }) {
                 lang={m.language}
               />
             )}
+            {!empty ? (
+              <div className="signature-block">
+                <div className="signature-head">
+                  <span>Podpis — dodawany automatycznie</span>
+                  {editable ? (
+                    <button
+                      type="button"
+                      className="link-button small"
+                      onClick={() => setSignatureOpen(true)}
+                    >
+                      <PenLine size={13} /> Edytuj podpis
+                    </button>
+                  ) : null}
+                </div>
+                {d.tail.signature ? (
+                  <div className="signature-text">{d.tail.signature}</div>
+                ) : (
+                  <p className="small muted">
+                    Brak podpisu. Dodaj imię, stanowisko i firmę — pojawią się pod każdym mailem.
+                  </p>
+                )}
+                {d.tail.footer ? <div className="signature-footer">— {d.tail.footer}</div> : null}
+              </div>
+            ) : null}
             {editable && !d.ai && !empty ? (
               <div className="quick-actions" role="toolbar" aria-label="Szablon i polecenie">
                 <button
@@ -594,15 +621,6 @@ export function Composer({ id }: { id: string }) {
               ) : null}
             </div>
           </div>
-          {!d.profileReady ? (
-            <Callout tone="info">
-              <span>
-                Uzupełnij nadawcę i podpis ({m.language.toUpperCase()}) w{" "}
-                <Link href="/materialy#profil">Materiałach › Profil i głos</Link> — podpis jest dodawany
-                automatycznie.
-              </span>
-            </Callout>
-          ) : null}
         </div>
 
         <aside className="side-stack">
@@ -835,6 +853,16 @@ export function Composer({ id }: { id: string }) {
         onRestore={async (rev) => {
           await action("restore", { rev }, `Przywrócono wersję ${rev}`);
           setHistoryOpen(false);
+        }}
+      />
+      <SignatureDialog
+        open={signatureOpen}
+        language={m.language as "pl" | "en"}
+        onClose={() => setSignatureOpen(false)}
+        onSaved={async () => {
+          setSignatureOpen(false);
+          await load();
+          toast("Zapisano podpis");
         }}
       />
       <ScheduleDialog
@@ -1124,6 +1152,126 @@ function BasisQuestion({ d, onSaved }: { d: ComposerData; onSaved: () => Promise
         Żadne nie pasuje? Wtedy lepiej nie wysyłać oferty — grozi za to kara UKE. To nie jest porada prawna.
       </p>
     </div>
+  );
+}
+
+/** Name, position and company for the signature, edited right where the email is written. */
+function SignatureDialog({
+  open,
+  language,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  language: "pl" | "en";
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const toast = useToast();
+  const [p, setP] = useState<(SignatureFields & Record<string, unknown>) | null>(null);
+  const [own, setOwn] = useState(false);
+  const ownKey = language === "pl" ? "signaturePl" : "signatureEn";
+  useEffect(() => {
+    if (!open) return;
+    setP(null);
+    apiFetch<SignatureFields & Record<string, unknown>>("/api/settings/profile")
+      .then((x) => {
+        setP(x);
+        setOwn(Boolean(x[ownKey].trim()));
+      })
+      .catch(() => toast("Nie udało się wczytać profilu", "error"));
+  }, [open, ownKey, toast]);
+  const set = (k: keyof SignatureFields, v: string) => setP((x) => (x ? { ...x, [k]: v } : x));
+  async function save() {
+    if (!p) return;
+    try {
+      await apiFetch("/api/settings/profile", { method: "PUT", body: own ? p : { ...p, [ownKey]: "" } });
+      await onSaved();
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Nie zapisano", "error");
+    }
+  }
+  const preview = p ? signatureFor(own ? p : { ...p, [ownKey]: "" }, language).text : "";
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title="Twój podpis"
+      description="Pojawi się pod każdym mailem. Zmiana dotyczy też szkiców, które już masz."
+      footer={
+        <>
+          <button type="button" className="btn btn-quiet" onClick={onClose}>
+            Anuluj
+          </button>
+          <button type="button" className="btn btn-primary" onClick={save} disabled={!p}>
+            Zapisz podpis
+          </button>
+        </>
+      }
+    >
+      {!p ? (
+        <span className="skeleton" style={{ width: "60%" }} />
+      ) : (
+        <>
+          <div className="field-row">
+            <label className="field">
+              <span className="field-label">Imię i nazwisko</span>
+              <input
+                className="input"
+                value={p.senderName}
+                onChange={(e) => set("senderName", e.target.value)}
+                placeholder="np. Julia Krasniuk"
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Stanowisko</span>
+              <input
+                className="input"
+                value={p.senderRole}
+                onChange={(e) => set("senderRole", e.target.value)}
+                placeholder="np. Trenerka i facylitatorka"
+              />
+            </label>
+          </div>
+          <div className="field-row">
+            <label className="field">
+              <span className="field-label">Firma</span>
+              <input
+                className="input"
+                value={p.businessName}
+                onChange={(e) => set("businessName", e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Strona www</span>
+              <input className="input" value={p.website} onChange={(e) => set("website", e.target.value)} />
+            </label>
+          </div>
+          <label className="check-row">
+            <input
+              type="checkbox"
+              className="checkbox"
+              checked={own}
+              onChange={(e) => setOwn(e.target.checked)}
+            />
+            Własny podpis zamiast powyższego ({language.toUpperCase()})
+          </label>
+          {own ? (
+            <textarea
+              className="textarea"
+              rows={4}
+              value={p[ownKey]}
+              onChange={(e) => set(ownKey, e.target.value)}
+              aria-label="Własny podpis"
+            />
+          ) : null}
+          <div className="stack" style={{ gap: 6 }}>
+            <span className="field-label">Tak będzie wyglądać</span>
+            <div className="signature-text signature-preview">{preview || "—"}</div>
+          </div>
+        </>
+      )}
+    </Dialog>
   );
 }
 
