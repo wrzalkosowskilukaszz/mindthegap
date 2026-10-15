@@ -102,7 +102,7 @@ export const PrivacySettings = z.object({
   footerPl: z
     .string()
     .default(
-      "Twój służbowy adres e-mail pochodzi z publicznie dostępnego źródła: {source}. Administratorem danych jest {controller}. Jeśli nie chcesz otrzymywać ode mnie wiadomości, odpowiedz „nie” — usunę Twoje dane z mojej bazy.",
+      "Państwa służbowy adres e-mail pochodzi z publicznie dostępnego źródła: {source}. Administratorem danych jest {controller}. Jeśli nie chcą Państwo otrzymywać ode mnie wiadomości, proszę odpowiedzieć „nie” — usunę Państwa dane z mojej bazy.",
     ),
   footerEn: z
     .string()
@@ -129,6 +129,7 @@ export const WritingSample = z.object({
 export const ProfileSettings = z.object({
   senderName: z.string().default(""),
   senderRole: z.string().default(""),
+  senderRoleEn: z.string().default(""),
   businessName: z.string().default("Mind The Gap"),
   website: z.string().default("https://leadersmindthegap.com/"),
   voice: z.enum(["singular", "plural"]).default("singular"),

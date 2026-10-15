@@ -2,6 +2,7 @@
 export type SignatureFields = {
   senderName: string;
   senderRole: string;
+  senderRoleEn?: string;
   businessName: string;
   website: string;
   signaturePl: string;
@@ -15,7 +16,9 @@ export type SignatureFields = {
 export function signatureFor(p: SignatureFields, language: "pl" | "en"): { text: string; auto: boolean } {
   const own = (language === "pl" ? p.signaturePl : p.signatureEn).trim();
   if (own) return { text: own, auto: false };
-  const role = [p.senderRole.trim(), p.businessName.trim()].filter(Boolean).join(" · ");
+  // English emails use the English job title when there is one.
+  const title = language === "en" && p.senderRoleEn?.trim() ? p.senderRoleEn.trim() : p.senderRole.trim();
+  const role = [title, p.businessName.trim()].filter(Boolean).join(" · ");
   const site = p.website.trim().replace(/\/$/, "");
   return { text: [p.senderName.trim(), role, site].filter(Boolean).join("\n"), auto: true };
 }

@@ -54,6 +54,6 @@ test("the contact panel opens with evidence and the send guard", async ({ page }
   await rows.first().click();
   await expect(page.getByText("Dowody i źródła")).toBeVisible();
   await expect(page.locator(".section-title", { hasText: "Uprawnienie do kontaktu" })).toBeVisible();
-  // Without a documented basis, sending is blocked (Art. 398 PKE; docs/research/LEGAL-PL.md).
-  await expect(page.getByText("Wysyłka zablokowana")).toBeVisible();
+  // Without a documented basis, the app asks for it before sending (Art. 398 PKE; docs/research/LEGAL-PL.md).
+  await expect(page.getByText("Przed wysłaniem zapytamy, skąd wiesz")).toBeVisible();
 });

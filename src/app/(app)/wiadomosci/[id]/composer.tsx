@@ -69,6 +69,8 @@ export function Composer({ id }: { id: string }) {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [signatureOpen, setSignatureOpen] = useState(false);
   const revision = useRef(0);
+  const salutationRef = useRef<Salutation>("neutral");
+  const revertProgram = useRef<string | null | undefined>(undefined);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -82,7 +84,13 @@ export function Composer({ id }: { id: string }) {
       setSave("saved");
       setError(null);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Nie udało się wczytać wiadomości");
+      setError(
+        e instanceof ApiError && e.status === 404
+          ? "Ta wiadomość nie istnieje — mogła zostać usunięta."
+          : e instanceof ApiError
+            ? e.message
+            : "Nie udało się wczytać wiadomości",
+      );
     }
   }, [id]);
 
@@ -175,8 +183,9 @@ export function Composer({ id }: { id: string }) {
     setBusy("generate");
     try {
       const r = await apiFetch<{ warnings: { message: string }[] }>(`/api/messages/${id}/generate`, {
-        body: { overwrite, salutation },
+        body: { overwrite, salutation: salutationRef.current },
       });
+      revertProgram.current = undefined;
       await load();
       toast(r.warnings.some((w) => w) ? "Szkic gotowy — sprawdź uwagi po prawej" : "Szkic gotowy");
     } catch (e) {
@@ -189,6 +198,16 @@ export function Composer({ id }: { id: string }) {
       else toast(e instanceof ApiError ? e.message : "Generowanie nie powiodło się", "error");
     } finally {
       setBusy(null);
+    }
+  }
+
+  /** "Cancel" in the regenerate question: put the previous service back, so text and choice agree. */
+  async function cancelRegen() {
+    setConfirmRegen(false);
+    if (revertProgram.current !== undefined) {
+      await persist({ programId: revertProgram.current });
+      revertProgram.current = undefined;
+      await load();
     }
   }
 
@@ -327,6 +346,20 @@ export function Composer({ id }: { id: string }) {
           <button type="button" className="btn btn-quiet" onClick={() => setHistoryOpen(true)}>
             <History size={15} /> Historia ({d.revisions.length})
           </button>
+          {editable ? (
+            <button
+              type="button"
+              className="btn btn-quiet"
+              onClick={async () => {
+                if (!window.confirm("Usunąć ten szkic? Tego nie można cofnąć.")) return;
+                await apiFetch(`/api/messages/${id}`, { method: "DELETE" });
+                toast("Usunięto szkic");
+                router.push("/wiadomosci");
+              }}
+            >
+              <X size={15} /> Usuń szkic
+            </button>
+          ) : null}
           {editable && gmailReady ? (
             <button
               type="button"
@@ -643,6 +676,7 @@ export function Composer({ id }: { id: string }) {
                 value={m.programId ?? ""}
                 onChange={async (e) => {
                   await flush();
+                  revertProgram.current = m.programId;
                   await persist({ programId: e.target.value || null });
                   await load();
                   // Refresh the text right away; if you edited it, you are asked first.
@@ -681,9 +715,13 @@ export function Composer({ id }: { id: string }) {
                 {m.language === "pl" ? (
                   <select
                     className="select"
-                    style={{ width: 150 }}
+                    style={{ width: 180 }}
                     value={salutation}
-                    onChange={(e) => setSalutation(e.target.value as Salutation)}
+                    onChange={(e) => {
+                      setSalutation(e.target.value as Salutation);
+                      salutationRef.current = e.target.value as Salutation;
+                      void generate(false);
+                    }}
                     aria-label="Forma zwracania się"
                   >
                     <option value="neutral">Forma neutralna</option>
@@ -694,7 +732,7 @@ export function Composer({ id }: { id: string }) {
               </div>
               {m.language === "pl" ? (
                 <p className="xsmall muted">
-                  Aplikacja nie zgaduje płci odbiorcy. Formę „Pani/Pan” wybierasz sama/sam.
+                  Aplikacja nie zgaduje płci odbiorcy. Formę „Pani/Pan” wybierasz ręcznie.
                 </p>
               ) : null}
             </div>
@@ -781,7 +819,8 @@ export function Composer({ id }: { id: string }) {
                 </details>
               ) : null}
               <p className="xsmall muted" style={{ marginTop: 10 }}>
-                Szkic nie gwarantuje odpowiedzi ani sprzedaży. {gen.model ? `Model: ${gen.model}.` : ""}
+                Szkic nie gwarantuje odpowiedzi ani sprzedaży.
+                {gen.model && !gen.model.startsWith("template") ? ` Model AI: ${gen.model}.` : ""}
               </p>
             </div>
           ) : null}
@@ -819,12 +858,12 @@ export function Composer({ id }: { id: string }) {
       />
       <Dialog
         open={confirmRegen}
-        onClose={() => setConfirmRegen(false)}
+        onClose={cancelRegen}
         title="Wygenerować od nowa?"
         description="Szkic zawiera Twoje zmiany. Nowa wersja je zastąpi — obecna trafi do historii i możesz ją przywrócić."
         footer={
           <>
-            <button type="button" className="btn btn-quiet" onClick={() => setConfirmRegen(false)}>
+            <button type="button" className="btn btn-quiet" onClick={cancelRegen}>
               Anuluj
             </button>
             <button
@@ -897,15 +936,21 @@ function SendPanel({
   const toast = useToast();
   const m = d.message;
   const gmailReady = Boolean(d.gmail?.canSend && d.gmail.status === "connected");
-  async function copy() {
+  async function copy(part: "subject" | "body") {
     const x = await fresh();
-    await navigator.clipboard.writeText(`${x.message.subject}\n\n${x.finalText}`);
-    toast("Skopiowano temat i treść. Wklej je w swojej poczcie.");
+    await navigator.clipboard.writeText(part === "subject" ? x.message.subject : x.finalText);
+    toast(part === "subject" ? "Skopiowano temat" : "Skopiowano treść z podpisem");
   }
   async function openMail() {
     const x = await fresh();
     window.location.href = `mailto:${encodeURIComponent(x.message.toEmail ?? "")}?subject=${encodeURIComponent(x.message.subject)}&body=${encodeURIComponent(x.finalText)}`;
   }
+  const replied = Boolean(
+    d.contact?.inbound.some(
+      (i) =>
+        i.classification === "human_reply" && m.sentAt && Date.parse(i.receivedAt) >= Date.parse(m.sentAt),
+    ),
+  );
   if (m.status === "sent") {
     return (
       <div className="side-card stack">
@@ -920,28 +965,35 @@ function SendPanel({
               <Mail size={13} /> Otwórz w Gmailu
             </a>
           ) : null}
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={async () => {
-              const r = await apiFetch<{ id: string }>(`/api/messages/${m.id}/follow-up`, { body: {} });
-              router.push(`/wiadomosci/${r.id}`);
-            }}
-          >
-            Przygotuj follow-up
-          </button>
-          <button
-            type="button"
-            className="btn btn-quiet btn-sm"
-            onClick={async () => {
-              await apiFetch(`/api/contacts/${m.contactId}/reply`, {
-                body: { classification: "human_reply" },
-              });
-              toast("Zapisano odpowiedź");
-            }}
-          >
-            Oznacz: odpowiedź otrzymana
-          </button>
+          {replied ? null : (
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={async () => {
+                const r = await apiFetch<{ id: string }>(`/api/messages/${m.id}/follow-up`, { body: {} });
+                router.push(`/wiadomosci/${r.id}`);
+              }}
+            >
+              Przygotuj follow-up
+            </button>
+          )}
+          {replied ? (
+            <span className="tag tag-ok">Jest odpowiedź</span>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-quiet btn-sm"
+              onClick={async () => {
+                await apiFetch(`/api/contacts/${m.contactId}/reply`, {
+                  body: { classification: "human_reply" },
+                });
+                toast("Zapisano: jest odpowiedź. Przypomnienie o follow-upie wyłączone.");
+                await reload();
+              }}
+            >
+              Oznacz: odpowiedź otrzymana
+            </button>
+          )}
         </div>
       </div>
     );
@@ -1026,8 +1078,11 @@ function SendPanel({
         <li>Wróć tutaj i kliknij „Wysłane” — przypomnimy Ci o follow-upie.</li>
       </ol>
       <div className="btn-group">
-        <button type="button" className="btn btn-sm" onClick={copy} disabled={blocked}>
-          <Clipboard size={13} /> Kopiuj
+        <button type="button" className="btn btn-sm" onClick={() => copy("subject")} disabled={blocked}>
+          <Clipboard size={13} /> Kopiuj temat
+        </button>
+        <button type="button" className="btn btn-sm" onClick={() => copy("body")} disabled={blocked}>
+          <Clipboard size={13} /> Kopiuj treść
         </button>
         <button type="button" className="btn btn-sm" onClick={openMail} disabled={blocked}>
           <Mail size={13} /> Otwórz w poczcie
@@ -1223,15 +1278,27 @@ function SignatureDialog({
                 placeholder="np. Julia Krasniuk"
               />
             </label>
-            <label className="field">
-              <span className="field-label">Stanowisko</span>
-              <input
-                className="input"
-                value={p.senderRole}
-                onChange={(e) => set("senderRole", e.target.value)}
-                placeholder="np. Trenerka i facylitatorka"
-              />
-            </label>
+            {language === "en" ? (
+              <label className="field">
+                <span className="field-label">Stanowisko (po angielsku)</span>
+                <input
+                  className="input"
+                  value={p.senderRoleEn ?? ""}
+                  onChange={(e) => set("senderRoleEn", e.target.value)}
+                  placeholder="e.g. Trainer and facilitator"
+                />
+              </label>
+            ) : (
+              <label className="field">
+                <span className="field-label">Stanowisko</span>
+                <input
+                  className="input"
+                  value={p.senderRole}
+                  onChange={(e) => set("senderRole", e.target.value)}
+                  placeholder="np. Trenerka i facylitatorka"
+                />
+              </label>
+            )}
           </div>
           <div className="field-row">
             <label className="field">

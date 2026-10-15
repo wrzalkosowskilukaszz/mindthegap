@@ -24,6 +24,32 @@ export function NewDraft() {
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ messageId: string }[]>([]);
   const [ai, setAi] = useState(true);
+  const [who, setWho] = useState<string | null>(null);
+
+  // Show who the message is for.
+  const onlyId = ids.length === 1 ? ids[0] : null;
+  useEffect(() => {
+    if (!onlyId) return;
+    apiFetch<{
+      contact: {
+        fullName: string | null;
+        departmentLabel: string | null;
+        email: string | null;
+        title: string | null;
+      };
+      company: { name: string; brand: string | null } | null;
+    }>(`/api/contacts/${onlyId}`)
+      .then((d) => {
+        const c = d.contact;
+        const name = c.fullName ?? c.departmentLabel ?? c.email ?? "";
+        setWho(
+          [name, c.fullName ? c.title : null, d.company?.brand ?? d.company?.name]
+            .filter(Boolean)
+            .join(" · "),
+        );
+      })
+      .catch(() => setWho(null));
+  }, [onlyId]);
 
   useEffect(() => {
     apiFetch<{ programs: Program[]; ai: boolean }>("/api/materials")
@@ -93,6 +119,7 @@ export function NewDraft() {
     <div className="stack-lg">
       <header>
         <h1>{ids.length === 1 ? "Nowa wiadomość" : `Szkice dla ${ids.length} kontaktów`}</h1>
+        {who ? <p style={{ marginTop: 6, fontWeight: 600 }}>Do: {who}</p> : null}
         <p className="secondary" style={{ marginTop: 6 }}>
           {ids.length === 1
             ? "Wybierz usługę, o której chcesz napisać, i język. Tekst dopasuje się do działu odbiorcy."

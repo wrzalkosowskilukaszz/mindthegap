@@ -9,8 +9,9 @@ export function csvCell(v: unknown): string {
   return s;
 }
 
+/** Semicolon-separated: Polish Excel splits columns on ";" (a comma is the decimal separator there). */
 export function toCsv(headers: string[], rows: unknown[][]): string {
-  const lines = [headers.map(csvCell).join(","), ...rows.map((r) => r.map(csvCell).join(","))];
+  const lines = [headers.map(csvCell).join(";"), ...rows.map((r) => r.map(csvCell).join(";"))];
   // BOM so Excel opens UTF-8 (Polish diacritics) correctly.
   return `﻿${lines.join("\r\n")}\r\n`;
 }

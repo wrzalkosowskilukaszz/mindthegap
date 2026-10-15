@@ -65,7 +65,7 @@ export function StatCards({ s }: { s: HomeStats }) {
         <span className="metric-value">{nf.format(s.companies)}</span>
         <span className="metric-label">Firm w bazie</span>
       </Link>
-      <Link href="/wiadomosci" className="stat-card">
+      <Link href="/wiadomosci?box=sent" className="stat-card">
         <span className="metric-icon">
           <Send size={22} strokeWidth={1.8} />
         </span>

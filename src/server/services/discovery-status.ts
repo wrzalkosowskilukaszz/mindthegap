@@ -44,8 +44,8 @@ export async function discoveryStatus() {
     .where(
       and(
         isNull(appEvents.resolvedAt),
+        // Every open warning or error, the same set the sidebar counts.
         sql`${appEvents.level} in ('warning','error')`,
-        sql`${appEvents.category} in ('discovery','provider','scheduler','ai')`,
       ),
     )
     .orderBy(desc(appEvents.createdAt))

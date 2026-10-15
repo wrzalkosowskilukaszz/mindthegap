@@ -142,6 +142,24 @@ function fetchDue() {
   );
 }
 
+/**
+ * The same board can be linked twice (e.g. two spellings of one Workday site) and the same job can
+ * come from two sources: keep one board and one offer.
+ */
+async function dedupe() {
+  await db().execute(sql`
+    update job_sources s set enabled = false
+    from job_sources k
+    where s.kind = k.kind and lower(s.token) = lower(k.token) and s.id > k.id and s.enabled`);
+  await db().execute(sql`
+    delete from job_offers o using job_offers k
+    where o.closed_at is null and k.closed_at is null and o.status = 'new'
+      and o.source_id <> k.source_id
+      and o.company_name = k.company_name and lower(o.title) = lower(k.title)
+      and coalesce(o.location, '') = coalesce(k.location, '')
+      and (k.first_seen_at, k.id) < (o.first_seen_at, o.id)`);
+}
+
 /** Atomically takes the next due source and pushes its next read into the future. */
 async function claimNextSource(hours: number) {
   const rows = await db().execute(sql`
@@ -178,6 +196,7 @@ export async function syncJobs(opts: { deadline: number; detect?: boolean }): Pr
     timeoutMs: 12_000,
   });
   await ensureFeedSources();
+  await dedupe();
   const left = () => opts.deadline - Date.now();
   // When boards are waiting to be read, website checks get only the first half of the time.
   const [waiting] = await db().select({ id: jobSources.id }).from(jobSources).where(fetchDue()).limit(1);
@@ -362,6 +381,21 @@ async function storeJobs(
       prefs,
     );
     if (!worthKeeping(m, co?.favourite ?? false)) continue;
+    // Already listed from another source (same company, title and place)? Keep the first one.
+    const [twin] = await db()
+      .select({ id: jobOffers.id })
+      .from(jobOffers)
+      .where(
+        and(
+          ne(jobOffers.sourceId, sourceId),
+          isNull(jobOffers.closedAt),
+          eq(jobOffers.companyName, (co?.name ?? j.companyName).slice(0, 200)),
+          sql`lower(${jobOffers.title}) = lower(${j.title.slice(0, 300)})`,
+          sql`coalesce(${jobOffers.location}, '') = ${j.location?.slice(0, 300) ?? ""}`,
+        ),
+      )
+      .limit(1);
+    if (twin) continue;
     kept++;
     const values = {
       sourceId,

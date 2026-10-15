@@ -65,7 +65,10 @@ export function decideScheduledRun(opts: {
 
 export function formatWarsaw(d: Date | string | null | undefined, fmt = "d LLL yyyy, HH:mm"): string {
   if (!d) return "—";
-  const dt = typeof d === "string" ? DateTime.fromISO(d) : DateTime.fromJSDate(d);
+  let dt = typeof d === "string" ? DateTime.fromISO(d) : DateTime.fromJSDate(d);
+  // Raw SQL results come as "2026-10-15 17:41:53.218+00"; accept that too.
+  if (!dt.isValid && typeof d === "string") dt = DateTime.fromSQL(d);
+  if (!dt.isValid) return "—";
   return dt.setZone(DEFAULT_TZ).setLocale("pl").toFormat(fmt);
 }
 

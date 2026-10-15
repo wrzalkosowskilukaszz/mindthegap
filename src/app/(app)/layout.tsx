@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Brand } from "@/components/brand";
 import { LogoutButton, SidebarNav, TabBar } from "@/components/nav";
 import { ToastProvider } from "@/components/toast";
+import { plural } from "@/lib/plural";
 import { formatWarsaw } from "@/lib/time";
 import { requireSession } from "@/server/auth/session";
 import { systemStatus } from "@/server/services/status";
@@ -48,12 +49,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </Link>
             {s.openIssues > 0 ? (
               <Link
-                href="/aktywnosc#zdarzenia"
+                href="/kontakty/odkrywanie#uwaga"
                 className="health"
                 style={{ color: "var(--warn)", textDecoration: "none" }}
               >
                 <span className="dot dot-warn" />
-                {s.openIssues} {s.openIssues === 1 ? "sprawa wymaga uwagi" : "spraw wymaga uwagi"}
+                {s.openIssues} {plural(s.openIssues, "sprawa wymaga", "sprawy wymagają", "spraw wymaga")}{" "}
+                uwagi
               </Link>
             ) : null}
             <LogoutButton />
@@ -70,10 +72,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </form>
             <div className="topbar-spacer" />
             <Link
-              href="/wiadomosci/nowa"
+              href="/kontakty?view=to-contact"
               className="icon-circle"
-              aria-label="Nowa wiadomość"
-              title="Nowa wiadomość"
+              aria-label="Napisz do kogoś — wybierz osobę z listy"
+              title="Napisz do kogoś"
             >
               <Plus size={19} strokeWidth={1.8} />
             </Link>

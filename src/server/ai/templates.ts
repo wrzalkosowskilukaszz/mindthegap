@@ -7,7 +7,7 @@
  * for managers and teams, in person or online, half a day to several days, in Polish, English or
  * German). Numbers are written as words so the linter has nothing unsupported to flag.
  */
-import type { RoleFunction } from "@/lib/roles";
+import { FUNCTION_LABEL, type RoleFunction } from "@/lib/roles";
 
 export type TemplateInput = {
   language: "pl" | "en";
@@ -262,9 +262,9 @@ export function templateDraft(t: TemplateInput): TemplateDraft {
   const shorter =
     t.kind === "follow_up" ? body : t.language === "pl" ? initialPl(t, true) : initialEn(t, true);
   const notes = [
-    "Szkic z szablonu (bez AI): dopasowany do działu odbiorcy, firmy i wybranego programu.",
+    "Szkic z szablonu (bez AI): dopasowany do działu odbiorcy, firmy i wybranej usługi.",
     t.recipient.fn !== "other"
-      ? `Ujęcie dla działu: ${t.recipient.fn}.`
+      ? `Napisany pod dział: ${FUNCTION_LABEL[t.recipient.fn] ?? t.recipient.fn}.`
       : "Dział odbiorcy nieustalony — wersja uniwersalna.",
     "Przeczytaj i dopisz jedno zdanie od siebie, jeśli znasz kontekst firmy.",
   ];

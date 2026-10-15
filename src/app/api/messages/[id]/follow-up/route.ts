@@ -1,4 +1,5 @@
 import { api, badRequest } from "@/server/http";
+import { runGenerate } from "@/server/services/composer";
 import { createDraft, getMessage } from "@/server/services/messages";
 
 export const POST = api<{ id: string }>(async (_req, { params }) => {
@@ -11,5 +12,7 @@ export const POST = api<{ id: string }>(async (_req, { params }) => {
     kind: "follow_up",
     parentMessageId: parent.id,
   });
+  // Filled right away, like a first email (free template unless an AI key is set).
+  if (!m.body.trim()) await runGenerate(m.id, "neutral").catch(() => {});
   return { id: m.id };
 });

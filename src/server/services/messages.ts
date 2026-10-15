@@ -21,7 +21,7 @@ import {
   programs,
 } from "../db/schema.ts";
 import { badRequest, conflict, notFound } from "../http.ts";
-import { getSettings } from "../settings.ts";
+import { getSettings, PrivacySettings } from "../settings.ts";
 import { recentCompanyOutreach, recordContactEvent, refreshDerived, suppressionHits } from "./contacts.ts";
 
 export type MessageRow = typeof messages.$inferSelect;
@@ -83,6 +83,21 @@ export async function createDraft(opts: {
   const hits = await suppressionHits({ email: c.email, companyId: c.companyId, contactId: c.id });
   if (hits.length || c.eligibilityBasis === "do_not_contact")
     throw badRequest("Kontakt jest na liście wykluczeń lub oznaczony „nie kontaktować”.");
+  // One open draft per contact (and per sent message, for follow-ups): reopen it instead of a duplicate.
+  const [open] = await db()
+    .select()
+    .from(messages)
+    .where(
+      and(
+        eq(messages.contactId, c.id),
+        eq(messages.kind, opts.kind ?? "initial"),
+        inArray(messages.status, ["draft", "approved", "failed"]),
+        opts.parentMessageId ? eq(messages.parentMessageId, opts.parentMessageId) : sql`true`,
+      ),
+    )
+    .orderBy(desc(messages.updatedAt))
+    .limit(1);
+  if (open) return open;
   let subject = "";
   if (opts.kind === "follow_up" && opts.parentMessageId) {
     const parent = await getMessage(opts.parentMessageId);
@@ -276,6 +291,9 @@ async function sourceDescription(contactId: string, lang: "pl" | "en"): Promise<
 
 export { signatureFor };
 
+const OLD_FOOTER_PL =
+  "Twój służbowy adres e-mail pochodzi z publicznie dostępnego źródła: {source}. Administratorem danych jest {controller}. Jeśli nie chcesz otrzymywać ode mnie wiadomości, odpowiedz „nie” — usunę Twoje dane z mojej bazy.";
+
 /** What the app adds under the body when sending: the signature and, on a first email, the privacy note. */
 export async function messageTail(
   m: MessageRow,
@@ -290,7 +308,9 @@ export async function messageTail(
     signature = signature.split("\n").slice(1).join("\n");
   let footer: string | null = null;
   if (privacy.includePrivacyFooter && m.kind === "initial") {
-    const tpl = m.language === "pl" ? privacy.footerPl : privacy.footerEn;
+    let tpl = m.language === "pl" ? privacy.footerPl : privacy.footerEn;
+    // The first default used the informal "Ty" form; emails are formal, so it is replaced.
+    if (tpl === OLD_FOOTER_PL) tpl = PrivacySettings.parse({}).footerPl;
     footer = tpl
       .replace("{source}", await sourceDescription(m.contactId, m.language))
       .replace("{controller}", privacy.controllerName || profile.senderName || profile.businessName);

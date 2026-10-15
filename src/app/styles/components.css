@@ -997,6 +997,23 @@ kbd,
   }
 }
 
+/* Row actions stay in view when a wide table scrolls sideways. */
+.data-table .col-actions {
+  position: sticky;
+  right: 0;
+  background: var(--surface);
+  box-shadow: -12px 0 12px -12px rgba(17, 24, 39, 0.12);
+}
+
+.data-table thead th.col-actions {
+  background: var(--surface-sunken);
+  z-index: 3;
+}
+
+.data-table tbody tr:hover .col-actions {
+  background: var(--surface-hover);
+}
+
 .data-table .col-check {
   width: 40px;
   padding-right: 0;
@@ -1416,8 +1433,8 @@ button.list-row {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: var(--space-6);
-  min-height: 196px;
+  padding: var(--space-5) var(--space-6);
+  min-height: 168px;
   background: var(--surface);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-card);
@@ -1774,6 +1791,21 @@ dialog.dialog::backdrop {
   pointer-events: none;
 }
 
+/* The region is a manual popover (top layer, above dialogs): undo the browser's popover box. */
+.toast-region[popover] {
+  inset: auto auto var(--space-6) 50%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+  color: inherit;
+}
+
+.toast-region[popover]:not(:popover-open) {
+  display: none;
+}
+
 .toast {
   pointer-events: auto;
   display: flex;
@@ -1794,7 +1826,8 @@ dialog.dialog::backdrop {
 }
 
 @media (max-width: 860px) {
-  .toast-region {
+  .toast-region,
+  .toast-region[popover] {
     bottom: 84px;
   }
 }
@@ -2866,5 +2899,72 @@ input[type="range"] {
 
   .pref-group {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ============================== Phone fixes (audit 2026-10-15) ============================== */
+.popover-filters {
+  top: 46px;
+  left: 0;
+  width: 560px;
+  max-width: calc(100vw - 32px);
+  padding: 16px;
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+}
+
+@media (max-width: 860px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .page,
+  .main {
+    min-width: 0;
+  }
+
+  /* Tabs scroll sideways inside themselves instead of pushing the page wider. */
+  .subnav {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .subnav a {
+    flex: none;
+  }
+
+  .card,
+  .list,
+  .callout,
+  .side-card {
+    overflow-wrap: anywhere;
+  }
+
+  /* Long status texts wrap instead of widening the page. */
+  .status {
+    white-space: normal;
+  }
+
+  .segmented {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
+  .toolbar .select {
+    max-width: 100%;
+  }
+
+  /* Filters open as a sheet from the bottom of the screen. */
+  .popover-filters {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    top: auto;
+    width: auto;
+    max-width: none;
+    max-height: 75vh;
+    z-index: 70;
   }
 }

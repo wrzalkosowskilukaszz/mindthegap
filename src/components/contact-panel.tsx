@@ -144,7 +144,13 @@ export function ContactPanel({
   const c = d?.contact;
   const co = d?.company;
   const title = c
-    ? (c.fullName ?? c.departmentLabel ?? (c.kind === "general_inbox" ? "Adres ogólny" : "Skrzynka działu"))
+    ? (c.fullName ??
+      c.departmentLabel ??
+      (c.kind === "general_inbox"
+        ? "Adres ogólny"
+        : c.kind === "person"
+          ? "Osoba (bez nazwiska)"
+          : "Skrzynka działu"))
     : "";
   const blocked = d
     ? d.send.blockers.some((b) => /wykluczeń|nie kontaktować|demonstracyjny/i.test(b))
@@ -198,12 +204,22 @@ export function ContactPanel({
           <>
             {d.send.blockers.length || d.send.warnings.length || d.recentCompanyOutreach.length ? (
               <section className="section stack" style={{ paddingTop: 0 }}>
-                {d.send.blockers.length ? (
+                {d.send.blockers.some((b) => !b.startsWith("Brak udokumentowanej podstawy")) ? (
                   <Callout tone="bad">
                     <strong>Wysyłka zablokowana</strong>
-                    {d.send.blockers.map((b) => (
-                      <span key={b}>{b}</span>
-                    ))}
+                    {d.send.blockers
+                      .filter((b) => !b.startsWith("Brak udokumentowanej podstawy"))
+                      .map((b) => (
+                        <span key={b}>{b}</span>
+                      ))}
+                  </Callout>
+                ) : null}
+                {d.send.blockers.some((b) => b.startsWith("Brak udokumentowanej podstawy")) ? (
+                  <Callout tone="info">
+                    <span>
+                      Przed wysłaniem zapytamy, skąd wiesz, że możesz tu napisać (zgoda albo zaproszenie do
+                      ofert — wymaga tego prawo). To jedno kliknięcie na ekranie maila.
+                    </span>
                   </Callout>
                 ) : null}
                 {d.recentCompanyOutreach.length ? (

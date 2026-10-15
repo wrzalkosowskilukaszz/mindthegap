@@ -8,8 +8,8 @@ export default function DiscoveryPage() {
     <div className="page">
       <header className="page-header">
         <div>
-          <Link href="/ustawienia" className="small">
-            ← Ustawienia
+          <Link href="/kontakty" className="small">
+            ← Kontakty
           </Link>
           <h1>Wyszukiwanie kontaktów</h1>
           <p>Aplikacja sama szuka nowych firm i kontaktów codziennie rano. Tu widać, jak jej idzie.</p>

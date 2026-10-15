@@ -49,6 +49,12 @@ export function errorResponse(err: unknown): Response {
     );
   }
   const message = err instanceof Error ? err.message : String(err);
+  // A malformed id in the address (Postgres "invalid input syntax for type uuid") is simply "not found".
+  const code =
+    (err as { code?: string; cause?: { code?: string } })?.code ??
+    (err as { cause?: { code?: string } })?.cause?.code;
+  if (code === "22P02" || /invalid input syntax for type uuid/i.test(message))
+    return NextResponse.json({ error: "Nie znaleziono" }, { status: 404 });
   console.error("[api] unhandled", message);
   void logEvent("error", "api", "Nieobsłużony błąd serwera", { message: message.slice(0, 500) }).catch(
     () => {},

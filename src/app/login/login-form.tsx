@@ -22,6 +22,10 @@ export function LoginForm() {
     }
     const data = res ? await res.json().catch(() => ({})) : {};
     setError((data as { error?: string }).error ?? "Brak połączenia z serwerem.");
+    // Back to the password field, selected, so it can be typed again at once.
+    const field = document.querySelector<HTMLInputElement>('input[name="password"]');
+    field?.focus();
+    field?.select();
     setBusy(false);
   }
 

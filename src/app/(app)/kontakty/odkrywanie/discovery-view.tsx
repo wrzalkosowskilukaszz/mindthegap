@@ -2,10 +2,12 @@
 
 import { Pause, Play, RefreshCw, Square } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
 import { Callout, Dialog, Dot, Empty } from "@/components/ui";
 import { ApiError, apiFetch } from "@/lib/api-client";
+import { usd } from "@/lib/plural";
 import { formatWarsaw } from "@/lib/time";
 import type { DiscoveryStatus } from "@/server/services/discovery-status";
 
@@ -24,7 +26,19 @@ const TRIGGER: Record<string, string> = {
   manual: "Ręcznie",
 };
 
+const CATEGORY_LABEL: Record<string, string> = {
+  discovery: "wyszukiwanie kontaktów",
+  provider: "dostawca danych",
+  scheduler: "harmonogram",
+  ai: "AI",
+  jobs: "oferty pracy",
+  gmail: "Gmail",
+  api: "aplikacja",
+  privacy: "prywatność",
+};
+
 export function DiscoveryView() {
+  const router = useRouter();
   const toast = useToast();
   const [s, setS] = useState<DiscoveryStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -159,7 +173,7 @@ export function DiscoveryView() {
           <div className="metric-label">Firmy bez trafnego kontaktu</div>
         </div>
         <div className="metric">
-          <div className="metric-value">${s.spend.monthUsd.toFixed(2)}</div>
+          <div className="metric-value">{usd(s.spend.monthUsd)}</div>
           <div className="metric-label">Koszt w tym miesiącu</div>
           <div
             className="bar"
@@ -241,7 +255,7 @@ export function DiscoveryView() {
       </section>
 
       {s.issues.length ? (
-        <section className="stack">
+        <section className="stack" id="uwaga">
           <h3>Wymaga uwagi</h3>
           <div className="list">
             {s.issues.map((i) => (
@@ -250,7 +264,7 @@ export function DiscoveryView() {
                 <div className="list-row-main">
                   <div>{i.message}</div>
                   <div className="xsmall muted">
-                    {formatWarsaw(i.createdAt)} · {i.category}
+                    {formatWarsaw(i.createdAt)} · {CATEGORY_LABEL[i.category] ?? i.category}
                   </div>
                 </div>
                 <button
@@ -259,6 +273,7 @@ export function DiscoveryView() {
                   onClick={async () => {
                     await apiFetch(`/api/events/${i.id}`, { body: {} });
                     void load();
+                    router.refresh(); // the sidebar count follows
                   }}
                 >
                   Oznacz jako przejrzane
@@ -326,7 +341,7 @@ export function DiscoveryView() {
                     </td>
                     <td className="tabular">{r.stats.companiesDiscovered ?? 0}</td>
                     <td className="tabular">{r.stats.emailsVerified ?? 0}</td>
-                    <td className="tabular">${r.costUsd.toFixed(2)}</td>
+                    <td className="tabular">{usd(r.costUsd)}</td>
                   </tr>
                 ))}
               </tbody>

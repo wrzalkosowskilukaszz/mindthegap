@@ -116,6 +116,7 @@ export function JobsView() {
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [more, setMore] = useState(false);
   const qRef = useRef(q);
   qRef.current = q;
 
@@ -130,7 +131,7 @@ export function JobsView() {
     }
   }, [view]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reload (debounced) when the search text changes
+  // Reload (debounced) when the search text changes.
   useEffect(() => {
     const t = setTimeout(() => void load(), q ? 300 : 0);
     return () => clearTimeout(t);
@@ -142,6 +143,23 @@ export function JobsView() {
     if (id) url.searchParams.set("o", id);
     else url.searchParams.delete("o");
     router.replace(`${url.pathname}${url.search}`, { scroll: false });
+  }
+
+  async function loadMore() {
+    if (!data) return;
+    setMore(true);
+    try {
+      const u = new URLSearchParams({ view, offset: String(data.rows.length) });
+      if (qRef.current.trim()) u.set("q", qRef.current.trim());
+      const next = await apiFetch<JobList>(`/api/jobs?${u}`);
+      setData((d) =>
+        d
+          ? { ...d, rows: [...d.rows, ...next.rows.filter((r) => !d.rows.some((x) => x.id === r.id))] }
+          : next,
+      );
+    } finally {
+      setMore(false);
+    }
   }
 
   async function syncNow() {
@@ -279,6 +297,14 @@ export function JobsView() {
         </div>
       )}
 
+      {data && data.rows.length > 0 && data.rows.length < (counts[view] ?? 0) ? (
+        <div className="row" style={{ justifyContent: "center" }}>
+          <button type="button" className="btn" onClick={loadMore} disabled={more}>
+            {more ? <span className="spinner" /> : null} Pokaż więcej ({data.rows.length} z {counts[view]})
+          </button>
+        </div>
+      ) : null}
+
       {data ? (
         <p className="xsmall muted">
           Źródła: kariery {data.sync.boards} firm z Twojej bazy (sprawdzono {data.sync.companiesChecked} z{" "}
@@ -364,11 +390,30 @@ function JobPanel({ id, onClose, onChanged }: { id: string; onClose: () => void;
   const toast = useToast();
   const [d, setD] = useState<JobDetail | null>(null);
   const [note, setNote] = useState("");
+  const [noteState, setNoteState] = useState<"saved" | "pending">("saved");
   const [full, setFull] = useState(false);
+  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noteRef = useRef("");
+  const saveNote = useCallback(async () => {
+    if (noteTimer.current) clearTimeout(noteTimer.current);
+    noteTimer.current = null;
+    await apiFetch(`/api/jobs/${id}`, { method: "PATCH", body: { note: noteRef.current } }).catch(() =>
+      toast("Nie zapisano notatki", "error"),
+    );
+    setNoteState("saved");
+  }, [id, toast]);
+  // Closing the panel (also with Esc) saves a note that is still waiting.
+  useEffect(
+    () => () => {
+      if (noteTimer.current) void saveNote();
+    },
+    [saveNote],
+  );
   const load = useCallback(async () => {
     const x = await apiFetch<JobDetail>(`/api/jobs/${id}`);
     setD(x);
     setNote(x.note ?? "");
+    noteRef.current = x.note ?? "";
   }, [id]);
   useEffect(() => {
     setD(null);
@@ -454,14 +499,18 @@ function JobPanel({ id, onClose, onChanged }: { id: string; onClose: () => void;
                 Aplikuj <ExternalLink size={14} />
               </a>
               {d.status === "applied" ? (
-                <button type="button" className="btn" onClick={() => status("saved", "Cofnięto")}>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => status("new", "Cofnięto — oferta wróciła na listę")}
+                >
                   <Check size={14} /> Zaaplikowano
                 </button>
               ) : (
                 <button
                   type="button"
                   className="btn"
-                  onClick={() => status("applied", "Zapisano: zaaplikowano")}
+                  onClick={() => status("applied", "Oznaczono: CV wysłane")}
                 >
                   <Send size={14} /> CV wysłane
                 </button>
@@ -568,15 +617,21 @@ function JobPanel({ id, onClose, onChanged }: { id: string; onClose: () => void;
             <section className="stack" style={{ gap: 8 }}>
               <h4 className="section-title" style={{ margin: 0 }}>
                 Twoja notatka
+                <span className="xsmall muted" aria-live="polite" style={{ fontWeight: 400 }}>
+                  {noteState === "pending" ? "Zapisywanie…" : note ? "Zapisano" : ""}
+                </span>
               </h4>
               <textarea
                 className="textarea"
                 rows={3}
                 value={note}
-                onChange={(e) => setNote(e.target.value)}
-                onBlur={() =>
-                  apiFetch(`/api/jobs/${id}`, { method: "PATCH", body: { note } }).catch(() => {})
-                }
+                onChange={(e) => {
+                  setNote(e.target.value);
+                  noteRef.current = e.target.value;
+                  setNoteState("pending");
+                  if (noteTimer.current) clearTimeout(noteTimer.current);
+                  noteTimer.current = setTimeout(() => void saveNote(), 700);
+                }}
                 placeholder="np. rozmowa z rekruterką 20.10, wynagrodzenie, kontakt…"
               />
             </section>

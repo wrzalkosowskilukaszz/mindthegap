@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Callout, Dot } from "@/components/ui";
 import { ApiError, apiFetch } from "@/lib/api-client";
 import { EMAIL_STATUS_LABEL, type EmailStatus } from "@/lib/contact-rules";
+import { usd } from "@/lib/plural";
 import { formatWarsaw } from "@/lib/time";
 import type { ActivityMetrics } from "@/server/services/activity";
 
@@ -80,7 +81,7 @@ export function ActivityView() {
               {metric(
                 m.coverage.researched,
                 "Zbadane firmy",
-                `Łącznie (w okresie: ${m.companiesResearchedInPeriod}). Zbiór: ${m.coverage.total} firm.`,
+                `Ze wszystkich ${m.coverage.total} firm w bazie. W wybranym okresie sprawdzono ${m.companiesResearchedInPeriod} (niektóre ponownie).`,
               )}
               {metric(
                 m.coverage.withRelevantContact,
@@ -93,7 +94,7 @@ export function ActivityView() {
                 "Dodane przez odkrywanie, import lub ręcznie.",
               )}
               {metric(
-                `$${m.costTotalUsd.toFixed(2)}`,
+                usd(m.costTotalUsd),
                 "Koszt danych w okresie",
                 "Płatne wyszukiwania i weryfikacje (zatwierdzone wg cennika).",
               )}
@@ -228,7 +229,7 @@ export function ActivityView() {
                   {c.provider === "anthropic"
                     ? `${Math.round(Number(c.credits))} tys. tokenów`
                     : `${Number(c.credits).toFixed(1)} kr.`}{" "}
-                  (≈ ${Number(c.usd).toFixed(2)})
+                  (≈ {usd(c.usd)})
                 </span>
               ))}
               <Link href="/kontakty/odkrywanie" className="small">

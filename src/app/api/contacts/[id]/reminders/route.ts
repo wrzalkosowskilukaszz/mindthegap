@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db/client";
 import { contacts, reminders } from "@/server/db/schema";
@@ -20,6 +20,19 @@ export const POST = api<{ id: string }>(async (req, { params }) => {
     return { ok: true };
   }
   const dueAt = new Date(Date.now() + b.days * 86_400_000);
+  // A second click for the same day does not add a second reminder.
+  const [same] = await db()
+    .select({ id: reminders.id })
+    .from(reminders)
+    .where(
+      and(
+        eq(reminders.contactId, params.id),
+        isNull(reminders.doneAt),
+        sql`${reminders.dueAt}::date = ${dueAt.toISOString().slice(0, 10)}::date`,
+      ),
+    )
+    .limit(1);
+  if (same) return { ok: true, dueAt: dueAt.toISOString(), duplicate: true };
   await db()
     .insert(reminders)
     .values({ contactId: params.id, dueAt, note: b.note ?? null });

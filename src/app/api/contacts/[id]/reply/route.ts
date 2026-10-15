@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db/client";
 import { contacts, inboundMessages, messages, reminders } from "@/server/db/schema";
@@ -17,6 +17,20 @@ export const POST = api<{ id: string }>(async (req, { params }) => {
   );
   const [c] = await db().select().from(contacts).where(eq(contacts.id, params.id)).limit(1);
   if (!c) throw notFound();
+  // A second click on the same button is not a second reply.
+  const [already] = await db()
+    .select({ id: inboundMessages.id })
+    .from(inboundMessages)
+    .where(
+      and(
+        eq(inboundMessages.contactId, c.id),
+        eq(inboundMessages.classification, b.classification),
+        eq(inboundMessages.classifiedBy, "user"),
+        gte(inboundMessages.receivedAt, new Date(Date.now() - 12 * 3_600_000)),
+      ),
+    )
+    .limit(1);
+  if (already) return { ok: true, duplicate: true };
   const [last] = await db()
     .select()
     .from(messages)

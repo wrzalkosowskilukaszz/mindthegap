@@ -116,7 +116,12 @@ export function ContactsView({
 
   const setQuery = useCallback(
     (patch: Partial<ContactQuery> & { view?: string }, opts: { resetView?: boolean } = {}) => {
-      const next: Record<string, unknown> = { ...urlQuery, ...patch };
+      // Keep the view you are on (also the default one) when adding a filter or a search.
+      const next: Record<string, unknown> = {
+        ...urlQuery,
+        ...(view && !urlQuery.view ? { view } : {}),
+        ...patch,
+      };
       if (opts.resetView) delete next.view;
       for (const k of Object.keys(next)) {
         const v = next[k];
@@ -126,7 +131,7 @@ export function ContactsView({
       const c = panelId ? `${qs ? "&" : ""}c=${panelId}` : "";
       router.replace(`/kontakty${qs || c ? `?${qs}${c}` : ""}`, { scroll: false });
     },
-    [urlQuery, router, panelId],
+    [urlQuery, view, router, panelId],
   );
 
   const load = useCallback(
@@ -363,7 +368,7 @@ export function ContactsView({
           <span className="hide-mobile">Sortuj</span>
           <select
             className="select"
-            style={{ width: 170 }}
+            style={{ width: 210 }}
             value={sort}
             onChange={(e) => setQuery({ sort: e.target.value as ContactQuery["sort"] })}
             aria-label="Sortowanie"
@@ -475,7 +480,10 @@ export function ContactsView({
                     setActive(i);
                     openPanel(r.id);
                   }}
-                  onFocus={() => setActive(i)}
+                  onFocus={(e) => {
+                    // Only the row itself; focusing its checkbox must not move the cursor (first click was lost).
+                    if (e.target === e.currentTarget) setActive(i);
+                  }}
                 >
                   <td
                     className="col-check"
@@ -503,7 +511,11 @@ export function ContactsView({
                         ) : null}
                         {r.fullName ??
                           r.departmentLabel ??
-                          (r.kind === "general_inbox" ? "Adres ogólny" : "Skrzynka działu")}
+                          (r.kind === "general_inbox"
+                            ? "Adres ogólny"
+                            : r.kind === "person"
+                              ? "Osoba (bez nazwiska)"
+                              : "Skrzynka działu")}
                       </span>
                       <span className="cell-sub">
                         {r.title ?? (r.email && r.kind !== "person" ? r.email : KIND_LABEL[r.kind])}
@@ -772,12 +784,7 @@ function FiltersButton({
         {activeCount ? <span className="tag tag-accent">{activeCount}</span> : null}
       </button>
       {open ? (
-        <div
-          className="popover"
-          style={{ top: 38, left: 0, width: 560, maxWidth: "calc(100vw - 32px)", padding: 16 }}
-          role="dialog"
-          aria-label="Filtry"
-        >
+        <div className="popover popover-filters" role="dialog" aria-label="Filtry">
           <div className="grid-2" style={{ gap: 16 }}>
             {groups.map((g) => {
               const current = (query[g.key] as string[] | undefined) ?? [];
@@ -851,7 +858,24 @@ function HowItWorks() {
       setOpen(true);
     }
   }, []);
-  if (!open) return null;
+  if (!open)
+    return (
+      <button
+        type="button"
+        className="link-button small"
+        style={{ alignSelf: "flex-start", marginBottom: 8 }}
+        onClick={() => {
+          setOpen(true);
+          try {
+            localStorage.removeItem("mtg-howto-hidden");
+          } catch {
+            /* ignore */
+          }
+        }}
+      >
+        Jak to działa?
+      </button>
+    );
   const hide = () => {
     setOpen(false);
     try {
@@ -879,7 +903,7 @@ function HowItWorks() {
         </li>
         <li>
           <strong>Skopiuj go do swojej poczty i wyślij, potem kliknij „Wysłane”.</strong> Aplikacja zapamięta,
-          do kogo i kiedy pisałeś, i przypomni o odpowiedzi.
+          do kogo i kiedy wysłano wiadomość, i przypomni o odpowiedzi.
         </li>
       </ol>
     </section>

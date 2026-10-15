@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
 import { Callout, Dialog, Dot, Empty } from "@/components/ui";
 import { ApiError, apiFetch } from "@/lib/api-client";
+import { fileSize } from "@/lib/plural";
 import { signatureFor } from "@/lib/signature";
 import type { ProgramField, ProgramSummary } from "@/server/db/schema";
 import type { SettingsOf } from "@/server/settings";
@@ -114,7 +115,7 @@ export function MaterialsView() {
 
       <UploadDialog
         open={uploadOpen}
-        programs={lib.programs}
+        programs={lib.programs.filter((p) => p.status !== "archived")}
         onClose={() => setUploadOpen(null)}
         onDone={load}
       />
@@ -510,7 +511,7 @@ function Documents({
                     >
                       {x.filename}
                     </a>
-                    <span className="muted">{(x.sizeBytes / 1024 / 1024).toFixed(2)} MB</span>
+                    <span className="muted">{fileSize(x.sizeBytes)}</span>
                     <span className="status">
                       <Dot
                         tone={
@@ -794,6 +795,15 @@ function Profile({ initial, onSaved }: { initial: SettingsOf<"profile">; onSaved
             />
           </label>
           <label className="field">
+            <span className="field-label">Stanowisko po angielsku</span>
+            <input
+              className="input"
+              value={p.senderRoleEn}
+              onChange={(e) => set("senderRoleEn", e.target.value)}
+              placeholder="np. Trainer and facilitator"
+            />
+          </label>
+          <label className="field">
             <span className="field-label">Firma</span>
             <input
               className="input"
@@ -829,7 +839,7 @@ function Profile({ initial, onSaved }: { initial: SettingsOf<"profile">; onSaved
               <option value="feminine">Żeńska („pracowałam”)</option>
               <option value="masculine">Męska („pracowałem”)</option>
             </select>
-            <span className="field-hint">Nic nie jest zgadywane — wybierasz sama/sam.</span>
+            <span className="field-hint">Nic nie jest zgadywane — wybierasz ręcznie.</span>
           </label>
         </div>
       </section>
@@ -1025,7 +1035,7 @@ function Profile({ initial, onSaved }: { initial: SettingsOf<"profile">; onSaved
             />
           </label>
           <label className="field">
-            <span className="field-label">Signature EN</span>
+            <span className="field-label">Podpis EN</span>
             <textarea
               className="textarea"
               rows={4}
@@ -1043,7 +1053,7 @@ function Profile({ initial, onSaved }: { initial: SettingsOf<"profile">; onSaved
             />
           </label>
           <label className="field">
-            <span className="field-label">Preferred CTA EN</span>
+            <span className="field-label">Preferowane wezwanie EN</span>
             <input
               className="input"
               value={p.defaultCtaEn}

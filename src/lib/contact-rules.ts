@@ -95,7 +95,7 @@ export const OUTREACH_LABEL: Record<OutreachStatus, string> = {
   draft_ready: "Szkic gotowy",
   scheduled: "Zaplanowany",
   sent: "Wysłany",
-  replied: "Odpowiedział(a)",
+  replied: "Jest odpowiedź",
   follow_up_due: "Czas na follow-up",
   failed: "Błąd wysyłki",
   do_not_contact: "Nie kontaktować",

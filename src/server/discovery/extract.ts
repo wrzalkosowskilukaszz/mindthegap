@@ -233,6 +233,13 @@ function bestTitle(
 ): { title: string; role: RoleAssessment } | null {
   let best: { title: string; role: RoleAssessment; rank: number } | null = null;
   for (const seg of segments(block.replace(name, "\n"))) {
+    // A job title is a short phrase, not a sentence ("…jest jedną z 100 najbardziej wpływowych osób…").
+    if (
+      seg.length > 90 ||
+      /\b(jest|była|był|został[ao]?|odbyło się|is|was|has been|one of)\b/i.test(seg) ||
+      /^(as|is|nasza|nasz|our)\b/i.test(seg)
+    )
+      continue;
     const role = assess(seg);
     if (!role.relevant) continue;
     const rank = role.category === "decision_maker" ? 2 : 1;

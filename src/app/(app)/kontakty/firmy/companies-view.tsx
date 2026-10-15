@@ -221,7 +221,7 @@ export function CompaniesView() {
               <th>Wynik badania</th>
               <th>Kontakty</th>
               <th>Ostatnie badanie</th>
-              <th />
+              <th className="col-actions" />
             </tr>
           </thead>
           <tbody>
@@ -237,8 +237,7 @@ export function CompaniesView() {
               <tr style={{ cursor: "default" }}>
                 <td colSpan={7}>
                   <Empty icon={<Building2 size={22} />} title="Brak firm w tym widoku">
-                    Początkowy zbiór firm importujesz poleceniem <code>pnpm research:import</code>; nowe firmy
-                    dodaje codzienne odkrywanie.
+                    Zmień filtr powyżej. Nowe firmy dodaje codzienne wyszukiwanie.
                   </Empty>
                 </td>
               </tr>
@@ -318,7 +317,7 @@ export function CompaniesView() {
                     <td className="small secondary tabular">
                       {r.lastResearchedAt ? formatWarsaw(r.lastResearchedAt, "d.MM.yyyy") : "—"}
                     </td>
-                    <td style={{ textAlign: "right" }}>
+                    <td className="col-actions" style={{ textAlign: "right" }}>
                       <div className="btn-group" style={{ justifyContent: "flex-end" }}>
                         {!r.excluded ? (
                           <>
@@ -335,7 +334,8 @@ export function CompaniesView() {
                               type="button"
                               className="btn btn-quiet btn-sm"
                               onClick={() => {
-                                const reason = window.prompt("Powód wykluczenia (opcjonalnie)") ?? "";
+                                const reason = window.prompt("Powód wykluczenia (opcjonalnie)");
+                                if (reason === null) return; // Anuluj = nic nie zmieniaj
                                 void act(
                                   r.id,
                                   { excluded: true, excludedReason: reason },

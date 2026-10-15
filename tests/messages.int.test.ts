@@ -119,6 +119,12 @@ describe.skipIf(!hasDb)("messages and sending", () => {
     expect(t).toMatch(/publicznie dostępnego źródła/);
   });
 
+  it("reopens the open draft instead of creating a duplicate", async () => {
+    const a = await createDraft({ contactId, programId: null, language: "pl" });
+    const b = await createDraft({ contactId, programId: null, language: "pl" });
+    expect(b.id).toBe(a.id);
+  });
+
   it("builds the signature from name, position and company when none is written", async () => {
     const { ProfileSettings } = await import("../src/server/settings.ts");
     const p = ProfileSettings.parse({
