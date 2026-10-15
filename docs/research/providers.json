@@ -1,0 +1,645 @@
+{
+  "generated": "2026-10-15",
+  "sources_accessed": "2026-10-15",
+  "evidence_note": "Values summarise official pages unless marked third-party; see docs/research/PROVIDERS.md for evidence labels, quotes and caveats. 'tested' describes only unauthenticated requests or vendor-published test/demo keys.",
+  "recommendation": {
+    "contact_data_primary": "Hunter.io (pilot on Free, then Starter $49/month or $408/year)",
+    "contact_data_secondary_if_needed": [
+      "Prospeo (read its terms first)",
+      "Snov.io"
+    ],
+    "verification": "Hunter Email Verifier; optional MillionVerifier ($39 per 10,000 credits, never expire)",
+    "discovery_search": "Tavily (free 1,000 credits/month; $0.008/credit beyond)",
+    "public_sources": [
+      "KRS open API",
+      "GUS REGON BIR",
+      "Wikidata SPARQL"
+    ],
+    "estimated_monthly_cost_usd_at_300_searches_500_verifications": "about 49 (plus optional 39 one-off)"
+  },
+  "providers": [
+    {
+      "name": "Hunter.io",
+      "category": "contact_data",
+      "api_on_plans": "All plans including Free (API row checked for Free, Starter, Growth, Scale, Enterprise on the pricing comparison table).",
+      "free_tier": "Free: 50 credits/month, API included.",
+      "pricing_notes": "Starter $49/month billed monthly or $408/year ($34/month); 2,000 credits/month. Growth $149/month or $1,248/year (10,000 credits). Scale $299/month or $2,508/year (25,000 credits). Credits reset monthly, no rollover. VAT treatment not stated.",
+      "credit_costs": {
+        "domain_search": "1 credit per email found (0 if none); default limit 10, max 100 per call",
+        "email_finder": "1 credit per email found; free if none",
+        "email_verifier": "0.5 credit; free when result is unknown; disposables skipped",
+        "discover_companies": "free",
+        "account": "free",
+        "email_insight": "free, key optional",
+        "repeat": "identical searches/verifications counted once per calendar month / billing period"
+      },
+      "returns_sources": true,
+      "verification_statuses": [
+        "valid",
+        "accept_all",
+        "unknown",
+        "invalid (verifier)",
+        "webmail (verifier)",
+        "disposable (verifier)"
+      ],
+      "role_filters": "Domain Search: department (hr, executive, management, education, ...), seniority (junior/senior/executive), job_titles, decision_maker, location (ISO country, POST), type, verification_status.",
+      "found_vs_predicted": "Distinguished: sources[] per email; /v2/email-finder/found returns only web-found addresses (source_type 'found'); standard Email Finder may return generated addresses.",
+      "poland_coverage_evidence": "None published; untested. Location filter accepts country codes (e.g. PL).",
+      "terms_storage_rights": "Terms silent on storing in own database; no post-termination deletion clause found; customer is an independent controller; Delaware law. Unclear but not restricted.",
+      "gdpr_posture": "Main servers on GCP Belgium; legitimate interest; Claim/opt-out; Art. 14 notices by Hunter not stated.",
+      "tested": "Unauthenticated only (2026-10-15): domain-search, email-verifier, account, email-count without key -> HTTP 401 authentication_failed; email-insight without key -> HTTP 200. Pricing HTML comparison table inspected.",
+      "recommended_role": "primary",
+      "source_urls": [
+        "https://hunter.io/pricing",
+        "https://hunter.io/api-documentation/v2",
+        "https://hunter.io/terms-of-service",
+        "https://help.hunter.io/en/articles/1890029-gdpr-compliance",
+        "https://hunter.io/privacy-policy",
+        "https://hunter.io/our-data"
+      ]
+    },
+    {
+      "name": "Apollo.io",
+      "category": "contact_data",
+      "api_on_plans": "Unclear/conflicting: pricing FAQ says 'API access is available on Custom plans'; API docs list rate limits for Free, Basic, Professional, Organization and require a work-email registration for free accounts.",
+      "free_tier": "Free plan exists (no time limit); API eligibility on Free unclear.",
+      "pricing_notes": "Prices not present in fetched HTML (client-rendered). Third-party (search summary): Basic ~$49, Professional ~$79 per user/month billed annually. Credits do not roll over.",
+      "credit_costs": {
+        "people_search": "0 credits (no emails or phones returned)",
+        "people_enrichment": "1 credit for email/demographics, +8 if mobile returned; 0 if nothing found"
+      },
+      "returns_sources": false,
+      "verification_statuses": [
+        "verified",
+        "unverified",
+        "likely to engage",
+        "unavailable"
+      ],
+      "role_filters": "person_titles[], person_seniorities[] (owner, founder, c_suite, partner, vp, head, director, manager, senior, entry, intern), person_locations[], organization_locations[], q_organization_domains_list[], contact_email_status[]. No department filter documented for the API search.",
+      "found_vs_predicted": "Unclear (email_source field present but undocumented, null in example).",
+      "poland_coverage_evidence": "None found.",
+      "terms_storage_rights": "Perpetual licence to business contact information incorporated into your own systems; may retain after termination; internal business purposes only; no resale.",
+      "gdpr_posture": "Contributor Database fed partly by customers' data incl. authorised email/calendar access; separate Article 14 Processing Notice; opt-out page; personal emails not revealed for people in GDPR regions.",
+      "tested": "Unauthenticated only: mixed_people/api_search -> HTTP 422 'Not allowed'; people/match -> HTTP 422 API_KEY_REQUIRED.",
+      "recommended_role": "not recommended",
+      "source_urls": [
+        "https://www.apollo.io/pricing",
+        "https://docs.apollo.io/reference/people-api-search",
+        "https://docs.apollo.io/reference/people-enrichment",
+        "https://docs.apollo.io/docs/api-pricing",
+        "https://docs.apollo.io/reference/rate-limits",
+        "https://www.apollo.io/terms",
+        "https://www.apollo.io/privacy-policy"
+      ]
+    },
+    {
+      "name": "Lusha",
+      "category": "contact_data",
+      "api_on_plans": "Every plan including Free ('Every user gets their own key by default, on every plan including Free').",
+      "free_tier": "Free: 40 credits/month; API 40 requests/min, 100/day.",
+      "pricing_notes": "Starter $49.90/month or $449.10/year (400 credits/month); Pro $69.90/month or $629.10/year (600 credits/month); Premium $399.90/month or $3,599.10/year (3,400 credits/month); Scale custom. Monthly credits roll over up to 2x while subscribed.",
+      "credit_costs": {
+        "email": "1 credit",
+        "phone": "5 credits",
+        "company": "1 credit",
+        "minimum": "1 credit per request even if no data returned",
+        "prospecting_search": "not stated"
+      },
+      "returns_sources": null,
+      "verification_statuses": [],
+      "role_filters": "Prospecting API with filters; HR/department values not confirmed on pages read.",
+      "found_vs_predicted": "Unclear.",
+      "poland_coverage_evidence": "None found.",
+      "terms_storage_rights": "Internal business use; customer may continue to use Data after termination except termination for breach (then must delete); no feeding to external AI systems for training.",
+      "gdpr_posture": "Community data from members' email headers/signatures and calendars; professionals notified 'where required by law'; self-removal form.",
+      "tested": "Unauthenticated only: v2/person and POST v3/contacts/enrich -> HTTP 401 'missing Authorization header'.",
+      "recommended_role": "not recommended",
+      "source_urls": [
+        "https://www.lusha.com/pricing/",
+        "https://docs.lusha.com/user-guide/lushas-api/all-there-is-to-know-about-lushas-api.md",
+        "https://docs.lusha.com/api-reference/overview",
+        "https://www.lusha.com/legal/terms_and_conditions-2/",
+        "https://www.lusha.com/privacy/community/"
+      ]
+    },
+    {
+      "name": "Cognism",
+      "category": "contact_data",
+      "api_on_plans": "'MCP & API access' listed on Standard; Pro includes Standard.",
+      "free_tier": "None stated.",
+      "pricing_notes": "Quote only; 5 seats included per plan.",
+      "credit_costs": {
+        "search_enrich": "no credits (help centre, search summary)",
+        "redeem_contact": "1 credit per revealed contact; re-charged only on job change"
+      },
+      "returns_sources": null,
+      "verification_statuses": [],
+      "role_filters": "Search API exists; filters not readable (help pages HTTP 403).",
+      "found_vs_predicted": "Unclear.",
+      "poland_coverage_evidence": "Third-party only and conflicting: 'reasonably strong' (SyncGTM) vs 'Limited' for Eastern Europe (Unify); neither cites data.",
+      "terms_storage_rights": "Not reviewed.",
+      "gdpr_posture": "Legitimate interest; notifies business contacts within GDPR timeframes; DNC/TPS screening; data generally kept in the EEA.",
+      "tested": "Nothing tested (no public API host identified without docs access).",
+      "recommended_role": "not recommended",
+      "source_urls": [
+        "https://www.cognism.com/pricing",
+        "https://www.cognism.com/compliance",
+        "https://help.cognism.com/hc/en-gb/articles/37382868352914"
+      ]
+    },
+    {
+      "name": "Kaspr (Cognism)",
+      "category": "contact_data",
+      "api_on_plans": "Starter: 'Limited API access' and Business: 'API access', both 'available only upon request'; Enterprise per comparison table.",
+      "free_tier": "Free: 15 B2B email, 5 phone, 5 direct email credits/month; no API listed.",
+      "pricing_notes": "Starter EUR 45 or EUR 59 per user/month; Business EUR 79 or EUR 99 (page does not label monthly vs annual).",
+      "credit_costs": {
+        "api": "credits per data type fetched plus 1 export credit per successful call"
+      },
+      "returns_sources": false,
+      "verification_statuses": [],
+      "role_filters": "None: API input is a LinkedIn profile URL.",
+      "found_vs_predicted": "Unclear.",
+      "poland_coverage_evidence": "None found.",
+      "terms_storage_rights": "Not reviewed.",
+      "gdpr_posture": "KASPR SAS (France) controller; data from LinkedIn and directories; 5-year retention. CNIL fined KASPR EUR 240,000 (5 Dec 2024) for LinkedIn data collection, retention, information and access-request failures (CNIL page HTTP 503 to fetcher; search summaries).",
+      "tested": "Nothing tested.",
+      "recommended_role": "not recommended",
+      "source_urls": [
+        "https://www.kaspr.io/pricing",
+        "https://kaspr.io/developers-api",
+        "https://www.kaspr.io/privacy-policy",
+        "https://www.cnil.fr/fr/aspiration-de-donnees-sanction-de-240-000-euros-lencontre-de-la-societe-kaspr"
+      ]
+    },
+    {
+      "name": "Snov.io",
+      "category": "contact_data",
+      "api_on_plans": "Starter and Pro tiers ('API & Webhooks'); not in Trial.",
+      "free_tier": "Trial: 50 credits/month, no API.",
+      "pricing_notes": "Starter $39/month (1,000 credits); Pro S $99/month (5,000 credits); higher Pro tiers listed; annual 25% off.",
+      "credit_costs": {
+        "prospect_search": "free (1 page on free accounts)",
+        "prospect_email": "1 credit per email",
+        "email_finder": "1 credit per valid/unknown result",
+        "company_search": "1 credit per unique request with results",
+        "verification": "1 credit"
+      },
+      "returns_sources": true,
+      "verification_statuses": [
+        "valid",
+        "not_valid",
+        "unknown (reasons: banned, catchall, connection_error, greylist, hidden_by_owner)"
+      ],
+      "role_filters": "Database search: departments (incl. human_resources), management_levels (c_level, vp_level, director_level, manager_level, staff), prospect and company locations (country). Domain search: positions[] only.",
+      "found_vs_predicted": "Partial: source_page on domain-search prospects; unknown reasons include catchall.",
+      "poland_coverage_evidence": "None found.",
+      "terms_storage_rights": "Terms silent on exporting/storing; user indemnifies Snov.io for failing to notify data subjects; Delaware law.",
+      "gdpr_posture": "DPA and joint-controllership agreement referenced (not reviewed).",
+      "tested": "Unauthenticated only: oauth/access_token without creds -> HTTP 400; v2/domain-search/start without token -> HTTP 403.",
+      "recommended_role": "secondary",
+      "source_urls": [
+        "https://snov.io/pricing",
+        "https://snov.io/api",
+        "https://snov.io/terms-and-conditions"
+      ]
+    },
+    {
+      "name": "RocketReach",
+      "category": "contact_data",
+      "api_on_plans": "Free accounts: no API (docs, search summary); third-party: API only on top 'Ultimate' tier.",
+      "free_tier": "Third-party: 5 lookups; no API.",
+      "pricing_notes": "Official pricing page JS-rendered and unreadable; third-party figures conflict.",
+      "credit_costs": {
+        "person_search": "1 universal credit per page (<=100 results)",
+        "professional_email": "2 credits per profile with A/A- verified email",
+        "personal_email": "3 credits",
+        "phone": "6 credits",
+        "verify": "refunded on unknown"
+      },
+      "returns_sources": null,
+      "verification_statuses": [
+        "A",
+        "A-",
+        "unknown (verify endpoint)"
+      ],
+      "role_filters": "Person search exists; filters not reviewed.",
+      "found_vs_predicted": "Unclear.",
+      "poland_coverage_evidence": "None found.",
+      "terms_storage_rights": "Not reviewed.",
+      "gdpr_posture": "Not reviewed.",
+      "tested": "Unauthenticated only: account and person/search -> HTTP 401 'Anonymous requests are not allowed. Please use the test API key.'",
+      "recommended_role": "not recommended",
+      "source_urls": [
+        "https://rocketreach.co/pricing",
+        "https://docs.rocketreach.co/",
+        "https://docs.rocketreach.co/reference/universal-credits-overview"
+      ]
+    },
+    {
+      "name": "Dropcontact",
+      "category": "contact_data",
+      "api_on_plans": "Starter and Growth ('API & MCP access').",
+      "free_tier": "50 free credits.",
+      "pricing_notes": "Starter headline EUR 79/month (lowest quota shown 500 credits/month; not explicitly tied); Growth headline EUR 120/month; yearly -20%.",
+      "credit_costs": {
+        "enrichment": "1 credit only when a verified email is returned",
+        "verification_only": "1 credit"
+      },
+      "returns_sources": false,
+      "verification_statuses": [
+        "nominative@pro",
+        "catch_all@pro",
+        "generic",
+        "random",
+        "invalid",
+        "perso"
+      ],
+      "role_filters": "None: enriches contacts you submit (name + company / LinkedIn / email).",
+      "found_vs_predicted": "Algorithmic finder without contact database (predicted then verified).",
+      "poland_coverage_evidence": "None found; French identifiers (SIREN/SIRET) in schema suggest a French focus.",
+      "terms_storage_rights": "Reuse for resale prohibited; no explicit storage grant; French law; DPA referenced.",
+      "gdpr_posture": "French SAS; EU servers stated for CRM suite.",
+      "tested": "Unauthenticated only: POST v1/enrich/all without token -> HTTP 401 asking for X-Access-Token header.",
+      "recommended_role": "not recommended",
+      "source_urls": [
+        "https://www.dropcontact.com/pricing",
+        "https://developer.dropcontact.com/",
+        "https://www.dropcontact.com/terms"
+      ]
+    },
+    {
+      "name": "Prospeo",
+      "category": "contact_data",
+      "api_on_plans": "Conflicting official statements: help centre says Free 'Limited API access' and Starter/Growth/Pro 'API access'; API docs say 'Free API access for all users'; site pricing bundle marks Public API not included on Free.",
+      "free_tier": "Free: 100 credits/month.",
+      "pricing_notes": "Live prices are client-rendered; site JS fallback shows Starter $49/month ($37/month billed yearly), Growth $99 ($74), Pro $249 ($187). Help centre credits: Starter 2,000, Growth 5,000, Pro 15,000 per user/month. No rollover.",
+      "credit_costs": {
+        "search_person": "1 credit per request returning >=1 person (25/page); same page free within 30 days",
+        "enrich_email": "1 credit per email found; free if no result; free re-enrich within 90 days",
+        "enrich_mobile": "10 credits"
+      },
+      "returns_sources": false,
+      "verification_statuses": [
+        "VERIFIED (others not documented)"
+      ],
+      "role_filters": "person_department incl. 'Learning & Development', 'Talent Management', 'People Operations', 'HR Business Partner', 'Recruiting & Talent Acquisition'; person_seniority; person_job_title; person and company location.",
+      "found_vs_predicted": "Unclear (verification_method e.g. BOUNCEBAN returned).",
+      "poland_coverage_evidence": "None found.",
+      "terms_storage_rights": "Unclear: terms, privacy policy and trust centre pages are client-rendered and could not be read.",
+      "gdpr_posture": "Legitimate interest; sources: public web content, licensed partners, customer contributions; opt-out with suppression list; legal entity not named on readable pages.",
+      "tested": "Unauthenticated only: enrich-person and account-information without key -> HTTP 400 INVALID_API_KEY. Pricing JS bundle inspected.",
+      "recommended_role": "secondary",
+      "source_urls": [
+        "https://prospeo.io/pricing",
+        "https://help.prospeo.io/en/article/plans-and-pricing-overview-cdloq9",
+        "https://prospeo.io/api-docs",
+        "https://prospeo.io/api-docs/enrich-person",
+        "https://prospeo.io/api-docs/search-person",
+        "https://prospeo.io/api-docs/rate-limits",
+        "https://prospeo.io/api-docs/enum/departments",
+        "https://help.prospeo.io/en/article/how-do-i-opt-out-my-data-from-prospeo-nmxb4f"
+      ]
+    },
+    {
+      "name": "ZoomInfo",
+      "category": "contact_data",
+      "api_on_plans": "API offered as a product; plan mapping not public.",
+      "free_tier": "None stated.",
+      "pricing_notes": "No public prices; sales-led.",
+      "credit_costs": {},
+      "returns_sources": null,
+      "verification_statuses": [],
+      "role_filters": "Not reviewed.",
+      "found_vs_predicted": "Not reviewed.",
+      "poland_coverage_evidence": "Not reviewed.",
+      "terms_storage_rights": "Not reviewed.",
+      "gdpr_posture": "Not reviewed.",
+      "tested": "Nothing tested.",
+      "recommended_role": "not recommended",
+      "source_urls": [
+        "https://www.zoominfo.com/pricing"
+      ]
+    },
+    {
+      "name": "FullEnrich",
+      "category": "contact_data",
+      "api_on_plans": "Pro ('API & no-code integration'); Enterprise.",
+      "free_tier": "50 credits, no card.",
+      "pricing_notes": "Pro ~1,000 credits at $0.055/credit (price text garbled; inferred); credits roll over 3 months (monthly) / 12 months (yearly).",
+      "credit_costs": {
+        "work_email": "1 credit",
+        "personal_email": "3 credits",
+        "mobile": "10 credits",
+        "charged": "only when verified data found"
+      },
+      "returns_sources": false,
+      "verification_statuses": [
+        "SMTP + catch-all verification, confidence score (labels not documented)"
+      ],
+      "role_filters": "Search API listed; filters not reviewed.",
+      "found_vs_predicted": "No (waterfall over 25+ providers).",
+      "poland_coverage_evidence": "None; find rate said to vary by geography.",
+      "terms_storage_rights": "Not reviewed.",
+      "gdpr_posture": "Says it stores no contact information and selects GDPR/CCPA-compliant providers.",
+      "tested": "Nothing tested.",
+      "recommended_role": "not recommended",
+      "source_urls": [
+        "https://fullenrich.com/pricing"
+      ]
+    },
+    {
+      "name": "Hunter Email Verifier",
+      "category": "email_verification",
+      "api_on_plans": "All Hunter plans including Free.",
+      "free_tier": "Within Hunter Free 50 credits/month (0.5 credit per verification).",
+      "pricing_notes": "Included in Hunter plan credits.",
+      "credit_costs": {
+        "verify": "0.5 credit; free for unknown"
+      },
+      "returns_sources": true,
+      "verification_statuses": [
+        "valid",
+        "invalid",
+        "accept_all",
+        "webmail",
+        "disposable",
+        "unknown"
+      ],
+      "role_filters": "n/a",
+      "poland_coverage_evidence": "n/a",
+      "terms_storage_rights": "As Hunter.io.",
+      "tested": "email-verifier without key -> HTTP 401.",
+      "recommended_role": "primary",
+      "source_urls": [
+        "https://hunter.io/pricing",
+        "https://hunter.io/api-documentation/v2"
+      ]
+    },
+    {
+      "name": "MillionVerifier",
+      "category": "email_verification",
+      "api_on_plans": "API available to account holders (REST single and bulk API).",
+      "free_tier": "100 credits on sign-up.",
+      "pricing_notes": "10,000 $39; 25,000 $59; 50,000 $89; 100,000 $149; 1M $449 (site pricing script). Credits never expire. Refund on emails that cannot be verified with certainty.",
+      "credit_costs": {
+        "verify": "1 credit per email"
+      },
+      "returns_sources": false,
+      "verification_statuses": [
+        "ok",
+        "catch_all",
+        "unknown",
+        "invalid",
+        "disposable",
+        "unverified",
+        "error"
+      ],
+      "role_filters": "n/a",
+      "poland_coverage_evidence": "n/a",
+      "terms_storage_rights": "Not reviewed.",
+      "tested": "No key -> HTTP 200 result 'error' 'No apikey specified'. Documented demo keys returned ok/invalid/unknown/disposable/unverified/catch_all with livemode false.",
+      "recommended_role": "secondary",
+      "source_urls": [
+        "https://www.millionverifier.com/",
+        "https://developer.millionverifier.com/"
+      ]
+    },
+    {
+      "name": "ZeroBounce",
+      "category": "email_verification",
+      "api_on_plans": "API on all accounts ('Multiple API Keys' included with all accounts).",
+      "free_tier": "Freemium 100 credits/month.",
+      "pricing_notes": "Pay-as-you-go from $39 for 2,000 validations (minimum purchase); ZeroBounce ONE subscription from $99/month. Unknown results not charged.",
+      "credit_costs": {
+        "verify": "1 credit; unknown refunded"
+      },
+      "returns_sources": false,
+      "verification_statuses": [
+        "valid",
+        "invalid",
+        "catch-all",
+        "spamtrap",
+        "abuse",
+        "do_not_mail",
+        "unknown"
+      ],
+      "role_filters": "n/a",
+      "poland_coverage_evidence": "n/a",
+      "terms_storage_rights": "Not reviewed.",
+      "tested": "validate and getcredits with empty key -> HTTP 403 Cloudflare 'error code: 1020' (blocked before API; inconclusive).",
+      "recommended_role": "secondary",
+      "source_urls": [
+        "https://www.zerobounce.net/email-validation-pricing",
+        "https://www.zerobounce.net/docs/email-validation-api-quickstart/v2-status-codes"
+      ]
+    },
+    {
+      "name": "NeverBounce",
+      "category": "email_verification",
+      "api_on_plans": "Unclear (pricing page HTTP 403 to fetcher).",
+      "free_tier": "Unclear.",
+      "pricing_notes": "Official page unreadable; third-party: ~$0.008/email pay-as-you-go.",
+      "credit_costs": {},
+      "returns_sources": false,
+      "verification_statuses": [
+        "valid",
+        "invalid",
+        "disposable",
+        "catchall",
+        "unknown"
+      ],
+      "role_filters": "n/a",
+      "poland_coverage_evidence": "n/a",
+      "terms_storage_rights": "Not reviewed.",
+      "tested": "single/check without key -> HTTP 200 with status 'auth_failure'.",
+      "recommended_role": "not recommended",
+      "source_urls": [
+        "https://neverbounce.com/pricing",
+        "https://developers.neverbounce.com/docs/verifying-an-email"
+      ]
+    },
+    {
+      "name": "Tavily",
+      "category": "web_search",
+      "api_on_plans": "All plans; dev keys on free plan (100 RPM); production keys need paid plan or PAYGO (1,000 RPM).",
+      "free_tier": "Researcher: 1,000 credits/month, no card.",
+      "pricing_notes": "Project $30/month (4,000 credits); Bootstrap $100 (15,000); pay-as-you-go $0.008/credit.",
+      "credit_costs": {
+        "basic_search": "1 credit",
+        "advanced_search": "2 credits",
+        "extract": "1 credit per 5 URLs (basic)"
+      },
+      "returns_sources": true,
+      "verification_statuses": [],
+      "role_filters": "n/a (web search; country boost, include_domains, time_range)",
+      "poland_coverage_evidence": "n/a",
+      "terms_storage_rights": "No clause on storing outputs; licence for internal business purposes; data-mining ban with carve-out for reasonable API use; New York law.",
+      "tested": "POST /search without key -> HTTP 401.",
+      "recommended_role": "primary",
+      "source_urls": [
+        "https://www.tavily.com/pricing",
+        "https://docs.tavily.com/documentation/api-credits",
+        "https://docs.tavily.com/documentation/api-reference/endpoint/search",
+        "https://docs.tavily.com/documentation/rate-limits",
+        "https://www.tavily.com/terms"
+      ]
+    },
+    {
+      "name": "Brave Search API",
+      "category": "web_search",
+      "api_on_plans": "Search plan $5 per 1,000 requests; Enterprise custom.",
+      "free_tier": "$5 free credits per month (~1,000 searches); card required.",
+      "pricing_notes": "$5/1,000 requests, 50 QPS.",
+      "credit_costs": {
+        "search": "$0.005 per request"
+      },
+      "returns_sources": true,
+      "verification_statuses": [],
+      "role_filters": "n/a",
+      "poland_coverage_evidence": "n/a",
+      "terms_storage_rights": "Standard ToS forbids storing/caching/databasing Search Results except transient; delete on termination. Storage requires a plan that explicitly grants storage rights.",
+      "tested": "GET web/search without key -> HTTP 422 'x-subscription-token' field required.",
+      "recommended_role": "secondary",
+      "source_urls": [
+        "https://brave.com/search/api/",
+        "https://api-dashboard.search.brave.com/terms-of-service"
+      ]
+    },
+    {
+      "name": "Google Custom Search JSON API",
+      "category": "web_search",
+      "api_on_plans": "Closed to new customers; existing customers until 1 January 2027.",
+      "free_tier": "100 queries/day (existing customers only).",
+      "pricing_notes": "$5 per 1,000 queries up to 10k/day (existing customers only).",
+      "credit_costs": {},
+      "returns_sources": true,
+      "verification_statuses": [],
+      "role_filters": "n/a",
+      "poland_coverage_evidence": "n/a",
+      "terms_storage_rights": "Not reviewed (not available).",
+      "tested": "GET customsearch/v1 without key -> HTTP 403 'unregistered callers'.",
+      "recommended_role": "not recommended",
+      "source_urls": [
+        "https://developers.google.com/custom-search/v1/overview"
+      ]
+    },
+    {
+      "name": "Serper",
+      "category": "web_search",
+      "api_on_plans": "Credit packs.",
+      "free_tier": "2,500 free queries, no card.",
+      "pricing_notes": "$50/50k ($1 per 1k), $375/500k, $1,250/2.5M, $3,750/12.5M; credits valid 6 months.",
+      "credit_costs": {
+        "search": "1 credit"
+      },
+      "returns_sources": true,
+      "verification_statuses": [],
+      "role_filters": "n/a",
+      "poland_coverage_evidence": "n/a",
+      "terms_storage_rights": "Terms do not address storing outputs; UK law.",
+      "tested": "POST /search without key -> HTTP 403 'Unauthorized. Sign up for a free account.'",
+      "recommended_role": "not recommended",
+      "source_urls": [
+        "https://serper.dev/",
+        "https://serper.dev/terms"
+      ]
+    },
+    {
+      "name": "SerpAPI",
+      "category": "web_search",
+      "api_on_plans": "All plans incl. Free.",
+      "free_tier": "250 searches/month, 50/hour.",
+      "pricing_notes": "Starter $25/month (1,000 searches); Developer $75 (5,000); cached/errored searches not counted.",
+      "credit_costs": {
+        "search": "1 search"
+      },
+      "returns_sources": true,
+      "verification_statuses": [],
+      "role_filters": "n/a",
+      "poland_coverage_evidence": "n/a",
+      "terms_storage_rights": "Not reviewed.",
+      "tested": "Keyless query 'test' -> HTTP 200 with results; unique keyless query -> HTTP 401 'Invalid API key'.",
+      "recommended_role": "not recommended",
+      "source_urls": [
+        "https://serpapi.com/pricing"
+      ]
+    },
+    {
+      "name": "Exa",
+      "category": "web_search",
+      "api_on_plans": "Pay per use; Enterprise custom.",
+      "free_tier": "$10 credits/month (up to 2,500 instant searches).",
+      "pricing_notes": "Instant $4/1k; fast/auto $7/1k; deep $12-15/1k; contents $1/1k pages.",
+      "credit_costs": {},
+      "returns_sources": true,
+      "verification_statuses": [],
+      "role_filters": "n/a",
+      "poland_coverage_evidence": "n/a",
+      "terms_storage_rights": "Section 4.2(a) restricts copying/reproducing information obtained through the Services except as expressly permitted.",
+      "tested": "POST /search without key -> HTTP 402 X402_PAYMENT_REQUIRED.",
+      "recommended_role": "not recommended",
+      "source_urls": [
+        "https://exa.ai/pricing",
+        "https://exa.ai/terms"
+      ]
+    },
+    {
+      "name": "KRS open API (api-krs.ms.gov.pl)",
+      "category": "public_registry",
+      "api_on_plans": "Public, no key.",
+      "free_tier": "Free.",
+      "pricing_notes": "Free.",
+      "credit_costs": {},
+      "returns_sources": null,
+      "verification_statuses": [],
+      "role_filters": "n/a (management board with function; names masked)",
+      "poland_coverage_evidence": "Official Polish court register (KRS entities).",
+      "terms_storage_rights": "Not documented on readable pages.",
+      "tested": "OdpisAktualny and OdpisPelny for KRS 0000005459 -> HTTP 200 JSON incl. website; board and supervisory-board names and PESEL masked (143/143 surnames masked in full extract); unknown KRS -> HTTP 404.",
+      "recommended_role": "secondary",
+      "source_urls": [
+        "https://api-krs.ms.gov.pl/api/krs/OdpisAktualny/0000005459?rejestr=P&format=json",
+        "https://prs.ms.gov.pl/krs/openApi"
+      ]
+    },
+    {
+      "name": "GUS REGON BIR 1.2",
+      "category": "public_registry",
+      "api_on_plans": "Free key on e-mail request to regon_bir@stat.gov.pl (entity data, IP addresses, concurrent users).",
+      "free_tier": "Free; daytime limits 6,000/h, 120/min, 3/s.",
+      "pricing_notes": "Free of charge.",
+      "credit_costs": {},
+      "returns_sources": null,
+      "verification_statuses": [],
+      "role_filters": "n/a (company-level data incl. praw_adresEmail, praw_adresStronyinternetowej, praw_numerTelefonu)",
+      "poland_coverage_evidence": "Official Polish business register (REGON).",
+      "terms_storage_rights": "No regulamin on the page read.",
+      "tested": "WSDL GET -> HTTP 400 (SOAP POST required); test-environment Zaloguj with official public test key -> session ID returned; production Zaloguj with dummy key -> empty result.",
+      "recommended_role": "secondary",
+      "source_urls": [
+        "https://api.stat.gov.pl/Home/RegonApi",
+        "https://api.stat.gov.pl/Content/files/regon/GUS-Regon-UslugaBIRver1.2-dokumentacjaVer1.4.zip"
+      ]
+    },
+    {
+      "name": "Wikidata SPARQL",
+      "category": "public_registry",
+      "api_on_plans": "Public, no key; descriptive User-Agent required.",
+      "free_tier": "Free; 60 s timeout, 60 s processing per 60 s, 5 parallel queries per IP.",
+      "pricing_notes": "Free; structured data CC0.",
+      "credit_costs": {},
+      "returns_sources": null,
+      "verification_statuses": [],
+      "role_filters": "n/a",
+      "poland_coverage_evidence": "169 Polish business items with >=1,000 employees; 2,003 with official website (direct-class queries).",
+      "terms_storage_rights": "CC0 (public domain) for structured data.",
+      "tested": "Count queries: transitive query HTTP 504 after 65 s; direct-class queries HTTP 200 (169 and 2,003).",
+      "recommended_role": "secondary",
+      "source_urls": [
+        "https://www.mediawiki.org/wiki/Wikidata_Query_Service/User_Manual",
+        "https://www.wikidata.org/wiki/Wikidata:Licensing"
+      ]
+    }
+  ]
+}

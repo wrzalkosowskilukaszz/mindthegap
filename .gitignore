@@ -1,0 +1,26 @@
+# dependencies and builds
+node_modules/
+.next/
+out/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets and local env
+.env
+.env.*
+!.env.example
+
+# PRIVATE DATA: never commit. Real contact data (personal data) lives only in
+# the database and in exports handed to the owner. This repository is public.
+.private/
+exports/
+*.contacts.csv
+*.contacts.jsonl
+
+# OS / editor
+.DS_Store
+*.log
