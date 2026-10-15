@@ -17,6 +17,7 @@ import {
   programs,
   reminders,
 } from "../db/schema.ts";
+import { contactSource } from "../providers/index.ts";
 import { getSettings } from "../settings.ts";
 import { recentCompanyOutreach, suppressionHits } from "./contacts.ts";
 
@@ -129,6 +130,8 @@ export async function getContactDetail(id: string) {
     .sort((a, b) => b.score - a.score);
 
   return {
+    /** A contact-data provider is configured, so "find the address" can be offered. */
+    finder: Boolean(contactSource()),
     contact: {
       ...c,
       emailCheckedAt: iso(c.emailCheckedAt),
