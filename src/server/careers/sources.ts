@@ -596,17 +596,18 @@ async function arbeitnow(f: PoliteFetcher, _s: SourceRef, want: WantDetail): Pro
   return { jobs: out, complete: false, total };
 }
 
+// L&D first: feeds ask only the first 2–7 of these (see each reader), so the owner's own roles lead.
 export const SEARCH_QUERIES = [
   "learning and development",
+  "instructional designer",
+  "learning experience designer",
+  "e-learning",
   "leadership development",
-  "facilitator",
-  "trainer",
+  "learning specialist",
+  "talent development",
+  "training specialist",
   "organizational development",
   "people partner",
-  "culture engagement",
-  "talent development",
-  "coach",
-  "change management",
 ];
 
 /** Himalayas: remote jobs that are open to people in Poland. */

@@ -57,6 +57,13 @@
       "when": 1792100686352,
       "tag": "0007_events",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793623796400,
+      "tag": "0008_offer_link_check",
+      "breakpoints": true
     }
   ]
 }

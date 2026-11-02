@@ -17,6 +17,7 @@ import { PoliteFetcher } from "../discovery/fetcher.ts";
 import { env } from "../env.ts";
 import { getSettings } from "../settings.ts";
 import { detectCareers } from "./detect.ts";
+import { checkOfferLinks, linksDue } from "./linkcheck.ts";
 import { fetchSource, type RawJob, SourceError, SUPPORTED_KINDS } from "./sources.ts";
 
 const MEDIA_TECH = new Set(["telecom_media", "technology"]);
@@ -131,6 +132,8 @@ export type SyncReport = {
   remainingDetect: number;
   remainingFetch: number;
   closed: number;
+  linksChecked?: number;
+  deadLinks?: number;
 };
 
 /** Companies whose careers page has not been looked for (or long ago). */
@@ -207,6 +210,7 @@ export async function syncJobs(opts: { deadline: number; detect?: boolean }): Pr
     closed: 0,
   };
   const prefs = await careerPrefs();
+  await rescoreOnNewRules();
   const disc = await getSettings("discovery");
   const fetcher = new PoliteFetcher({
     minDelayMs: Math.min(disc.minDelayMsPerHost, 2000),
@@ -272,8 +276,10 @@ export async function syncJobs(opts: { deadline: number; detect?: boolean }): Pr
 
   // 2. Read due sources, three at a time (different sites; each site keeps its own polite pace).
   const index = await companyIndex();
+  // Leave time at the end for checking offer links when some are waiting.
+  const linksWaiting = await linksDue();
   const worker = async () => {
-    while (left() > 25_000) {
+    while (left() > (linksWaiting ? 45_000 : 25_000)) {
       const src = await claimNextSource(prefs.syncEveryHours);
       if (!src) return;
       const own = src.companyId
@@ -351,7 +357,15 @@ export async function syncJobs(opts: { deadline: number; detect?: boolean }): Pr
   };
   await Promise.all([worker(), worker(), worker()]);
 
-  // 3. Offers from search feeds are closed once they have not been seen for three weeks.
+  // 3. Open each offer's link now and then: ads the employer took down leave the lists.
+  if (left() > 15_000) {
+    const links = await checkOfferLinks(fetcher, opts.deadline - 10_000);
+    report.linksChecked = links.checked;
+    report.deadLinks = links.dead;
+    report.closed += links.dead;
+  }
+
+  // 4. Offers from search feeds are closed once they have not been seen for three weeks.
   const stale = await db()
     .update(jobOffers)
     .set({ closedAt: new Date() })
@@ -444,7 +458,10 @@ async function storeJobs(
           // Keep a longer text fetched earlier when this read had none.
           description: j.description ? j.description : sql`${jobOffers.description}`,
           lastSeenAt: new Date(),
-          closedAt: null,
+          // A feed can keep listing an ad whose page is gone: stay closed for a week after a dead
+          // link, then open again and check the link once more.
+          closedAt: sql`case when ${jobOffers.linkStatus} = 'dead' and ${jobOffers.linkCheckedAt} > now() - interval '7 days' then ${jobOffers.closedAt} else null end`,
+          linkCheckedAt: sql`case when ${jobOffers.linkStatus} = 'dead' and ${jobOffers.linkCheckedAt} <= now() - interval '7 days' then null else ${jobOffers.linkCheckedAt} end`,
           updatedAt: new Date(),
         },
       });
@@ -456,11 +473,17 @@ async function storeJobs(
 export async function rescoreAll(refetch: { companyId?: string } | "all" = "all"): Promise<number> {
   const prefs = await careerPrefs();
   const rows = await db()
-    .select({ o: jobOffers, sector: companies.sector, favourite: companies.favourite })
+    .select({
+      o: jobOffers,
+      sector: companies.sector,
+      favourite: companies.favourite,
+      sourceKind: jobSources.kind,
+    })
     .from(jobOffers)
+    .innerJoin(jobSources, eq(jobSources.id, jobOffers.sourceId))
     .leftJoin(companies, eq(companies.id, jobOffers.companyId))
     .where(isNull(jobOffers.closedAt));
-  for (const { o, sector, favourite } of rows) {
+  for (const { o, sector, favourite, sourceKind } of rows) {
     const m = scoreJob(
       {
         title: o.title,
@@ -481,7 +504,8 @@ export async function rescoreAll(refetch: { companyId?: string } | "all" = "all"
         score: m.score,
         match: { reasons: m.reasons, region: m.region, requiredLanguages: m.requiredLanguages, hits: m.hits },
         // An offer that no longer fits (place or role) leaves the lists, unless you saved or applied.
-        ...(!worthKeeping(m, favourite ?? false) && o.status === "new" && o.sourceId
+        // Offers added by hand stay.
+        ...(!worthKeeping(m, favourite ?? false) && o.status === "new" && sourceKind !== "manual"
           ? { closedAt: new Date() }
           : {}),
       })
@@ -499,6 +523,23 @@ export async function rescoreAll(refetch: { companyId?: string } | "all" = "all"
           : sql`false`,
     );
   return rows.length;
+}
+
+/**
+ * Bumped whenever the matching rules change, so offers stored under the old rules are scored again
+ * (and the ones that no longer fit leave the lists) on the next sync, without re-reading every board.
+ * 2: strict L&D titles (2026-11).
+ */
+const SCORING_RULES = 2;
+async function rescoreOnNewRules() {
+  const [row] = await db().select().from(settings).where(eq(settings.key, "jobs_scoring")).limit(1);
+  if ((row?.value as { rules?: number } | undefined)?.rules === SCORING_RULES) return;
+  await rescoreAll({});
+  const value = { rules: SCORING_RULES, at: new Date().toISOString() };
+  await db()
+    .insert(settings)
+    .values({ key: "jobs_scoring", value })
+    .onConflictDoUpdate({ target: settings.key, set: { value, updatedAt: new Date() } });
 }
 
 export async function saveState(last: SyncReport) {
@@ -520,5 +561,5 @@ export async function jobsWorkDue(): Promise<boolean> {
   const [a] = await db().select({ id: jobSources.id }).from(jobSources).where(fetchDue()).limit(1);
   if (a) return true;
   const [b] = await db().select({ id: companies.id }).from(companies).where(detectDue()).limit(1);
-  return Boolean(b);
+  return Boolean(b) || (await linksDue());
 }

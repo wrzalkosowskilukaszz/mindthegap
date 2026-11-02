@@ -1,12 +1,14 @@
 /** Reads and changes for the Oferty pracy screen. */
-import { and, count, desc, eq, gte, ilike, isNull, ne, or, type SQL, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, gte, ilike, isNull, ne, or, type SQL, sql } from "drizzle-orm";
 import { adLanguage, extractCvKeywords } from "@/lib/jobs/match";
 import { cvGap } from "@/lib/jobs/tailor";
 import { db } from "../db/client.ts";
 import { companies, contacts, jobOffers, jobSources } from "../db/schema.ts";
+import { PoliteFetcher } from "../discovery/fetcher.ts";
 import { badRequest, notFound } from "../http.ts";
 import { getSettings, saveSettings } from "../settings.ts";
 import { cvDocx } from "./docx.ts";
+import { verifyOfferLink } from "./linkcheck.ts";
 import { careerPrefs, jobsState, rescoreAll } from "./sync.ts";
 
 export const JOB_VIEWS = ["best", "new", "favourites", "saved", "applied", "all"] as const;
@@ -22,7 +24,8 @@ async function viewWhere(view: JobView, showFrom: number): Promise<SQL | undefin
         open,
         eq(jobOffers.status, "new"),
         gte(jobOffers.firstSeenAt, new Date(Date.now() - 3 * 86_400_000)),
-        or(gte(jobOffers.score, Math.max(25, showFrom - 15)), eq(companies.favourite, true)),
+        // Favourite companies' other offers stay under "Ulubione"; here only the owner's roles.
+        gte(jobOffers.score, Math.max(25, showFrom - 15)),
       );
     case "favourites":
       return and(open, eq(companies.favourite, true), ne(jobOffers.status, "dismissed"));
@@ -31,7 +34,11 @@ async function viewWhere(view: JobView, showFrom: number): Promise<SQL | undefin
     case "applied":
       return eq(jobOffers.status, "applied");
     default:
-      return and(open, ne(jobOffers.status, "dismissed"));
+      return and(
+        open,
+        ne(jobOffers.status, "dismissed"),
+        or(gt(jobOffers.score, 20), sql`${jobOffers.status} in ('saved','applied')`),
+      );
   }
 }
 
@@ -65,6 +72,7 @@ export async function listJobs(opts: { view: JobView; q?: string; offset?: numbe
       postedAt: jobOffers.postedAt,
       firstSeenAt: jobOffers.firstSeenAt,
       closedAt: jobOffers.closedAt,
+      linkStatus: jobOffers.linkStatus,
       score: jobOffers.score,
       match: jobOffers.match,
       status: jobOffers.status,
@@ -175,6 +183,7 @@ export async function jobDetail(id: string) {
     closedAt: iso(r.o.closedAt),
     statusAt: iso(r.o.statusAt),
     tailoredCvAt: iso(r.o.tailoredCvAt),
+    linkCheckedAt: iso(r.o.linkCheckedAt),
     createdAt: r.o.createdAt.toISOString(),
     updatedAt: r.o.updatedAt.toISOString(),
     source: r.source,
@@ -473,4 +482,35 @@ export async function setFavourite(companyId: string, favourite: boolean) {
     .returning({ id: companies.id });
   if (!u) throw notFound("Firma nie istnieje");
   await rescoreAll({ companyId });
+}
+
+/** Checks one offer's link when it is opened (at most once a day); a dead one leaves the lists. */
+export async function checkJobLink(id: string): Promise<{ linkStatus: string | null; closed: boolean }> {
+  const [o] = await db()
+    .select({
+      id: jobOffers.id,
+      url: jobOffers.url,
+      status: jobOffers.status,
+      linkStatus: jobOffers.linkStatus,
+      linkCheckedAt: jobOffers.linkCheckedAt,
+      closedAt: jobOffers.closedAt,
+      sourceKind: jobSources.kind,
+    })
+    .from(jobOffers)
+    .innerJoin(jobSources, eq(jobSources.id, jobOffers.sourceId))
+    .where(eq(jobOffers.id, id))
+    .limit(1);
+  if (!o) throw notFound("Oferta nie istnieje");
+  if (o.linkCheckedAt && Date.now() - o.linkCheckedAt.getTime() < 86_400_000)
+    return { linkStatus: o.linkStatus, closed: Boolean(o.closedAt) };
+  const disc = await getSettings("discovery");
+  const fetcher = new PoliteFetcher({
+    minDelayMs: Math.min(disc.minDelayMsPerHost, 2000),
+    timeoutMs: 10_000,
+  });
+  const v = await verifyOfferLink(fetcher, o);
+  return {
+    linkStatus: v.status,
+    closed: Boolean(o.closedAt) || (v.status === "dead" && o.status === "new" && o.sourceKind !== "manual"),
+  };
 }
