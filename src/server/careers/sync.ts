@@ -15,7 +15,7 @@ import { db } from "../db/client.ts";
 import { companies, jobOffers, jobSources, settings } from "../db/schema.ts";
 import { PoliteFetcher } from "../discovery/fetcher.ts";
 import { env } from "../env.ts";
-import { getSettings } from "../settings.ts";
+import { getSettings, saveSettings } from "../settings.ts";
 import { detectCareers } from "./detect.ts";
 import { checkOfferLinks, linksDue } from "./linkcheck.ts";
 import { fetchSource, type RawJob, SourceError, SUPPORTED_KINDS } from "./sources.ts";
@@ -528,12 +528,19 @@ export async function rescoreAll(refetch: { companyId?: string } | "all" = "all"
 /**
  * Bumped whenever the matching rules change, so offers stored under the old rules are scored again
  * (and the ones that no longer fit leave the lists) on the next sync, without re-reading every board.
- * 2: strict L&D titles (2026-11).
+ * 2: strict L&D titles and L&D-only role families (2026-11).
  */
 const SCORING_RULES = 2;
 async function rescoreOnNewRules() {
   const [row] = await db().select().from(settings).where(eq(settings.key, "jobs_scoring")).limit(1);
-  if ((row?.value as { rules?: number } | undefined)?.rules === SCORING_RULES) return;
+  const was = (row?.value as { rules?: number } | undefined)?.rules ?? 1;
+  if (was === SCORING_RULES) return;
+  // Rules 2: the owner asked for L&D roles only (2026-11-02), so the other role families go off once.
+  // She can switch them back on in the settings; this runs only on the move to rules 2.
+  if (was < 2) {
+    const career = await getSettings("career");
+    await saveSettings("career", { ...career, roleFamilies: ["learning"] });
+  }
   await rescoreAll({});
   const value = { rules: SCORING_RULES, at: new Date().toISOString() };
   await db()
