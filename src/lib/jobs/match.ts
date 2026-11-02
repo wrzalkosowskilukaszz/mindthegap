@@ -48,6 +48,8 @@ export type MatchResult = {
   reasons: { text: string; tone: "good" | "warn" | "bad" }[];
   requiredLanguages: string[];
   hits: string[];
+  /** The role family the title belongs to; null when the title is not one of the owner's roles. */
+  role: RoleFamily | null;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -62,8 +64,9 @@ export const FAMILY_LABEL: Record<RoleFamily, string> = {
 };
 
 const TITLE: Record<RoleFamily, RegExp> = {
+  // Only "learning" is checked with learningTitle() below: L&D has to be the job, not a word in it.
   learning:
-    /\b(l&d|l ?& ?od|learning|training|trainer|facilitat\w*|instructional|e-?learning|academy|leadership development|talent development|capability|enablement|onboarding|szkole\w*|trener\w*|akademi\w*|rozwoju (pracownik|kompetencji|talent|lider)\w*)\b/i,
+    /\b(l&d|l ?& ?od|learning|instructional|e-?learning|curriculum|leadership development|talent development|people development|employee development|szkole[nń]\w*|szkoleniow\w*|metodyk\w*|rozw[oó]j\w* (pracownik|kompetencji|talent|lider|organizac)\w*)(?![\p{L}\d])/iu,
   people:
     /\b(people|human resources|hrbp|hr business partner|hr manager|hr director|head of hr|chief people|organi[sz]ational (development|effectiveness|design)|culture|(employee|people|staff) engagement|engagement (&|and) culture|employee experience|talent management|change management|change manager|change lead|(people|cultural|organi[sz]ational) transformation|well-?being|diversity|inclusion|dei|kadr\w*|personaln\w*|zasob\w* ludzki\w*|hr)\b/i,
   coaching:
@@ -71,6 +74,39 @@ const TITLE: Record<RoleFamily, RegExp> = {
   creative:
     /\b(program(me)? manager|community|content|partnerships?|creative|producer|production|events?|communications?|brand|creator|talent relations|trust (&|and) safety|policy|culture lead|operations manager|project manager)\b/i,
 };
+
+/**
+ * Trainer and facilitator titles that are L&D work (soft skills, leadership, corporate training), as
+ * opposed to "trainer" in a trade (product, pharma, IT, fitness, driving …).
+ */
+const LEARNING_TRAINER =
+  /\b((soft[- ]skills?|corporate|business|leadership|management|managerial|behaviou?ral|internal|people|hr|learning|development|workshop|program(me)?) (trainer|training|facilitator)|(training|trainer) (manager|specialist|coordinator|lead|partner|consultant|designer|developer|expert|officer|director|programmes?|programs?|business partner)|training (&|and|i) (development|rozw[oó]j\w*)|head of (training|learning|l&d|development)|(learning|training) (&|and) (talent|organi[sz]ational|people|leadership)|facilitator|facylitator\w*|trener\w* (biznesu|biznesow\w*|wewn[eę]trzn\w*|umiej[eę]tno[sś]ci\w*|mi[eę]kkich|kompetencji|rozwoju|lider\w*|zarz[aą]dzania))(?![\p{L}\d])/iu;
+
+/**
+ * Fields where "learning", "training" or "trainer" means teaching a trade, a product or a subject:
+ * an offer with one of these in the title is not an L&D role (pharma trainer, clinical educator,
+ * surgeon, sales trainer, IT trainer, machine learning, language teacher …).
+ */
+const NOT_LEARNING =
+  /\b(clinical|clinic|pharma\w*|medical|medicine|biotech\w*|surg\w*|nurs\w*|physician|doctor|dental|dentist|veterinar\w*|patient|hospital|health ?care|laborator\w*|lab|drug|therap\w*|physio\w*|radiolog\w*|oncolog\w*|gmp|gxp|quality|compliance|regulatory|safety|hse|ehs|bhp|sales|selling|product|technical|technician|software|(web|front-?end|back-?end|full-?stack|mobile|game|java|python) (developer|engineer)|engineering|machine learning|deep learning|reinforcement learning|data|cloud|aws|azure|salesforce|sap|crm|erp|excel|cyber\w*|security|devops|driving|driver|flight|pilot|aviation|cabin crew|airline|fitness|gym|sport\w*|yoga|swim\w*|dog|animal|forklift|operator|warehouse|logistics|manufacturing|production|maintenance|welding|electric\w*|mechanic\w*|retail|store|call cent(er|re)|contact cent(er|re)|customer service|teacher|tutor|lecturer|professor|school|kindergarten|early years|learning support|special (educational )?needs|language|english|german|spanish|french|lekarz\w*|chirurg\w*|farmac\w*|medyczn\w*|kliniczn\w*|piel[eę]gniar\w*|sprzeda\w*|handlow\w*|techniczn\w*|in[żz]ynier\w*|programist\w*|kierowc\w*|magazyn\w*|produkcj\w*|nauczyciel\w*|j[eę]zyk\w*|lektor\w*|przedszkol\w*|szk[oó][lł]\w* (podstawow|[sś]redni)\w*)(?![\p{L}\d])/iu;
+// Short capitals that are words in other cases ("it", "ai").
+const NOT_LEARNING_CAPS = /\b(IT|AI|ML|QA|R&D)\b/;
+
+/** True when the title names an L&D role (instructional design, learning, L&D, corporate training …). */
+export function learningTitle(title: string): boolean {
+  if (NOT_LEARNING.test(title) || NOT_LEARNING_CAPS.test(title)) return false;
+  return TITLE.learning.test(title) || LEARNING_TRAINER.test(title);
+}
+
+function familyOfTitle(title: string, families: RoleFamily[], mediaCompany: boolean): RoleFamily | null {
+  for (const f of ["learning", "people", "coaching", "creative"] as const) {
+    if (!families.includes(f)) continue;
+    if (f === "learning" ? !learningTitle(title) : !TITLE[f].test(title)) continue;
+    if (f === "creative" && !mediaCompany) continue;
+    return f;
+  }
+  return null;
+}
 
 const TOPICS: Record<RoleFamily, string[]> = {
   learning: [
@@ -138,10 +174,12 @@ const TOPICS: Record<RoleFamily, string[]> = {
 };
 
 const MEDIA_TECH_SECTORS = new Set(["telecom_media", "technology"]);
+// Highest score for an offer whose title is not one of the owner's roles (below every list threshold).
+const NO_ROLE_CAP = 20;
 
 // Roles that share a word with the families but are not what the owner is looking for.
 const OFF_TARGET =
-  /\b(recruit\w*|talent acquisition|sourcer|sourcing|payroll|p[łl]ac\w*|rekrutac\w*|rekruter\w*|benefits administrator|(software|frontend|front-end|backend|back-end|full[- ]?stack|java|python|\.net|ios|android|web|game|data|platform|cloud|devops|ml|machine learning|site reliability|qa|test) (developer|engineer|architect)|engineering manager|accountant|ksi[eę]gow\w*|sales representative|account executive|driver|kierowc\w*|warehouse|magazyn\w*|nurse|piel[eę]gniar\w*|teacher|nauczyciel\w*|personal trainer|fitness|gym|restaurant|kitchen|chef|barista|clinical|physics|math|ai (training|trainer|tutor)|data annotat\w*|driving instructor|swim\w*|lifeguard|retail store)\b/i;
+  /\b(recruit\w*|talent acquisition|sourcer|sourcing|payroll|p[łl]ac\w*|rekrutac\w*|rekruter\w*|benefits administrator|(software|frontend|front-end|backend|back-end|full[- ]?stack|java|python|\.net|ios|android|web|game|data|platform|cloud|devops|ml|machine learning|site reliability|qa|test) (developer|engineer|architect)|engineering manager|accountant|ksi[eę]gow\w*|sales representative|account executive|driver|kierowc\w*|warehouse|magazyn\w*|nurse|piel[eę]gniar\w*|surg\w*|physician|doctor|lekarz\w*|chirurg\w*|pharmacist|farmaceut\w*|dentist|veterinar\w*|physiotherap\w*|medical (representative|sales|science liaison)|pharmaceutical sales|teacher|nauczyciel\w*|personal trainer|fitness|gym|restaurant|kitchen|chef|barista|clinical|physics|math|ai (training|trainer|tutor)|data annotat\w*|driving instructor|swim\w*|lifeguard|retail store)\b/i;
 const JUNIOR =
   /\b(junior|intern|internship|trainee|working student|werkstudent|praktyk\w*|sta[zż]\w*|asystent\w*|assistant)\b/i;
 
@@ -498,13 +536,7 @@ export function scoreJob(job: JobInput, prefs: CareerPrefs, now = new Date()): M
   const mediaCompany = Boolean(
     job.favourite || (job.companySector && MEDIA_TECH_SECTORS.has(job.companySector)),
   );
-  let titleHit: RoleFamily | null = null;
-  for (const f of ["learning", "people", "coaching", "creative"] as const) {
-    if (!families.includes(f) || !TITLE[f].test(title)) continue;
-    if (f === "creative" && !mediaCompany) continue;
-    titleHit = f;
-    break;
-  }
+  const titleHit = familyOfTitle(title, families, mediaCompany);
   if (titleHit) {
     score += { learning: 48, people: 40, coaching: 36, creative: 30 }[titleHit];
     reasons.push({ text: FAMILY_LABEL[titleHit], tone: "good" });
@@ -567,6 +599,12 @@ export function scoreJob(job: JobInput, prefs: CareerPrefs, now = new Date()): M
   }
   if (job.postedAt && now.getTime() - job.postedAt.getTime() < 3 * 86_400_000) score += 3;
 
+  // A title that is not one of the owner's roles never ranks, however many topic words the ad has.
+  if (!titleHit) {
+    score = Math.min(score, NO_ROLE_CAP);
+    reasons.push({ text: "Tytuł nie wskazuje roli L&D", tone: "bad" });
+  }
+
   return {
     score: eligible ? clamp(score) : 0,
     eligible,
@@ -574,6 +612,7 @@ export function scoreJob(job: JobInput, prefs: CareerPrefs, now = new Date()): M
     reasons,
     requiredLanguages: requiredLanguages(job.description),
     hits,
+    role: titleHit,
   };
 }
 
@@ -587,13 +626,19 @@ function shortPlace(location: string | null | undefined): string | null {
   return uniq.length > 2 ? `${uniq.slice(0, 2).join(", ")} +${uniq.length - 2}` : uniq.join(", ");
 }
 
-/** Kept in the database: eligible and either relevant enough or from a favourite company. */
+/**
+ * Kept in the database: eligible, and the title is one of the owner's roles with a good enough score.
+ * Favourite companies keep every offer in a reachable place (shown under "Ulubione" only, since an
+ * offer outside the owner's roles is capped below the lists' thresholds).
+ */
 export function worthKeeping(m: MatchResult, favourite: boolean, minKeep = 25): boolean {
-  return m.eligible && (m.score >= minKeep || favourite);
+  if (!m.eligible) return false;
+  if (favourite) return true;
+  return m.role !== null && m.score >= minKeep;
 }
 
 /** A quick, cheap check before fetching a full description (titles only). */
 export function titleLooksRelevant(title: string, prefs: CareerPrefs, mediaCompany = false): boolean {
   if (OFF_TARGET.test(title)) return false;
-  return prefs.roleFamilies.some((f) => (f !== "creative" || mediaCompany) && TITLE[f].test(title));
+  return familyOfTitle(title, prefs.roleFamilies, mediaCompany) !== null;
 }

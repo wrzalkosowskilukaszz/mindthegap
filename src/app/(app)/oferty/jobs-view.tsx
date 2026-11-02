@@ -379,6 +379,8 @@ function JobCard({ r, onOpen, active }: { r: Row; onOpen: () => void; active: bo
           <span className="tag tag-accent">Zapisana</span>
         ) : r.status === "applied" ? (
           <span className="tag tag-ok">Zaaplikowano</span>
+        ) : r.linkStatus === "dead" ? (
+          <span className="tag">Wygasła</span>
         ) : r.closedAt ? (
           <span className="tag">Zamknięta</span>
         ) : null}
@@ -424,6 +426,23 @@ function JobPanel({ id, onClose, onChanged }: { id: string; onClose: () => void;
     setTailor(false);
     void load().catch(() => toast("Nie udało się wczytać oferty", "error"));
   }, [load, toast]);
+  // Make sure the link still opens a live ad before "Aplikuj" is clicked (checked at most once a day).
+  const [linkState, setLinkState] = useState<string | null>(null);
+  useEffect(() => {
+    setLinkState(null);
+    let alive = true;
+    apiFetch<{ linkStatus: string | null; closed: boolean }>(`/api/jobs/${id}/link`, { body: {} })
+      .then((r) => {
+        if (!alive) return;
+        setLinkState(r.linkStatus);
+        if (r.closed && r.linkStatus === "dead") onChanged();
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [id, onChanged]);
+  const linkDead = (linkState ?? d?.linkStatus) === "dead";
 
   async function status(s: "new" | "saved" | "applied" | "dismissed", msg: string) {
     await apiFetch(`/api/jobs/${id}`, { method: "PATCH", body: { status: s } });
@@ -498,9 +517,21 @@ function JobPanel({ id, onClose, onChanged }: { id: string; onClose: () => void;
               </div>
             </div>
 
+            {linkDead ? (
+              <Callout tone="bad">
+                <span>
+                  To ogłoszenie wygasło — strona oferty już go nie pokazuje. Zniknie z listy nowych ofert.
+                </span>
+              </Callout>
+            ) : null}
             <div className="btn-group">
-              <a className="btn btn-primary" href={d.url} target="_blank" rel="noopener noreferrer">
-                Aplikuj <ExternalLink size={14} />
+              <a
+                className={`btn ${linkDead ? "" : "btn-primary"}`}
+                href={d.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {linkDead ? "Otwórz mimo to" : "Aplikuj"} <ExternalLink size={14} />
               </a>
               <button type="button" className="btn" onClick={() => setTailor(true)}>
                 <FileText size={14} /> {d.tailoredCvAt ? "CV dla tej oferty" : "Dopasuj CV"}

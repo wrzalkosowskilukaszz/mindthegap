@@ -149,7 +149,7 @@ export const ProfileSettings = z.object({
 export const CareerSettings = z.object({
   roleFamilies: z
     .array(z.enum(["learning", "people", "coaching", "creative"]))
-    .default(["learning", "people", "coaching", "creative"]),
+    .default(["learning"]),
   workTypes: z.array(z.enum(["full_time", "freelance", "part_time"])).default(["full_time", "freelance"]),
   locations: z
     .array(z.enum(["warsaw", "remote_poland", "eu_relocation", "poland_other"]))

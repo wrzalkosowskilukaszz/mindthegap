@@ -4,9 +4,11 @@ import {
   type CareerPrefs,
   classifyLocation,
   extractCvKeywords,
+  learningTitle,
   requiredLanguages,
   scoreJob,
   titleLooksRelevant,
+  worthKeeping,
 } from "./match.ts";
 
 const prefs: CareerPrefs = {
@@ -139,5 +141,69 @@ describe("job matching", () => {
     expect(k).toEqual(
       expect.arrayContaining(["leadership development", "coaching", "facilitator", "tiktok"]),
     );
+  });
+
+  it("takes only L&D titles for the learning family", () => {
+    for (const t of [
+      "Instructional Designer",
+      "Senior Learning Experience Designer (LXD)",
+      "E-learning Developer",
+      "Learning & Development Specialist",
+      "L&D Manager",
+      "Learning Partner",
+      "Head of Learning",
+      "Talent Development Manager",
+      "Leadership Development Lead",
+      "Training & Development Specialist",
+      "Corporate Trainer",
+      "Soft Skills Trainer",
+      "Trener biznesu",
+      "Specjalista ds. szkoleń i rozwoju",
+      "Projektant szkoleń e-learningowych",
+      "Curriculum Designer",
+    ])
+      expect(learningTitle(t), t).toBe(true);
+    for (const t of [
+      "Pharmaceutical Trainer",
+      "Clinical Trainer",
+      "Clinical Educator - Surgery",
+      "Medical Training Manager",
+      "Surgeon",
+      "Orthopaedic Surgeon",
+      "Sales Trainer",
+      "Product Training Specialist",
+      "Technical Trainer",
+      "IT Trainer",
+      "SAP Training Consultant",
+      "Machine Learning Scientist",
+      "GMP Training Specialist",
+      "Fitness Trainer",
+      "English Language Trainer",
+      "Trainer",
+      "Training Academy Driver",
+      "Learning Support Assistant",
+      "Trener personalny",
+      "Przedstawiciel medyczny",
+    ])
+      expect(learningTitle(t), t).toBe(false);
+  });
+
+  it("keeps pharma trainers and surgeons out, even when the ad is full of training words", () => {
+    const ld = { ...prefs, roleFamilies: ["learning" as const] };
+    const desc = en("Training, workshop, facilitation, onboarding, e-learning and LMS for our teams.");
+    for (const title of ["Pharmaceutical Trainer", "Surgeon", "Clinical Training Specialist"]) {
+      expect(titleLooksRelevant(title, ld)).toBe(false);
+      const m = scoreJob({ title, description: desc, location: "Warsaw, Poland", companyName: "X" }, ld);
+      expect(m.role).toBeNull();
+      expect(m.score).toBeLessThanOrEqual(20);
+      expect(worthKeeping(m, false)).toBe(false);
+    }
+    const good = scoreJob(
+      { title: "Instructional Designer", description: desc, location: "Warsaw, Poland", companyName: "X" },
+      ld,
+    );
+    expect(good.role).toBe("learning");
+    expect(worthKeeping(good, false)).toBe(true);
+    expect(good.score).toBeGreaterThanOrEqual(60);
   });
 });

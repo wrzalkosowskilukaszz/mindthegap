@@ -931,6 +931,9 @@ export const jobOffers = pgTable(
     firstSeenAt: ts("first_seen_at").notNull().defaultNow(),
     lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
     closedAt: ts("closed_at"),
+    /** Last check that the offer's link still opens a live posting ("alive" | "dead" | "unknown"). */
+    linkStatus: text("link_status"),
+    linkCheckedAt: ts("link_checked_at"),
     score: integer("score").notNull().default(0),
     match: jsonb("match")
       .$type<JobMatch>()
